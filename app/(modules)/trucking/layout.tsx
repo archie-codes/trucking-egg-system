@@ -1,7 +1,7 @@
 // app/(modules)/trucking/layout.tsx
 import { TruckingSidebar } from "@/components/trucking-sidebar";
 import { Button } from "@/components/ui/button";
-import { LogOut, ShieldAlert } from "lucide-react";
+import { ShieldAlert, Truck } from "lucide-react";
 import { logoutUser } from "@/app/actions/auth-actions";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -31,15 +31,20 @@ export default async function TruckingLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-50 bg-slate-900">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-50 bg-slate-900 border-r border-slate-800">
         <TruckingSidebar />
       </aside>
 
       <main className="md:pl-64 flex-1 flex flex-col">
-        <header className="h-16 border-b bg-white flex items-center justify-between px-6 z-40 sticky top-0 shadow-sm">
-          <div className="font-semibold text-slate-800">
-            Live Hauling Dashboard
+        <header className="h-16 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-6 z-40 sticky top-0 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20 shadow-inner flex items-center justify-center">
+              <Truck className="w-5 h-5 text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+            </div>
+            <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-400 hidden sm:inline-block">
+              Live Hauling Dashboard
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -47,11 +52,11 @@ export default async function TruckingLayout({
             {isAdmin && (
               <Link href="/admin/users">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 bg-indigo-50/50"
+                  className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-4 py-2"
                 >
-                  <ShieldAlert className="w-4 h-4 mr-2 text-indigo-600" />
+                  <ShieldAlert className="w-4 h-4 sm:mr-2" />
                   Admin Portal
                 </Button>
               </Link>

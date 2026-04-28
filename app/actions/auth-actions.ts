@@ -24,6 +24,14 @@ export async function loginUser(formData: FormData) {
       return { success: false, error: "Invalid email or password." };
     }
 
+    if (!user.isActive) {
+      return {
+        success: false,
+        error:
+          "Access Denied: This account has been disabled by an Administrator.",
+      };
+    }
+
     // 3. Verify the password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) {

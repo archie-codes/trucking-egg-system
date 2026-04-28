@@ -6,52 +6,17 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers"; // ADDED
+import { decodeJwt } from "jose"; // ADDED
 
-// export async function createStaffAccount(formData: FormData) {
-//   try {
-//     const name = formData.get("name") as string;
-//     const email = formData.get("email") as string;
-//     const password = formData.get("password") as string;
-//     const role = formData.get("role") as string;
-//     const department = formData.get("department") as string;
+export async function getAdminClearance() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  if (!token) return "trucking"; // Fallback
 
-//     // 1. Check if the email already exists to prevent crashes
-//     const [existingUser] = await db
-//       .select()
-//       .from(users)
-//       .where(eq(users.email, email));
-//     if (existingUser) {
-//       return {
-//         success: false,
-//         error: "An account with this email already exists.",
-//       };
-//     }
-
-//     // 2. Hash the temporary password
-//     const saltRounds = 10;
-//     const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-//     // 3. Insert the new staff member into Neon
-//     await db.insert(users).values({
-//       name,
-//       email,
-//       passwordHash: hashedPassword,
-//       role,
-//       department,
-//     });
-
-//     // 4. Refresh the admin page so the new user appears instantly
-//     revalidatePath("/admin/users");
-
-//     return { success: true };
-//   } catch (error) {
-//     console.error("Failed to create user:", error);
-//     return { success: false, error: "Failed to create staff account." };
-//   }
-// }
-
-// Add this to the bottom of app/actions/user-actions.ts
-// app/actions/user-actions.ts
+  const payload = decodeJwt(token);
+  return payload.department as string;
+}
 export async function createStaffAccount(formData: FormData) {
   try {
     const name = formData.get("name") as string;
@@ -59,9 +24,19 @@ export async function createStaffAccount(formData: FormData) {
     const password = formData.get("password") as string;
     const role = formData.get("role") as string;
     const department = formData.get("department") as string;
-
-    // NEW: Grab the avatar URL from the hidden input
     const avatarUrl = formData.get("avatarUrl") as string | null;
+
+    // SECURITY CHECK: Prevent Privilege Escalation
+    const creatorDept = await getAdminClearance();
+
+    // If you are not a Super Admin ("all"), you can ONLY create users for your own department.
+    if (creatorDept !== "all" && creatorDept !== department) {
+      return {
+        success: false,
+        error:
+          "Security Alert: You do not have permission to grant access to other departments or Global Access.",
+      };
+    }
 
     const [existingUser] = await db
       .select()
@@ -83,7 +58,7 @@ export async function createStaffAccount(formData: FormData) {
       passwordHash: hashedPassword,
       role,
       department,
-      avatarUrl, // NEW: Save it to Neon
+      avatarUrl,
     });
 
     revalidatePath("/admin/users");
@@ -94,22 +69,7 @@ export async function createStaffAccount(formData: FormData) {
   }
 }
 
-export async function deleteStaffAccount(userId: number) {
-  try {
-    // 1. Delete the user from Neon
-    await db.delete(users).where(eq(users.id, userId));
-
-    // 2. Refresh the admin page instantly
-    revalidatePath("/admin/users");
-
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to delete user:", error);
-    return { success: false, error: "Failed to delete account." };
-  }
-}
-
-// Add to the bottom of app/actions/user-actions.ts
+// 1. UPDATED UPDATE ACTION (Prevents locking yourself out)
 export async function updateStaffAccount(userId: number, formData: FormData) {
   try {
     const name = formData.get("name") as string;
@@ -119,46 +79,85 @@ export async function updateStaffAccount(userId: number, formData: FormData) {
     const department = formData.get("department") as string;
     const avatarUrl = formData.get("avatarUrl") as string | null;
 
-    // 1. Check if they are trying to change their email to one that already exists
+    const currentAdminId = await getAdminId();
+
     const [currentUser] = await db
       .select()
       .from(users)
       .where(eq(users.id, userId));
+
+    // Check email collisions
     if (currentUser.email !== email) {
       const [existingUser] = await db
         .select()
         .from(users)
         .where(eq(users.email, email));
-      if (existingUser) {
-        return {
-          success: false,
-          error: "This email is already taken by another account.",
-        };
-      }
+      if (existingUser)
+        return { success: false, error: "This email is already taken." };
     }
 
-    // 2. Prepare the data to update
-    const updateData: any = {
-      name,
-      email,
-      role,
-      department,
-      avatarUrl,
-    };
+    const updateData: any = { name, email, avatarUrl };
 
-    // 3. ONLY update the password if the Admin actually typed a new one
+    // SELF-SABOTAGE LOCK: Only update role/department if you are editing someone ELSE
+    if (currentAdminId !== userId) {
+      updateData.role = role;
+      updateData.department = department;
+    }
+
+    // Update password if typed
     if (password && password.trim() !== "") {
       const saltRounds = 10;
       updateData.passwordHash = await bcrypt.hash(password, saltRounds);
     }
 
-    // 4. Save to Neon
     await db.update(users).set(updateData).where(eq(users.id, userId));
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to update account." };
+  }
+}
+
+// 2. UPDATED DELETE ACTION (Soft Delete + Self-Sabotage Lock)
+export async function deleteStaffAccount(userId: number) {
+  try {
+    const currentAdminId = await getAdminId();
+
+    // SELF-SABOTAGE LOCK: You cannot delete yourself
+    if (currentAdminId === userId) {
+      return {
+        success: false,
+        error: "Action Blocked: You cannot disable your own active session.",
+      };
+    }
+
+    // SOFT DELETE: We just flip the toggle to false!
+    await db.update(users).set({ isActive: false }).where(eq(users.id, userId));
 
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
-    console.error("Failed to update user:", error);
-    return { success: false, error: "Failed to update account." };
+    return { success: false, error: "Failed to disable account." };
+  }
+}
+
+export async function getAdminId() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  if (!token) return null;
+  const payload = decodeJwt(token);
+  return payload.id as number;
+}
+
+// Add this to the bottom of app/actions/user-actions.ts
+export async function restoreStaffAccount(userId: number) {
+  try {
+    // Flip the toggle back to true!
+    await db.update(users).set({ isActive: true }).where(eq(users.id, userId));
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: "Failed to restore account." };
   }
 }

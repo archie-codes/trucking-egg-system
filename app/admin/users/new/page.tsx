@@ -38,7 +38,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createStaffAccount } from "@/app/actions/user-actions";
+import {
+  createStaffAccount,
+  getAdminClearance,
+} from "@/app/actions/user-actions";
+import { useEffect } from "react"; // Also add useEffect to your React imports!
 
 // UploadThing Imports (Using Button instead of Dropzone to save space!)
 import { UploadButton } from "@uploadthing/react";
@@ -59,6 +63,11 @@ export default function AddUserPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
 
+  const [adminDept, setAdminDept] = useState<string>("trucking");
+
+  useEffect(() => {
+    getAdminClearance().then((dept) => setAdminDept(dept));
+  }, []);
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -122,7 +131,7 @@ export default function AddUserPage() {
       <Card className="relative overflow-hidden border-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl rounded-3xl ring-1 ring-slate-200/50 dark:ring-white/10 transition-all duration-500 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
         <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-90" />
 
-        <CardHeader className="pb-8 pt-10 px-8 border-b border-slate-100/50 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-950/20">
+        <CardHeader className="pb-8 pt-5 px-8 border-b border-slate-100/50 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-950/20">
           <CardTitle className="flex items-center gap-3 text-2xl">
             <div className="p-2.5 bg-blue-100 dark:bg-blue-500/20 rounded-xl text-blue-600 dark:text-blue-400 shadow-inner">
               <UserPlus className="w-6 h-6" strokeWidth={2.5} />
@@ -135,12 +144,12 @@ export default function AddUserPage() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
+        <CardContent className="p-5 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
 
             {/* UPGRADED AVATAR SECTION */}
-            <div className="p-6 bg-white/50 dark:bg-slate-950/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row gap-8 items-start sm:items-center transition-all hover:border-blue-200 dark:hover:border-blue-900/50 shadow-sm">
+            <div className="p-4 sm:p-5 bg-white/50 dark:bg-slate-950/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row gap-6 items-start sm:items-center transition-all hover:border-blue-200 dark:hover:border-blue-900/50 shadow-sm">
               {/* Profile Picture Preview */}
               <div className="shrink-0 relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-900 ring-4 ring-white dark:ring-slate-800 shadow-lg flex items-center justify-center">
                 {avatarUrl ? (
@@ -217,7 +226,7 @@ export default function AddUserPage() {
             </div>
 
             {/* Standard Input Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Field className="space-y-2 group">
                 <FieldLabel
                   htmlFor="name"
@@ -231,7 +240,7 @@ export default function AddUserPage() {
                   name="name"
                   placeholder="Juan Dela Cruz"
                   required
-                  className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
+                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
                 />
               </Field>
 
@@ -249,7 +258,7 @@ export default function AddUserPage() {
                   type="email"
                   placeholder="juan@fhernielogistics.com"
                   required
-                  className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
+                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
                 />
               </Field>
 
@@ -267,7 +276,7 @@ export default function AddUserPage() {
                   type="text"
                   placeholder="e.g., Fhernie123!"
                   required
-                  className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
+                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
                 />
               </Field>
 
@@ -279,18 +288,43 @@ export default function AddUserPage() {
                   <Building2 className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />{" "}
                   Assigned Department
                 </FieldLabel>
-                <Select name="department" defaultValue="trucking">
-                  <SelectTrigger className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/50 shadow-sm">
+                <Select
+                  name="department"
+                  defaultValue={adminDept === "all" ? "trucking" : adminDept}
+                >
+                  <SelectTrigger className=" px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/50">
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl shadow-xl">
-                    <SelectItem value="trucking">
-                      Fhernie Logistics (Trucking)
-                    </SelectItem>
-                    <SelectItem value="eggs">
-                      Otso Dragon Corp (Egg Sales)
-                    </SelectItem>
-                    <SelectItem value="all">Global Access (Both)</SelectItem>
+                    {/* ONLY show Trucking if they are Super Admin OR Trucking Admin */}
+                    {(adminDept === "all" || adminDept === "trucking") && (
+                      <SelectItem
+                        value="trucking"
+                        className="cursor-pointer rounded-lg hover:bg-slate-100"
+                      >
+                        Fhernie Logistics (Trucking)
+                      </SelectItem>
+                    )}
+
+                    {/* ONLY show Eggs if they are Super Admin OR Egg Admin */}
+                    {(adminDept === "all" || adminDept === "eggs") && (
+                      <SelectItem
+                        value="eggs"
+                        className="cursor-pointer rounded-lg hover:bg-slate-100"
+                      >
+                        Otso Dragon Corp (Egg Sales)
+                      </SelectItem>
+                    )}
+
+                    {/* ONLY show Global Access if they are a Super Admin */}
+                    {adminDept === "all" && (
+                      <SelectItem
+                        value="all"
+                        className="cursor-pointer rounded-lg hover:bg-slate-100"
+                      >
+                        Global Access (Both)
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </Field>
@@ -319,7 +353,7 @@ export default function AddUserPage() {
               </Field>
             </div>
 
-            <div className="flex justify-end pt-8 mt-4 border-t border-slate-100 dark:border-slate-800/60">
+            <div className="flex justify-end pt-5 mt-2 border-t border-slate-100 dark:border-slate-800/60">
               <Button
                 type="submit"
                 size="lg"

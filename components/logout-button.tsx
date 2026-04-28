@@ -22,7 +22,7 @@ export function LogoutButton() {
       size="sm"
       onClick={handleLogout}
       disabled={isLoggingOut}
-      className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+      className="text-slate-300 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded-lg px-2 py-2"
     >
       {isLoggingOut ? (
         <Loader2 className="w-4 h-4 mr-2 animate-spin text-red-500" />

@@ -6,6 +6,7 @@ import {
   integer,
   timestamp,
   text,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -23,6 +24,7 @@ export const users = pgTable("users", {
     .notNull(),
 
   avatarUrl: text("avatar_url"),
+  isActive: boolean("is_active").default(true).notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

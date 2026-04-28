@@ -100,8 +100,8 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
         {/* Decorative Top Gradient Line */}
         <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-90 z-10" />
 
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
-          <SheetHeader className="mb-8 mt-2">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar">
+          <SheetHeader className="mb-6 mt-1">
             <SheetTitle className="text-3xl font-black bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm">
               Edit Staff Profile
             </SheetTitle>
@@ -117,12 +117,12 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
           <form
             id="edit-user-form"
             onSubmit={handleSubmit}
-            className="space-y-8 pb-10"
+            className="space-y-6 pb-6"
           >
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
 
             {/* UPGRADED Avatar Updater with Choices */}
-            <div className="group flex flex-col sm:flex-row items-center sm:items-start gap-5 p-5 rounded-2xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all hover:border-blue-200 dark:hover:border-blue-900/50">
+            <div className="group flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-2xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all hover:border-blue-200 dark:hover:border-blue-900/50">
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 ring-4 ring-white dark:ring-slate-900 shadow-lg shrink-0 flex items-center justify-center transition-transform group-hover:scale-105 duration-300">
                 {avatarUrl ? (
                   <Image
@@ -206,7 +206,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
               </div>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <Field className="space-y-2 group">
                 <FieldLabel
                   htmlFor="name"
@@ -220,7 +220,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                   name="name"
                   defaultValue={user.name}
                   required
-                  className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-all duration-300 shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/50"
+                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-all duration-300 shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/50"
                 />
               </Field>
 
@@ -238,7 +238,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                   type="email"
                   defaultValue={user.email}
                   required
-                  className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-all duration-300 shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/50"
+                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 transition-all duration-300 shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/50"
                 />
               </Field>
 
@@ -255,7 +255,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                   name="password"
                   type="text"
                   placeholder="Leave blank to keep current password"
-                  className="h-12 px-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/30 focus-visible:ring-2 focus-visible:ring-amber-500/50 transition-all duration-300 shadow-sm group-hover:border-amber-300 dark:group-hover:border-amber-700/50 placeholder:text-amber-600/40"
+                  className="px-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/30 focus-visible:ring-2 focus-visible:ring-amber-500/50 transition-all duration-300 shadow-sm group-hover:border-amber-300 dark:group-hover:border-amber-700/50 placeholder:text-amber-600/40"
                 />
               </Field>
 
@@ -327,7 +327,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
         </div>
 
         {/* Fixed Footer for Save Button */}
-        <div className="p-6 border-t border-slate-200 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0">
+        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0">
           <Button
             type="submit"
             form="edit-user-form"
