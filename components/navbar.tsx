@@ -26,7 +26,7 @@ export function NavBar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const links = [
+  const links: any[] = [
     {
       href: "https://www.fhernieotso.com",
       label: "Website Page",
