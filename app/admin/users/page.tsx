@@ -98,22 +98,22 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-200">
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-200">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end">
         <div className="space-y-1 relative">
           <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
           <div className="flex items-center gap-4 mb-2">
             <div className="p-3 bg-blue-100 dark:bg-blue-500/20 rounded-2xl text-blue-600 dark:text-blue-400 shadow-inner">
-              <Users className="w-8 h-8" strokeWidth={2.5} />
+              <Users className="w-5 h-5" strokeWidth={2.5} />
             </div>
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
               <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm">
                 Staff Management
               </span>
             </h1>
           </div>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-lg ml-1">
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-md ml-1">
             {adminDept === "all"
               ? "Manage system access for all Fhernie Logistics and Otso Dragon personnel."
               : `Manage system access for ${adminDept === "trucking" ? "Fhernie Logistics" : "Otso Dragon"} personnel.`}

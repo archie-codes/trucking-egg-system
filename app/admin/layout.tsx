@@ -1,28 +1,37 @@
 // app/admin/layout.tsx
-import { ShieldAlert, Truck, Egg } from "lucide-react";
-import { LogoutButton } from "@/components/logout-button";
+import { ShieldAlert, Truck, Egg, User } from "lucide-react";
+import { UserProfileMenu } from "@/components/user-profile-menu";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+// Fetch the logged-in user's fresh data from the database
+async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  if (!token) return null;
+
+  try {
+    const payload = decodeJwt(token);
+    const userId = payload.id as number;
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    return user;
+  } catch (error) {
+    console.error("Failed to fetch user");
+    return null;
+  }
+}
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 1. Read the JWT to find out what kind of Admin this is
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
-  let adminDept = "all"; // Default to super admin just in case, middleware protects the route anyway
-
-  if (token) {
-    try {
-      const payload = decodeJwt(token);
-      adminDept = payload.department as string;
-    } catch (error) {
-      console.error("Could not decode token in Admin Layout");
-    }
-  }
+  const currentUser = await getCurrentUser();
+  const adminDept = currentUser?.department || "all";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
@@ -41,7 +50,7 @@ export default async function AdminLayout({
         </div>
 
         {/* Right Side: Quick Portals & Logout */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* ONLY show Trucking button if they are 'all' or 'trucking' */}
           {(adminDept === "all" || adminDept === "trucking") && (
             <Link href="/trucking/dashboard">
@@ -50,7 +59,7 @@ export default async function AdminLayout({
                 size="sm"
                 className="text-slate-300 hover:bg-blue-600 hover:text-white transition-colors rounded-lg px-2 py-2"
               >
-                <Truck className="w-4 h-4 mr-2" />
+                <Truck className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Trucking Portal</span>
               </Button>
             </Link>
@@ -70,10 +79,11 @@ export default async function AdminLayout({
             </Link>
           )}
 
-          {/* Vertical Divider */}
-          <div className="w-px h-6 bg-slate-800 mx-2 hidden sm:block"></div>
+          <div className="w-px h-6 bg-slate-800 hidden sm:block mx-1"></div>
 
-          <LogoutButton />
+          {/* User Profile & Interactive Logout Avatar */}
+
+          <UserProfileMenu currentUser={currentUser} />
         </div>
       </header>
 

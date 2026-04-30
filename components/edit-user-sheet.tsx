@@ -44,8 +44,8 @@ const PRESET_AVATARS = [
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka&backgroundColor=c0aede",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Mimi&backgroundColor=ffdfbf",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Jack&backgroundColor=d1d4f9",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan&backgroundColor=c0aede",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Jude&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Jameson&backgroundColor=c0aede",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Riley&backgroundColor=b6e3f4",
 ];
 
 // Define the shape of the user data we expect

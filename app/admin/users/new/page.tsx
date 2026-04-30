@@ -54,8 +54,8 @@ const PRESET_AVATARS = [
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka&backgroundColor=c0aede",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Mimi&backgroundColor=ffdfbf",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Jack&backgroundColor=d1d4f9",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Ryan&backgroundColor=c0aede",
-  "https://api.dicebear.com/7.x/avataaars/svg?seed=Jude&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Jameson&backgroundColor=c0aede",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Riley&backgroundColor=b6e3f4",
 ];
 
 export default function AddUserPage() {
@@ -103,17 +103,17 @@ export default function AddUserPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 animate-in fade-in slide-in-from-bottom-8 duration-200">
+    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-200">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between">
         <div className="space-y-1 relative">
           <div className="absolute -left-4 top-0 w-12 h-12 bg-blue-500/10 rounded-full blur-xl -z-10" />
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
             <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm">
               Add New Staff
             </span>
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-lg mt-2">
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-md mt-2">
             Create and configure access credentials for new employees.
           </p>
         </div>

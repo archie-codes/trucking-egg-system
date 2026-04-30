@@ -1,34 +1,39 @@
 // app/(modules)/trucking/layout.tsx
 import { TruckingSidebar } from "@/components/trucking-sidebar";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Truck } from "lucide-react";
-import { logoutUser } from "@/app/actions/auth-actions";
+import { ShieldAlert, Truck, User } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
-import { LogoutButton } from "@/components/logout-button";
+import { UserProfileMenu } from "@/components/user-profile-menu";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+// Fetch the logged-in user's fresh data from the database
+async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  if (!token) return null;
+
+  try {
+    const payload = decodeJwt(token);
+    const userId = payload.id as number;
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    return user;
+  } catch (error) {
+    console.error("Failed to fetch user");
+    return null;
+  }
+}
 
 export default async function TruckingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 1. Intercept the cookie to check who is looking at the screen
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
-  let isAdmin = false;
-
-  // 2. Decode the token to check their role
-  if (token) {
-    try {
-      const payload = decodeJwt(token);
-      if (payload.role === "admin") {
-        isAdmin = true;
-      }
-    } catch (error) {
-      console.error("Could not decode token");
-    }
-  }
+  const currentUser = await getCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -47,8 +52,8 @@ export default async function TruckingLayout({
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* 3. The Magic Button: Only renders if isAdmin is true */}
+          <div className="flex items-center gap-4">
+            {/* The Magic Button: Only renders if isAdmin is true */}
             {isAdmin && (
               <Link href="/admin/users">
                 <Button
@@ -57,13 +62,14 @@ export default async function TruckingLayout({
                   className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
                 >
                   <ShieldAlert className="w-4 h-4 sm:mr-2" />
-                  Admin Portal
+                  <span className="hidden sm:inline">Admin Portal</span>
                 </Button>
               </Link>
             )}
 
-            {/* Custom Logout Button */}
-            <LogoutButton />
+            <div className="w-px h-6 bg-slate-700 hidden sm:block mx-1"></div>
+
+            <UserProfileMenu currentUser={currentUser} />
           </div>
         </header>
 

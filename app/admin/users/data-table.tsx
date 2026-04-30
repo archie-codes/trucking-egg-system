@@ -77,10 +77,7 @@ export function DataTable<TData, TValue>({
             ))
           ) : (
             <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="h-64 text-center"
-              >
+              <TableCell colSpan={columns.length} className="h-64 text-center">
                 <div className="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 space-y-3">
                   <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full">
                     <UsersIcon className="w-8 h-8 opacity-50" />

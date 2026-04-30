@@ -1,3 +1,4 @@
+// components/trucking-sidebar.tsx (or wherever you placed it)
 "use client";
 
 import Link from "next/link";
@@ -9,6 +10,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  Truck, // 1. ADDED: Truck icon for the Fleet menu
 } from "lucide-react";
 
 const routes = [
@@ -16,6 +18,12 @@ const routes = [
     label: "Dashboard",
     icon: LayoutDashboard,
     href: "/trucking/dashboard",
+  },
+  // 2. ADDED: The new Fleet Registration route
+  {
+    label: "Truck Fleet",
+    icon: Truck,
+    href: "/trucking/fleet",
   },
   {
     label: "Trips History",
@@ -42,7 +50,7 @@ export function TruckingSidebar() {
       {/* Sidebar Header / Branding */}
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
         <h2 className="text-xl font-bold text-white tracking-tight">
-          Otso<span className="text-primary">Track</span>
+          Trucking<span className="text-primary"> History</span>
         </h2>
       </div>
 
@@ -67,24 +75,6 @@ export function TruckingSidebar() {
             </Link>
           );
         })}
-      </div>
-
-      {/* Footer / Exit to Main Menu */}
-      <div className="p-4 border-t border-slate-800 space-y-1">
-        <Link
-          href="/trucking/settings"
-          className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
-        >
-          <Settings className="w-5 h-5 mr-3 text-slate-400" />
-          Settings
-        </Link>
-        <Link
-          href="/"
-          className="flex items-center px-3 py-2.5 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-colors"
-        >
-          <LogOut className="w-5 h-5 mr-3 text-red-400/70" />
-          Switch Module
-        </Link>
       </div>
     </div>
   );

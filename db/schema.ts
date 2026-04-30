@@ -29,6 +29,9 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ----------------------------------------------------------------------
+// -------------------------- FOR TRUCKING ---------------------------
+// ----------------------------------------------------------------------
 export const liveTrips = pgTable("live_trips", {
   id: serial("id").primaryKey(),
 
@@ -48,5 +51,14 @@ export const liveTrips = pgTable("live_trips", {
   salary: integer("salary").default(0).notNull(),
   others: integer("others").default(0).notNull(),
 
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const trucks = pgTable("trucking_fleet", {
+  id: serial("id").primaryKey(),
+  fleetCode: varchar("fleet_code", { length: 20 }).notNull().unique(),
+  plateNumber: varchar("plate_number", { length: 20 }).notNull().unique(),
+  status: varchar("status", { length: 20 }).default("active").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
