@@ -67,10 +67,10 @@ export default function HeroCard({
 
       {/* Main Text Content (Given full width below the icon) */}
       <div className="absolute bottom-[18%] left-[24px] right-[24px] z-20 transition-all duration-500 group-hover:-translate-y-2">
-        <h3 className="text-white font-black text-xl md:text-[18px] lg:text-xl xl:text-xl 2xl:text-xl leading-tight uppercase mb-1 md:mb-2 drop-shadow-sm">
+        <h3 className="text-white font-black text-xl md:text-[15px] xl:text-[17px] 2xl:text-lg leading-tight uppercase mb-1 md:mb-2 drop-shadow-sm">
           {title}
         </h3>
-        <p className="text-white/90 text-xs md:text-sm xl:text-xs 2xl:text-xs font-medium leading-relaxed drop-shadow-sm line-clamp-2 sm:line-clamp-3">
+        <p className="text-white/90 pb-1 text-xs md:text-sm xl:text-[10px] 2xl:text-xs font-medium leading-relaxed drop-shadow-sm line-clamp-2 sm:line-clamp-3">
           {description}
         </p>
       </div>
