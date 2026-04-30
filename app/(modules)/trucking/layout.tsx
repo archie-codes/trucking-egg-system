@@ -54,7 +54,7 @@ export default async function TruckingLayout({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-4 py-2"
+                  className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
                 >
                   <ShieldAlert className="w-4 h-4 sm:mr-2" />
                   Admin Portal

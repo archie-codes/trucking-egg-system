@@ -28,13 +28,6 @@ export function NavBar() {
 
   const links = [
     {
-      href: "https://app.fhernieotso.com",
-      label: "Sales Monitoring System",
-      external: true,
-      type: "image",
-      src: "/sales-logo.png",
-    },
-    {
       href: "https://www.fhernieotso.com",
       label: "Website Page",
       external: true,

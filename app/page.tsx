@@ -133,7 +133,7 @@ import { NavBar } from "@/components/navbar";
 
 export default function DashboardSelection() {
   return (
-    <div className="min-h-dvh w-full relative bg-background flex flex-col items-center justify-start md:justify-center p-4 pt-28 md:pt-4 overflow-x-hidden">
+    <div className="min-h-dvh w-full relative bg-background flex flex-col items-center justify-start xl:justify-center p-4 pt-24 md:pt-28 xl:pt-4 overflow-x-hidden">
       <NavBar />
       {/* Dashed Center Fade Grid (from your old code) */}
       <div
@@ -161,30 +161,33 @@ export default function DashboardSelection() {
       />
 
       {/* Header Branding */}
-      <div className="mb-10 flex flex-col items-center text-center relative z-10 mt-10">
+      <div className="mb-6 xl:mb-10 flex flex-col items-center text-center relative z-10 mt-6 xl:mt-10">
         {/* Premium Typography Heading */}
-        <h1 className="text-3xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          <span className="inline-block bg-clip-text text-transparent bg-linear-to-r from-blue-500 to-indigo-500">
-            Trucking History
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-1000 leading-tight">
+          <span className="inline-block bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
+            Fhernie Logistics
           </span>{" "}
-          <span className="text-muted-foreground/50 font-light mx-1">&</span>{" "}
-          <span className="inline-block bg-clip-text text-transparent bg-linear-to-r from-amber-400 to-orange-500 drop-shadow-sm relative">
-            Egg Sales
+          <span className="text-muted-foreground/30 font-light mx-2">&</span>{" "}
+          <span className="inline-block bg-clip-text text-transparent bg-linear-to-r from-green-500 to-green-500 drop-shadow-sm relative">
+            Otso Dragon Corp
             <span className="absolute -inset-1 rounded-lg bg-primary/10 blur-xl -z-10"></span>
           </span>{" "}
           <br className="hidden md:block mt-2" />
-          <span className="inline-block mt-1 md:mt-2">Monitoring System</span>
+          <span className="inline-block mt-2 text-2xl md:text-3xl text-foreground/90 font-bold">
+            Unified Management Portal
+          </span>
         </h1>
 
         {/* Refined Subtitle */}
-        <p className="text-muted-foreground mt-6 text-md max-w-3xl mx-auto font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-150">
-          Centralized dashboard for tracking daily logistics, trip expenses, and
-          multi-size egg tray deliveries. <br /> Select a module to proceed
+        <p className="text-muted-foreground mt-5 text-sm md:text-base max-w-2xl mx-auto font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-150">
+          Centralized dashboard for overseeing trucking logistics, egg sales,
+          poultry farm operations, and financial records.{" "}
+          <br className="hidden md:block" /> Select a module to proceed
         </p>
       </div>
 
       {/* Module Selection Cards */}
-      <div className="flex flex-col md:flex-row flex-wrap justify-center items-center gap-8 max-w-5xl relative z-10 w-full px-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 xl:gap-8 max-w-[98%] xl:max-w-[1400px] relative z-10 w-full px-2 place-items-center">
         {/* Card 1: Fhernie Logistics */}
         <HeroCard
           variant="first"
@@ -224,6 +227,46 @@ export default function DashboardSelection() {
           description="Manage multi-size egg tray deliveries, sales monitoring, and logistics expenses."
           href="/login?module=eggs"
           buttonText="Enter Egg Sales"
+        />
+
+        <HeroCard
+          variant="third"
+          image="/images/otso_poultry_bg.png"
+          // icon={<Egg className="w-10 h-10 text-[#bb7413]" strokeWidth={2} />}
+          // icon={<video src="/Hatch.webm" autoPlay loop muted />}
+          icon={
+            <video
+              src="/flaticon/chicken.mp4"
+              className="absolute bottom-0 left-0 w-full h-full object-contain"
+              autoPlay
+              loop
+              muted
+            />
+          }
+          title="Otso Poultry System"
+          description="Manage farm operations, monitor stock levels, and track production performance."
+          href="https://app.fhernieotso.com"
+          buttonText="Enter Otso Poultry"
+        />
+
+        <HeroCard
+          variant="fourth"
+          image="/images/cheque_voucher_bg.png"
+          // icon={<Egg className="w-10 h-10 text-[#bb7413]" strokeWidth={2} />}
+          // icon={<video src="/Hatch.webm" autoPlay loop muted />}
+          icon={
+            <video
+              src="/flaticon/cheque.mp4"
+              className="absolute bottom-0 left-0 w-full h-full object-contain"
+              autoPlay
+              loop
+              muted
+            />
+          }
+          title="Cheque and Voucher"
+          description="Manage cheque issued, cheque received, and cheque status."
+          href="#"
+          buttonText="Enter Cheque and Voucher"
         />
       </div>
 

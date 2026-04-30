@@ -348,29 +348,29 @@ function LoginForm() {
         className={`absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[100px] pointer-events-none ${theme.orbs.two}`}
       />
 
-      <div className="relative z-10 w-full max-w-[1000px] m-4 flex flex-col md:flex-row rounded-3xl overflow-hidden shadow-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-500">
+      <div className="relative z-10 w-full max-w-[95%] sm:max-w-md md:max-w-4xl lg:max-w-[1000px] m-4 sm:m-8 flex flex-col md:flex-row rounded-[24px] sm:rounded-3xl overflow-hidden shadow-2xl border border-white/20 dark:border-white/10 bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-500">
         {/* Left Panel - Dynamic Branding */}
-        <div className="hidden md:flex md:w-1/2 relative p-12 flex-col justify-between overflow-hidden bg-slate-900 text-white">
+        <div className="hidden md:flex md:w-5/12 lg:w-1/2 relative p-8 lg:p-12 flex-col justify-between overflow-hidden bg-slate-900 text-white">
           <div
             className={`absolute inset-0 bg-linear-to-br z-0 ${theme.overlay}`}
           ></div>
 
-          <div className="relative z-10 flex items-center space-x-3">
-            <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 shadow-xl">
-              <CurrentIcon className="w-7 h-7 text-white" />
+          <div className="relative z-10 flex items-center space-x-2 lg:space-x-3">
+            <div className="p-2 lg:p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 shadow-xl">
+              <CurrentIcon className="w-5 h-5 lg:w-7 lg:h-7 text-white" />
             </div>
-            <span className="font-bold text-2xl tracking-tight text-white/90">
+            <span className="font-bold text-xl lg:text-2xl tracking-tight text-white/90">
               {theme.title}
             </span>
           </div>
 
-          <div className="relative z-10 mt-auto mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 fill-mode-both">
+          <div className="relative z-10 mt-auto mb-4 lg:mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 fill-mode-both">
             <div
-              className={`inline-block px-3 py-1 mb-4 rounded-full border backdrop-blur-sm ${theme.badge}`}
+              className={`inline-block px-2 lg:px-3 py-1 mb-3 lg:mb-4 rounded-full border backdrop-blur-sm ${theme.badge}`}
             >
-              <span className="text-sm font-medium">{theme.subtitle}</span>
+              <span className="text-xs lg:text-sm font-medium">{theme.subtitle}</span>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
+            <h1 className="text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 lg:mb-6 leading-[1.1] tracking-tight">
               Streamlining Your <br />
               <span
                 className={`text-transparent bg-clip-text bg-linear-to-r ${theme.gradientText}`}
@@ -378,7 +378,7 @@ function LoginForm() {
                 Supply Chain
               </span>
             </h1>
-            <p className="text-slate-400 text-lg max-w-md font-medium">
+            <p className="text-slate-400 text-sm lg:text-lg max-w-md font-medium">
               {theme.description}
             </p>
           </div>
@@ -388,22 +388,22 @@ function LoginForm() {
         </div>
 
         {/* Right Panel - Form */}
-        <div className="w-full md:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white/50 dark:bg-slate-950/50">
-          <div className="w-full max-w-sm mx-auto space-y-8">
-            <div className="md:hidden flex items-center justify-center space-x-3 mb-6">
+        <div className="w-full md:w-7/12 lg:w-1/2 p-6 sm:p-8 md:p-10 lg:p-16 flex flex-col justify-center bg-white/50 dark:bg-slate-950/50">
+          <div className="w-full max-w-sm mx-auto space-y-6 lg:space-y-8">
+            <div className="md:hidden flex items-center justify-center space-x-3 mb-2 sm:mb-6">
               <div className={`p-2 rounded-xl ${theme.iconBox}`}>
-                <CurrentIcon className="w-6 h-6" />
+                <CurrentIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
+              <span className="font-bold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">
                 {theme.title}
               </span>
             </div>
 
-            <div className="text-center md:text-left space-y-2">
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <div className="text-center md:text-left space-y-1 sm:space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                 Welcome back
               </h2>
-              <p className="text-slate-500 dark:text-slate-400">
+              <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">
                 Please enter your credentials to sign in.
               </p>
             </div>
