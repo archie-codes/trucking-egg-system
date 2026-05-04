@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { TruckSheet } from "@/components/truck-sheet";
+import { TruckSheet } from "@/components/trucking/truck-sheet";
 
 export function AddTruckButton() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);

@@ -1,4 +1,3 @@
-// app/(modules)/trucking/loading.tsx
 "use client";
 import { Infinity } from "ldrs/react";
 import "ldrs/react/Infinity.css";
@@ -14,7 +13,7 @@ export default function Loading() {
         speed="1.3"
         color="#3b82f6"
       />
-      <p className="animate-pulse text-xs font-normal tracking-widest text-slate-500 uppercase">
+      <p className="animate-pulse text-xs font-light tracking-widest text-slate-500 uppercase">
         Loading..
       </p>
     </div>

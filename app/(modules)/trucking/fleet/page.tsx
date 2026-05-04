@@ -113,7 +113,7 @@
 
 // app/trucking/fleet/page.tsx
 import { db } from "@/db";
-import { trucks } from "@/db/schema";
+import { truckingFleet } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import {
   Truck,
@@ -131,8 +131,8 @@ export const dynamic = "force-dynamic";
 export default async function FleetManagementPage() {
   const fleetData = await db
     .select()
-    .from(trucks)
-    .orderBy(desc(trucks.createdAt));
+    .from(truckingFleet)
+    .orderBy(desc(truckingFleet.createdAt));
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-200">

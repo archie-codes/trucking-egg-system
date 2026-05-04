@@ -82,13 +82,13 @@ export function UserProfileMenu({ currentUser }: UserProfileMenuProps) {
             className="w-56 rounded-xl shadow-2xl border-slate-200 dark:border-slate-800 mt-2"
           >
             <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none text-slate-900 dark:text-white">
+              <div className="flex flex-col space-y-1 overflow-hidden">
+                <p className="text-sm font-medium leading-none text-slate-900 dark:text-white truncate">
                   {currentUser?.name}
                 </p>
-                <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-1">
+                <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-1 overflow-hidden">
                   <Mail className="w-3.5 h-3.5 shrink-0" />
-                  {currentUser?.email}
+                  <span className="truncate">{currentUser?.email}</span>
                 </p>
               </div>
             </DropdownMenuLabel>

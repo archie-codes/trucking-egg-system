@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 // Import the new Edit Sheet
-import { EditUserSheet } from "@/components/edit-user-sheet";
+import { EditUserSheet } from "@/components/admin/edit-user-sheet";
 import {
   AlertDialog,
   AlertDialogAction,

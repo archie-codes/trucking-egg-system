@@ -67,13 +67,14 @@ export function ProfileSheet({
                 <Camera className="w-6 h-6 text-white" />
               </button>
             </div>
-            <div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight truncate">
                 {currentUser?.name || "Unknown User"}
               </h3>
-              <p className="truncate text-[13px] text-slate-500 font-medium flex items-center gap-1.5 mt-1">
-                <Mail className="w-3.5 h-3.5" /> {currentUser?.email}
-              </p>
+              <div className="flex items-center gap-1.5 mt-1 text-[13px] text-slate-500 font-medium">
+                <Mail className="w-3.5 h-3.5 shrink-0" /> 
+                <span className="truncate">{currentUser?.email}</span>
+              </div>
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
                   <Shield className="w-3 h-3" /> {currentUser?.role}

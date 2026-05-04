@@ -1,6 +1,6 @@
 // app/admin/layout.tsx
 import { ShieldAlert, Truck, Egg, User } from "lucide-react";
-import { UserProfileMenu } from "@/components/user-profile-menu";
+import { UserProfileMenu } from "@/components/global/user-profile-menu";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";

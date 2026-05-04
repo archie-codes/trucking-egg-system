@@ -1,14 +1,17 @@
 // app/(modules)/egg-sales/layout.tsx
-import { EggSidebar } from "@/components/egg-sidebar";
+import { EggSidebar } from "@/components/egg-sales/egg-sidebar";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Egg, User } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
-import { UserProfileMenu } from "@/components/user-profile-menu";
+import { UserProfileMenu } from "@/components/global/user-profile-menu";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 // Fetch the logged-in user's fresh data from the database
 async function getCurrentUser() {
@@ -37,22 +40,41 @@ export default async function EggSalesLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-50 bg-slate-900 border-r border-slate-800">
+      <aside className="hidden md:flex w-(--sidebar-width,16rem) flex-col fixed inset-y-0 z-50 bg-slate-900 border-r border-slate-800 transition-[width] duration-300 ease-in-out">
         <EggSidebar />
       </aside>
 
-      <main className="md:pl-64 flex-1 flex flex-col">
-        <header className="h-16 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-6 z-40 sticky top-0 shadow-lg">
+      <main className="md:pl-(--sidebar-width,16rem) flex-1 flex flex-col transition-[padding] duration-300 ease-in-out">
+        <header className="h-16 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-4 sm:px-6 z-40 sticky top-0 shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20 shadow-inner flex items-center justify-center">
-              <Egg className="w-5 h-5 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+            {/* Mobile Sidebar Trigger */}
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-slate-800"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-64 p-0 bg-slate-900 border-r border-slate-800 text-slate-300"
+                >
+                  <SheetTitle className="sr-only">Egg Sales Menu</SheetTitle>
+                  <EggSidebar isMobile />
+                </SheetContent>
+              </Sheet>
             </div>
+
             <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-400 hidden sm:inline-block">
               Egg Sales Inventory
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* The Admin Portal Button */}
             {isAdmin && (
               <Link href="/admin/users">
