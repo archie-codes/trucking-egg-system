@@ -135,9 +135,9 @@ export default function DashboardSelection() {
   return (
     <div className="min-h-dvh w-full relative bg-background flex flex-col items-center justify-start xl:justify-center p-4 pt-24 md:pt-28 xl:pt-4 overflow-x-hidden">
       <NavBar />
-      {/* Dashed Center Fade Grid (from your old code) */}
+      {/* Dashed Center Fade Grid (from your old code) - Light Mode Only */}
       <div
-        className="absolute inset-0 z-0 pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none dark:hidden"
         style={{
           backgroundImage: `
             linear-gradient(to right, #e7e5e4 1px, transparent 1px),
@@ -159,6 +159,12 @@ export default function DashboardSelection() {
           WebkitMaskComposite: "source-in",
         }}
       />
+
+      {/* Glowing Gradient - Dark Mode Only */}
+      <div className="absolute inset-0 z-0 pointer-events-none hidden dark:block">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_50%,rgba(37,99,235,0.15),transparent_70%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_50%_at_50%_50%,rgba(79,70,229,0.15),transparent_70%)]"></div>
+      </div>
 
       {/* Header Branding */}
       <div className="mb-6 xl:mb-10 flex flex-col items-center text-center relative z-10 mt-6 xl:mt-10">
