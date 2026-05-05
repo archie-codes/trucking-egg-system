@@ -60,8 +60,7 @@ export function TruckSheet({
 
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
           <SheetHeader className="mb-8 mt-2">
-            <SheetTitle className="text-3xl font-black bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm flex items-center gap-2">
-              <Truck className="w-7 h-7 text-blue-600" />
+            <SheetTitle className="text-lg lg:text-2xl font-black bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm flex items-center gap-2">
               Register Truck
             </SheetTitle>
             <SheetDescription className="text-base text-slate-500 dark:text-slate-400">
@@ -86,7 +85,7 @@ export function TruckSheet({
                 name="fleetCode"
                 placeholder="e.g., F1"
                 required
-                className="px-4 rounded-xl uppercase bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
+                className="text-[15px] h-[46px] px-4 rounded-xl uppercase bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
               />
             </Field>
 
@@ -102,7 +101,7 @@ export function TruckSheet({
                 name="plateNumber"
                 placeholder="e.g., TQC 585"
                 required
-                className="px-4 rounded-xl uppercase bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
+                className="text-[15px] h-[46px]  px-4 rounded-xl uppercase bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
               />
             </Field>
 
@@ -114,7 +113,7 @@ export function TruckSheet({
                 <Wrench className="w-4 h-4 text-blue-500" /> Current Status
               </FieldLabel>
               <Select name="status" defaultValue="active">
-                <SelectTrigger className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/50 shadow-sm">
+                <SelectTrigger className="text-[15px] h-[46px]! px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/50 shadow-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl shadow-xl">
@@ -148,7 +147,7 @@ export function TruckSheet({
             type="submit"
             form="add-truck-form"
             disabled={isSubmitting}
-            className="relative w-full h-14 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] transition-all font-bold text-base overflow-hidden group/btn"
+            className="relative w-full h-14 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all font-bold text-base overflow-hidden group/btn"
           >
             <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
             {isSubmitting ? (

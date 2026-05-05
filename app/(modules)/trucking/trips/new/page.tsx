@@ -6,6 +6,9 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { NumberTicker } from "@/components/ui/number-ticker";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,24 +29,50 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+
 import { createTripRecord } from "@/app/actions/trip-actions";
 import { getActiveTrucks } from "@/app/actions/truck-actions";
-import { Save, Loader2, Truck, Wallet, FileText } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  FileText,
+  Wallet,
+  CalendarIcon,
+  Check,
+  ChevronsUpDown,
+} from "lucide-react";
 
-// 1. Zod Schema (Strict numbers for DB relation)
+// 1. Zod Schema (Cleaned)
 const tripSchema = z.object({
+  date: z.string().min(1, "Date is required"),
   truckId: z.number().min(1, "Please select a truck"),
-  customerId: z.string().min(1, "Customer is required"),
-  area: z.string().min(1, "Area/Province is required"),
-  origin: z.string().min(1, "Origin is required"),
-  destination: z.string().min(1, "Destination is required"),
+  customerId: z.string().min(1, "Customer Name is required").toUpperCase(),
+  farmName: z.string().min(1, "Farm Address is required").toUpperCase(),
+
+  origin: z.string().min(1, "Origin is required").toUpperCase(),
+  destination: z.string().min(1, "Destination is required").toUpperCase(),
 
   qtyHeads: z.number().min(1, "Quantity must be at least 1"),
   rate: z.number().min(0, "Invalid rate"),
 
-  // Expenses
   tollFees: z.number().min(0),
-  dieselAmount: z.number().min(0),
+  dieselCash: z.number().min(0),
+  dieselPo: z.number().min(0),
   meals: z.number().min(0),
   roroShip: z.number().min(0),
   salary: z.number().min(0),
@@ -51,38 +80,85 @@ const tripSchema = z.object({
 });
 
 export default function NewTripPage() {
-  // State for fetching real trucks from the DB
   const [availableTrucks, setAvailableTrucks] = useState<
     { id: number; code: string; plate: string }[]
   >([]);
   const [isLoadingTrucks, setIsLoadingTrucks] = useState(true);
 
-  // Fetch active trucks on mount
+  // LOCATIONS FOR COMBOBOXES
+  const [phLocations, setPhLocations] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true);
+
+  const [isOriginOpen, setIsOriginOpen] = useState(false);
+  const [isDestinationOpen, setIsDestinationOpen] = useState(false);
+
+  const [dieselMode, setDieselMode] = useState<"cash" | "po">("cash");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   useEffect(() => {
-    async function loadTrucks() {
-      const result = await getActiveTrucks();
-      if (result.success && result.data) {
-        setAvailableTrucks(result.data);
+    async function loadInitialData() {
+      // 1. Load Fleet Data
+      const truckResult = await getActiveTrucks();
+      if (truckResult.success && truckResult.data) {
+        setAvailableTrucks(truckResult.data);
       } else {
-        toast.error("Failed to load trucks", { description: result.error });
+        toast.error("Failed to load trucks");
       }
       setIsLoadingTrucks(false);
+
+      // 2. Fetch Provinces AND Cities for Origin/Destination comboboxes
+      try {
+        const [provRes, cityRes] = await Promise.all([
+          fetch("https://psgc.gitlab.io/api/provinces"),
+          fetch("https://psgc.gitlab.io/api/cities-municipalities"),
+        ]);
+
+        const provData = await provRes.json();
+        const cityData = await cityRes.json();
+
+        const provMap = new Map();
+        provData.forEach((p: any) => provMap.set(p.code, p.name));
+
+        const formattedLocations = cityData.map((city: any) => {
+          const provName = provMap.get(city.provinceCode) || "Metro Manila";
+          const label = `${city.name}, ${provName}`;
+          return {
+            value: label.toUpperCase(),
+            label: label,
+          };
+        });
+
+        formattedLocations.sort((a: any, b: any) =>
+          a.label.localeCompare(b.label),
+        );
+        setPhLocations(formattedLocations);
+      } catch (error) {
+        console.error("Failed to fetch PSGC locations:", error);
+        toast.error("Could not load location data. Check connection.");
+      } finally {
+        setIsLoadingLocations(false);
+      }
     }
-    loadTrucks();
+
+    loadInitialData();
   }, []);
 
   const form = useForm<z.infer<typeof tripSchema>>({
     resolver: zodResolver(tripSchema),
     defaultValues: {
+      date: new Date().toISOString().split("T")[0],
       truckId: 0,
       customerId: "",
-      area: "",
+      farmName: "",
       origin: "",
       destination: "",
       qtyHeads: 0,
       rate: 0,
       tollFees: 0,
-      dieselAmount: 0,
+      dieselCash: 0,
+      dieselPo: 0,
       meals: 0,
       roroShip: 0,
       salary: 0,
@@ -90,22 +166,34 @@ export default function NewTripPage() {
     },
   });
 
-  // Watchers for Live Excel-style tracking
   const { control } = form;
   const qtyHeads = useWatch({ control, name: "qtyHeads" }) || 0;
   const rate = useWatch({ control, name: "rate" }) || 0;
   const tollFees = useWatch({ control, name: "tollFees" }) || 0;
-  const dieselAmount = useWatch({ control, name: "dieselAmount" }) || 0;
+  const dieselCash = useWatch({ control, name: "dieselCash" }) || 0;
+  const dieselPo = useWatch({ control, name: "dieselPo" }) || 0;
   const meals = useWatch({ control, name: "meals" }) || 0;
   const roroShip = useWatch({ control, name: "roroShip" }) || 0;
   const salary = useWatch({ control, name: "salary" }) || 0;
   const others = useWatch({ control, name: "others" }) || 0;
 
-  // Live Math
   const grossCollectible = qtyHeads * rate;
   const totalExpenses =
-    tollFees + dieselAmount + meals + roroShip + salary + others;
+    tollFees + dieselCash + dieselPo + meals + roroShip + salary + others;
   const netIncome = grossCollectible - totalExpenses;
+
+  const handleDieselModeSwitch = (mode: "cash" | "po") => {
+    setDieselMode(mode);
+    if (mode === "cash") {
+      const currentPo = form.getValues("dieselPo");
+      form.setValue("dieselCash", currentPo);
+      form.setValue("dieselPo", 0);
+    } else {
+      const currentCash = form.getValues("dieselCash");
+      form.setValue("dieselPo", currentCash);
+      form.setValue("dieselCash", 0);
+    }
+  };
 
   async function onSubmit(values: z.infer<typeof tripSchema>) {
     toast.loading("Saving to database...", { id: "trip-save" });
@@ -116,7 +204,26 @@ export default function NewTripPage() {
           id: "trip-save",
           description: `Logged net income of ₱${netIncome.toLocaleString()}`,
         });
-        form.reset();
+
+        form.reset({
+          date: new Date().toISOString().split("T")[0],
+          truckId: 0,
+          customerId: "",
+          farmName: "",
+          origin: "",
+          destination: "",
+          qtyHeads: 0,
+          rate: 0,
+          tollFees: 0,
+          dieselCash: 0,
+          dieselPo: 0,
+          meals: 0,
+          roroShip: 0,
+          salary: 0,
+          others: 0,
+        });
+
+        setDieselMode("cash");
       } else {
         toast.error("Database Error", {
           id: "trip-save",
@@ -131,32 +238,51 @@ export default function NewTripPage() {
     }
   }
 
-  const parseNumber = (val: string) => (val === "" ? 0 : Number(val));
+  function onError(errors: any) {
+    const errorKeys = Object.keys(errors);
+    if (errorKeys.length > 0) {
+      const firstKey = errorKeys[0];
+      const errorMessage =
+        errors[firstKey]?.message || `Please check the ${firstKey} field.`;
+      toast.error("Validation Failed", {
+        description: errorMessage,
+        duration: 5000,
+      });
+    } else {
+      toast.error("Incomplete Form", {
+        description: "Please check all required fields before saving.",
+      });
+    }
+  }
+
+  const parseNumber = (val: string) => {
+    if (val === "") return 0;
+    const parsed = Number(val);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
-            <div className="p-2.5 bg-blue-100 dark:bg-blue-500/20 rounded-2xl">
-              <Truck className="w-8 h-8 text-blue-600 dark:text-blue-500" />
-            </div>
-            Dispatch New Trip
+    <div className="max-w-5xl mx-auto space-y-6 lg:space-y-8 animate-in fade-in duration-300">
+      <div className="space-y-1 relative">
+        <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
+        <div className="flex items-center gap-4 mb-1">
+          <h1 className="text-lg lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
+              New Trip
+            </span>
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg font-medium">
-            Live Hauling & Poultry Logistics
-          </p>
         </div>
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-base ml-1">
+          Hauling & Poultry Logistics
+        </p>
       </div>
       <form
         id="new-trip-form"
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onSubmit, onError)}
         className="pb-36 lg:pb-32"
       >
-        {/* Changed to 12-column grid for better small laptop scaling */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-          {/* LEFT: Trip Details (Takes more space on laptops because it has text fields) */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+        <div className="flex flex-col gap-6 lg:gap-8">
+          <div className="w-full space-y-6">
             <Card className="shadow-lg border-slate-200 dark:border-slate-800/80 rounded-3xl overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
               <CardHeader className=" border-b border-slate-100 dark:border-slate-800/60 pb-5 px-6 lg:px-8">
                 <CardTitle className="text-xl text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
@@ -166,54 +292,127 @@ export default function NewTripPage() {
               </CardHeader>
               <CardContent className="pt-6 lg:pt-8 px-6 lg:px-8">
                 <FieldGroup className="space-y-4 lg:space-y-5">
-                  {/* Row 1: Truck Assignment */}
-                  <Controller
-                    name="truckId"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel
-                          htmlFor="truckId"
-                          className="text-sm font-bold text-slate-700 dark:text-slate-300"
-                        >
-                          Assigned Truck
-                        </FieldLabel>
-                        <Select
-                          onValueChange={(val) => field.onChange(Number(val))}
-                          value={
-                            field.value ? field.value.toString() : undefined
-                          }
-                          disabled={isLoadingTrucks}
-                        >
-                          <SelectTrigger className="w-full rounded-2xl border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 px-4 text-[15px] shadow-sm focus-within:ring-blue-500">
-                            <SelectValue
-                              placeholder={
-                                isLoadingTrucks
-                                  ? "Loading fleet data..."
-                                  : "Select a truck..."
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
-                            {availableTrucks.map((truck) => (
-                              <SelectItem
-                                key={truck.id}
-                                value={truck.id.toString()}
-                                className="rounded-lg cursor-pointer"
+                  {/* ROW 1: DATE & TRUCK ASSIGNMENT */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Controller
+                      name="date"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel
+                            htmlFor="date"
+                            className="text-sm font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            Trip Date
+                          </FieldLabel>
+                          <Popover
+                            open={isCalendarOpen}
+                            onOpenChange={setIsCalendarOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                id="date"
+                                className={cn(
+                                  "w-full justify-start font-normal border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] h-[46px] hover:bg-slate-50 dark:hover:bg-slate-900",
+                                  !field.value && "text-slate-500",
+                                )}
                               >
-                                {truck.code} ({truck.plate})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
+                                <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+                                {field.value ? (
+                                  format(new Date(field.value), "PPP")
+                                ) : (
+                                  <span>Select date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-auto overflow-hidden p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+                              align="start"
+                            >
+                              <Calendar
+                                mode="single"
+                                selected={
+                                  field.value
+                                    ? new Date(field.value)
+                                    : undefined
+                                }
+                                defaultMonth={
+                                  field.value
+                                    ? new Date(field.value)
+                                    : undefined
+                                }
+                                captionLayout="dropdown"
+                                fromYear={2000}
+                                toYear={new Date().getFullYear()}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    field.onChange(format(date, "yyyy-MM-dd"));
+                                    setIsCalendarOpen(false);
+                                  }
+                                }}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
 
-                  {/* Row 2: Customer & Area */}
+                    <Controller
+                      name="truckId"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel
+                            htmlFor="truckId"
+                            className="text-sm font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            Assigned Truck
+                          </FieldLabel>
+                          <Select
+                            onValueChange={(val) => field.onChange(Number(val))}
+                            // ✨ THE FIX: Check for 0 and return "", preventing the controlled/uncontrolled warning!
+                            value={
+                              field.value === 0 ? "" : field.value.toString()
+                            }
+                            disabled={isLoadingTrucks}
+                          >
+                            <SelectTrigger
+                              id="truckId"
+                              className="w-full rounded-2xl border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 px-4 text-[15px] h-[46px]! shadow-sm focus-within:ring-blue-500"
+                            >
+                              <SelectValue
+                                placeholder={
+                                  isLoadingTrucks
+                                    ? "Loading fleet data..."
+                                    : "Select a truck..."
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
+                              {availableTrucks.map((truck) => (
+                                <SelectItem
+                                  key={truck.id}
+                                  value={truck.id.toString()}
+                                  className="rounded-lg cursor-pointer"
+                                >
+                                  {truck.code} ({truck.plate})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+                  </div>
+
+                  {/* ROW 2: CUSTOMER NAME & FARM ADDRESS (BOTH TEXT INPUTS) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="customerId"
@@ -229,8 +428,11 @@ export default function NewTripPage() {
                           <Input
                             {...field}
                             id="customerId"
-                            placeholder="E.g., Jollibee"
-                            className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px]"
+                            placeholder="E.g., JUAN DELA CRUZ"
+                            onChange={(e) =>
+                              field.onChange(e.target.value.toUpperCase())
+                            }
+                            className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] uppercase"
                             aria-invalid={fieldState.invalid}
                           />
                           {fieldState.invalid && (
@@ -241,22 +443,24 @@ export default function NewTripPage() {
                     />
 
                     <Controller
-                      name="area"
+                      name="farmName"
                       control={form.control}
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <FieldLabel
-                            htmlFor="area"
+                            htmlFor="farmName"
                             className="text-sm font-bold text-slate-700 dark:text-slate-300"
                           >
-                            Area / Province
+                            Farm / Branch Address
                           </FieldLabel>
                           <Input
                             {...field}
-                            value={field.value || ""}
-                            id="area"
-                            placeholder="E.g., Pampanga"
-                            className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px]"
+                            id="farmName"
+                            placeholder="E.g., SJK FARM"
+                            onChange={(e) =>
+                              field.onChange(e.target.value.toUpperCase())
+                            }
+                            className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] uppercase"
                             aria-invalid={fieldState.invalid}
                           />
                           {fieldState.invalid && (
@@ -267,8 +471,8 @@ export default function NewTripPage() {
                     />
                   </div>
 
-                  {/* Row 3: Origin & Destination */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* ROW 3: ORIGIN AND DESTINATION COMBOBOXES */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50/50 dark:bg-slate-800/20 p-4 rounded-2xl border border-blue-100 dark:border-slate-800/60">
                     <Controller
                       name="origin"
                       control={form.control}
@@ -280,19 +484,80 @@ export default function NewTripPage() {
                           >
                             Origin (From)
                           </FieldLabel>
-                          <Input
-                            {...field}
-                            id="origin"
-                            placeholder="Farm A"
-                            className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px]"
-                            aria-invalid={fieldState.invalid}
-                          />
+                          <Popover
+                            open={isOriginOpen}
+                            onOpenChange={setIsOriginOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isOriginOpen}
+                                disabled={isLoadingLocations}
+                                className={cn(
+                                  "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] h-[46px] hover:bg-slate-50 dark:hover:bg-slate-900",
+                                  !field.value && "text-slate-500",
+                                )}
+                              >
+                                <span className="truncate pr-2">
+                                  {field.value
+                                    ? phLocations.find(
+                                        (loc) => loc.value === field.value,
+                                      )?.label
+                                    : isLoadingLocations
+                                      ? "Loading cities..."
+                                      : "Select City, Province..."}
+                                </span>
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+                              align="start"
+                            >
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search City or Province..."
+                                  className="h-11"
+                                />
+                                <CommandList className="max-h-[250px]">
+                                  <CommandEmpty>
+                                    No location found.
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {phLocations.map((loc) => (
+                                      <CommandItem
+                                        key={loc.value}
+                                        value={loc.label}
+                                        onSelect={() => {
+                                          field.onChange(loc.value);
+                                          setIsOriginOpen(false);
+                                        }}
+                                        className="cursor-pointer"
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4 shrink-0",
+                                            field.value === loc.value
+                                              ? "opacity-100"
+                                              : "opacity-0",
+                                          )}
+                                        />
+                                        {loc.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                           )}
                         </Field>
                       )}
                     />
+
                     <Controller
                       name="destination"
                       control={form.control}
@@ -304,13 +569,73 @@ export default function NewTripPage() {
                           >
                             Destination (To)
                           </FieldLabel>
-                          <Input
-                            {...field}
-                            id="destination"
-                            placeholder="Market B"
-                            className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px]"
-                            aria-invalid={fieldState.invalid}
-                          />
+                          <Popover
+                            open={isDestinationOpen}
+                            onOpenChange={setIsDestinationOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isDestinationOpen}
+                                disabled={isLoadingLocations}
+                                className={cn(
+                                  "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] h-[46px] hover:bg-slate-50 dark:hover:bg-slate-900",
+                                  !field.value && "text-slate-500",
+                                )}
+                              >
+                                <span className="truncate pr-2">
+                                  {field.value
+                                    ? phLocations.find(
+                                        (loc) => loc.value === field.value,
+                                      )?.label
+                                    : isLoadingLocations
+                                      ? "Loading cities..."
+                                      : "Select City, Province..."}
+                                </span>
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+                              align="start"
+                            >
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search City or Province..."
+                                  className="h-11"
+                                />
+                                <CommandList className="max-h-[250px]">
+                                  <CommandEmpty>
+                                    No location found.
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {phLocations.map((loc) => (
+                                      <CommandItem
+                                        key={loc.value}
+                                        value={loc.label}
+                                        onSelect={() => {
+                                          field.onChange(loc.value);
+                                          setIsDestinationOpen(false);
+                                        }}
+                                        className="cursor-pointer"
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4 shrink-0",
+                                            field.value === loc.value
+                                              ? "opacity-100"
+                                              : "opacity-0",
+                                          )}
+                                        />
+                                        {loc.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                           )}
@@ -319,9 +644,7 @@ export default function NewTripPage() {
                     />
                   </div>
 
-                  <Separator className="my-2 border-slate-100 dark:border-slate-800/60" />
-
-                  {/* Row 4: Qty & Rate */}
+                  {/* ROW 4: QTY AND RATE */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="qtyHeads"
@@ -338,7 +661,7 @@ export default function NewTripPage() {
                             {...field}
                             id="qtyHeads"
                             type="number"
-                            className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-bold text-blue-600 dark:text-blue-400"
+                            className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-bold text-blue-600 dark:text-blue-400"
                             onChange={(e) =>
                               field.onChange(parseNumber(e.target.value))
                             }
@@ -351,6 +674,7 @@ export default function NewTripPage() {
                         </Field>
                       )}
                     />
+
                     <Controller
                       name="rate"
                       control={form.control}
@@ -366,7 +690,7 @@ export default function NewTripPage() {
                             {...field}
                             id="rate"
                             type="number"
-                            className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-bold text-emerald-600 dark:text-emerald-400"
+                            className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-bold text-emerald-600 dark:text-emerald-400"
                             onChange={(e) =>
                               field.onChange(parseNumber(e.target.value))
                             }
@@ -385,8 +709,8 @@ export default function NewTripPage() {
             </Card>
           </div>
 
-          {/* RIGHT: Expenses (Takes less space because it's just numbers) */}
-          <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+          {/* BOTTOM: Expenses */}
+          <div className="w-full space-y-6">
             <Card className="shadow-lg border-slate-200 dark:border-slate-800/80 rounded-3xl overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
               <CardHeader className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-100 dark:border-slate-800/60 pb-5 px-6 lg:px-8">
                 <CardTitle className="text-xl text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
@@ -395,7 +719,7 @@ export default function NewTripPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 lg:pt-8 px-6 lg:px-8">
-                <FieldGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-4">
+                <FieldGroup className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 lg:gap-6">
                   <Controller
                     name="tollFees"
                     control={form.control}
@@ -411,7 +735,7 @@ export default function NewTripPage() {
                           {...field}
                           id="tollFees"
                           type="number"
-                          className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
+                          className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
                           onChange={(e) =>
                             field.onChange(parseNumber(e.target.value))
                           }
@@ -421,31 +745,82 @@ export default function NewTripPage() {
                       </Field>
                     )}
                   />
-                  <Controller
-                    name="dieselAmount"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel
-                          htmlFor="dieselAmount"
-                          className="text-sm font-bold text-slate-700 dark:text-slate-300"
+
+                  {/* THE DIESEL TOGGLE */}
+                  <div className="flex flex-col">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-2">
+                      <FieldLabel className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-0 leading-none">
+                        Diesel Expense
+                      </FieldLabel>
+                      <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/50 shrink-0 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => handleDieselModeSwitch("cash")}
+                          className={`px-2.5 py-0.5 text-[10px] sm:text-xs font-black uppercase rounded transition-all ${dieselMode === "cash" ? "bg-white dark:bg-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.1)] text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
                         >
-                          Diesel / Cash
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="dieselAmount"
-                          type="number"
-                          className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) =>
-                            field.onChange(parseNumber(e.target.value))
-                          }
-                          onClick={(e) => e.currentTarget.select()}
-                          aria-invalid={fieldState.invalid}
-                        />
-                      </Field>
-                    )}
-                  />
+                          CASH
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDieselModeSwitch("po")}
+                          className={`px-2.5 py-0.5 text-[10px] sm:text-xs font-black uppercase rounded transition-all ${dieselMode === "po" ? "bg-white dark:bg-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.1)] text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
+                        >
+                          P.O.
+                        </button>
+                      </div>
+                    </div>
+                    <div className={dieselMode === "cash" ? "block" : "hidden"}>
+                      <Controller
+                        name="dieselCash"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <div className="relative">
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500 rounded-l-2xl z-10 opacity-80" />
+                              <Input
+                                {...field}
+                                id="dieselCash"
+                                type="number"
+                                placeholder="Enter Cash Amount"
+                                className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-blue-600 dark:text-blue-400 w-full pl-4 transition-all focus-visible:ring-blue-500"
+                                onChange={(e) =>
+                                  field.onChange(parseNumber(e.target.value))
+                                }
+                                onClick={(e) => e.currentTarget.select()}
+                                aria-invalid={fieldState.invalid}
+                              />
+                            </div>
+                          </Field>
+                        )}
+                      />
+                    </div>
+                    <div className={dieselMode === "po" ? "block" : "hidden"}>
+                      <Controller
+                        name="dieselPo"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <div className="relative">
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-2xl z-10 opacity-80" />
+                              <Input
+                                {...field}
+                                id="dieselPo"
+                                type="number"
+                                placeholder="Enter P.O. Amount"
+                                className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-emerald-600 dark:text-emerald-400 w-full pl-4 transition-all focus-visible:ring-emerald-500"
+                                onChange={(e) =>
+                                  field.onChange(parseNumber(e.target.value))
+                                }
+                                onClick={(e) => e.currentTarget.select()}
+                                aria-invalid={fieldState.invalid}
+                              />
+                            </div>
+                          </Field>
+                        )}
+                      />
+                    </div>
+                  </div>
+
                   <Controller
                     name="meals"
                     control={form.control}
@@ -461,7 +836,7 @@ export default function NewTripPage() {
                           {...field}
                           id="meals"
                           type="number"
-                          className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
+                          className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
                           onChange={(e) =>
                             field.onChange(parseNumber(e.target.value))
                           }
@@ -486,7 +861,7 @@ export default function NewTripPage() {
                           {...field}
                           id="roroShip"
                           type="number"
-                          className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
+                          className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
                           onChange={(e) =>
                             field.onChange(parseNumber(e.target.value))
                           }
@@ -505,13 +880,13 @@ export default function NewTripPage() {
                           htmlFor="salary"
                           className="text-sm font-bold text-slate-700 dark:text-slate-300"
                         >
-                          Driver/Helper
+                          Salary
                         </FieldLabel>
                         <Input
                           {...field}
                           id="salary"
                           type="number"
-                          className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
+                          className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
                           onChange={(e) =>
                             field.onChange(parseNumber(e.target.value))
                           }
@@ -536,7 +911,7 @@ export default function NewTripPage() {
                           {...field}
                           id="others"
                           type="number"
-                          className="border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
+                          className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
                           onChange={(e) =>
                             field.onChange(parseNumber(e.target.value))
                           }
@@ -552,26 +927,25 @@ export default function NewTripPage() {
           </div>
         </div>
 
-        {/* STICKY BOTTOM BAR WITH PREMIUM BUTTON */}
+        {/* STICKY BOTTOM BAR */}
         <div className="fixed bottom-0 right-0 left-0 md:left-(--sidebar-width,16rem) transition-[left] duration-300 ease-in-out bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5 flex flex-col md:flex-row items-center justify-between gap-4">
-            {/* Totals Section */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex w-full md:w-auto justify-between md:justify-start space-x-2 sm:space-x-8 lg:space-x-12">
               <div className="text-center md:text-left">
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
-                  Gross
+                  Collectible
                 </p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">
-                  ₱{grossCollectible.toLocaleString()}
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white flex items-center">
+                  ₱<NumberTicker value={grossCollectible} />
                 </p>
               </div>
               <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
               <div className="text-center md:text-left">
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
-                  Expenses
+                  Total Expenses
                 </p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-rose-500">
-                  - ₱{totalExpenses.toLocaleString()}
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-rose-500 flex items-center">
+                  - ₱<NumberTicker value={totalExpenses} />
                 </p>
               </div>
               <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
@@ -579,29 +953,25 @@ export default function NewTripPage() {
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Net Income
                 </p>
-                <p className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-500 drop-shadow-sm">
-                  ₱{netIncome.toLocaleString()}
+                <p className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-500 drop-shadow-sm flex items-center">
+                  ₱<NumberTicker value={netIncome} />
                 </p>
               </div>
             </div>
-
-            {/* Submit Button */}
             <Button
               type="submit"
               form="new-trip-form"
               disabled={form.formState.isSubmitting}
-              className="relative h-12 sm:h-14 px-6 lg:px-10 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group/btn font-bold w-full md:w-auto text-base lg:text-lg disabled:opacity-70 disabled:pointer-events-none"
+              className="relative h-12 sm:h-14 px-6 lg:px-10 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-bold w-full md:w-auto text-base lg:text-lg disabled:opacity-70 disabled:pointer-events-none"
             >
               <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-
               {form.formState.isSubmitting ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Saving...
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Saving...
                 </>
               ) : (
                 <>
-                  <Save className="w-5 h-5 sm:w-6 sm:h-6 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />
+                  <Save className="w-5 h-5 sm:w-6 sm:h-6 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />{" "}
                   Save Record
                 </>
               )}

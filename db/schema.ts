@@ -1,68 +1,3 @@
-// // db/schema.ts
-// import {
-//   pgTable,
-//   serial,
-//   varchar,
-//   integer,
-//   timestamp,
-//   text,
-//   boolean,
-// } from "drizzle-orm/pg-core";
-
-// export const users = pgTable("users", {
-//   id: serial("id").primaryKey(),
-//   name: varchar("name", { length: 100 }).notNull(),
-//   email: varchar("email", { length: 255 }).notNull().unique(),
-//   passwordHash: text("password_hash").notNull(),
-
-//   // ROLE: 'admin' (Boss/Manager) or 'encoder' (Data Entry)
-//   role: varchar("role", { length: 20 }).default("encoder").notNull(),
-
-//   // DEPARTMENT: 'trucking', 'eggs', or 'all'
-//   department: varchar("department", { length: 20 })
-//     .default("trucking")
-//     .notNull(),
-
-//   avatarUrl: text("avatar_url"),
-//   isActive: boolean("is_active").default(true).notNull(),
-
-//   createdAt: timestamp("created_at").defaultNow().notNull(),
-// });
-
-// // ----------------------------------------------------------------------
-// // -------------------------- FOR TRUCKING ---------------------------
-// // ----------------------------------------------------------------------
-// export const liveTrips = pgTable("live_trips", {
-//   id: serial("id").primaryKey(),
-
-//   // Trip Details
-//   truckId: varchar("truck_id", { length: 50 }).notNull(),
-//   customerId: varchar("customer_id", { length: 100 }).notNull(),
-//   origin: varchar("origin", { length: 100 }).notNull(),
-//   destination: varchar("destination", { length: 100 }).notNull(),
-//   qtyHeads: integer("qty_heads").notNull(),
-//   rate: integer("rate").notNull(), // Using integer assuming whole Philippine Pesos
-
-//   // Expenses
-//   tollFees: integer("toll_fees").default(0).notNull(),
-//   dieselAmount: integer("diesel_amount").default(0).notNull(),
-//   meals: integer("meals").default(0).notNull(),
-//   roroShip: integer("roro_ship").default(0).notNull(),
-//   salary: integer("salary").default(0).notNull(),
-//   others: integer("others").default(0).notNull(),
-
-//   createdAt: timestamp("created_at").defaultNow().notNull(),
-// });
-
-// export const trucks = pgTable("trucking_fleet", {
-//   id: serial("id").primaryKey(),
-//   fleetCode: varchar("fleet_code", { length: 20 }).notNull().unique(),
-//   plateNumber: varchar("plate_number", { length: 20 }).notNull().unique(),
-//   status: varchar("status", { length: 20 }).default("active").notNull(),
-//   isActive: boolean("is_active").default(true).notNull(),
-//   createdAt: timestamp("created_at").defaultNow().notNull(),
-// });
-
 // db/schema.ts
 import {
   pgTable,
@@ -72,6 +7,7 @@ import {
   timestamp,
   text,
   boolean,
+  real,
 } from "drizzle-orm/pg-core";
 
 // ======================================================================
@@ -124,19 +60,23 @@ export const truckingTrips = pgTable("trucking_trips", {
 
   // Core Trip Details
   customerId: varchar("customer_id", { length: 100 }).notNull(),
-  area: varchar("area", { length: 100 }).notNull().default(""),
+  date: varchar("date", { length: 20 }).notNull(),
+
+  // ✨ ADDED: region and farmName to perfectly match our new Analytics architecture
+  farmName: varchar("farm_name", { length: 255 }).notNull().default(""),
   origin: varchar("origin", { length: 100 }).notNull(),
   destination: varchar("destination", { length: 100 }).notNull(),
   qtyHeads: integer("qty_heads").notNull(),
 
   // Financials (Using integer assuming whole Philippine Pesos)
-  rate: integer("rate").notNull(),
-  tollFees: integer("toll_fees").default(0).notNull(),
-  dieselAmount: integer("diesel_amount").default(0).notNull(),
-  meals: integer("meals").default(0).notNull(),
-  roroShip: integer("roro_ship").default(0).notNull(),
-  salary: integer("salary").default(0).notNull(),
-  others: integer("others").default(0).notNull(),
+  rate: real("rate").notNull(),
+  tollFees: real("toll_fees").default(0).notNull(),
+  dieselCash: real("diesel_cash").default(0).notNull(),
+  dieselPo: real("diesel_po").default(0).notNull(),
+  meals: real("meals").default(0).notNull(),
+  roroShip: real("roro_ship").default(0).notNull(),
+  salary: real("salary").default(0).notNull(),
+  others: real("others").default(0).notNull(),
 
   // Trip Lifecycle: 'pending', 'in-transit', 'completed', 'cancelled'
   status: varchar("status", { length: 50 }).default("pending").notNull(),

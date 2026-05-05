@@ -1,40 +1,65 @@
 // app/(modules)/trucking/trips/page.tsx
 import { db } from "@/db";
-import { truckingTrips } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { truckingTrips, truckingFleet } from "@/db/schema"; // ✨ ADDED: truckingFleet
+import { desc, eq } from "drizzle-orm"; // ✨ ADDED: eq for the JOIN
 import { DataTable } from "./data-table";
 import { columns } from "./columns";
 import { Button } from "@/components/ui/button";
-import { Plus, Map } from "lucide-react";
+import { Plus, Map, Truck } from "lucide-react";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic"; // Ensures the page always fetches fresh data
+export const dynamic = "force-dynamic";
 
 export default async function TripsHistoryPage() {
-  // Fetch all trips from Neon, sorted by the newest first
+  // ✨ THE FIX: We use a JOIN to merge the Trip data with the exact Truck data
   const data = await db
-    .select()
+    .select({
+      id: truckingTrips.id,
+      truckId: truckingTrips.truckId,
+      date: truckingTrips.date,
+      customerId: truckingTrips.customerId,
+      farmName: truckingTrips.farmName,
+      origin: truckingTrips.origin,
+      destination: truckingTrips.destination,
+      qtyHeads: truckingTrips.qtyHeads,
+      rate: truckingTrips.rate,
+      tollFees: truckingTrips.tollFees,
+      dieselCash: truckingTrips.dieselCash,
+      dieselPo: truckingTrips.dieselPo,
+      meals: truckingTrips.meals,
+      roroShip: truckingTrips.roroShip,
+      salary: truckingTrips.salary,
+      others: truckingTrips.others,
+      createdAt: truckingTrips.createdAt,
+
+      // ✨ ADDED: Grabbing these string values from the Fleet table!
+      fleetCode: truckingFleet.fleetCode,
+      plateNumber: truckingFleet.plateNumber,
+    })
     .from(truckingTrips)
+    .leftJoin(truckingFleet, eq(truckingTrips.truckId, truckingFleet.id))
     .orderBy(desc(truckingTrips.createdAt));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto space-y-6 w-full min-w-0 overflow-hidden">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
-            <div className="p-2.5 bg-blue-100 dark:bg-blue-500/20 rounded-2xl">
-              <Map className="w-6 h-6 lg:w-8 lg:h-8 text-blue-600 dark:text-blue-500" />
-            </div>
-            Trip History
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-base font-medium">
+        <div className="space-y-1 relative">
+          <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
+          <div className="flex items-center gap-4 mb-1">
+            <h1 className="text-lg lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+              <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
+                Trips History
+              </span>
+            </h1>
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-base ml-1">
             View and manage all Fhernie Logistics hauling records.
           </p>
         </div>
 
         <Link href="/trucking/trips/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto relative h-12 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group/btn font-bold">
+          <Button className="relative h-12 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg  transition-all duration-300 overflow-hidden group/btn font-bold w-full sm:w-auto">
             <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
             <Plus className="w-5 h-5 mr-2 transition-transform group-hover/btn:rotate-90 duration-300" />
             Record New Trip
@@ -43,7 +68,7 @@ export default async function TripsHistoryPage() {
       </div>
 
       {/* Data Table Section */}
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="animate-in fade-in duration-300">
         <DataTable columns={columns} data={data} />
       </div>
     </div>

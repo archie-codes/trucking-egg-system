@@ -68,7 +68,7 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
             <Truck className="w-5 h-5 text-blue-400" />
           </div>
         ) : (
-          <h2 className="text-xl font-bold text-white tracking-tight">
+          <h2 className="text-[18px] font-bold text-white tracking-tight">
             Trucking<span className="text-primary"> History</span>
           </h2>
         )}
@@ -97,7 +97,7 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
             <Link
               key={route.href}
               href={route.href}
-              className={`flex items-center rounded-lg transition-all duration-200 ${
+              className={`flex items-center rounded-lg transition-all duration-200 text-[15px] ${
                 isCollapsed && !isMobile ? "justify-center py-3" : "px-3 py-2.5"
               } ${
                 isActive

@@ -135,17 +135,14 @@ export default async function FleetManagementPage() {
     .orderBy(desc(truckingFleet.createdAt));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-200">
+    <div className="mx-auto space-y-6 animate-in fade-in duration-300">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div className="space-y-1 relative">
           <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
           <div className="flex items-center gap-4 mb-1">
-            <div className="p-2.5 bg-blue-100 dark:bg-blue-500/20 rounded-2xl text-blue-600 dark:text-blue-400 shadow-inner">
-              <Truck className="w-5 h-5" strokeWidth={2.5} />
-            </div>
-            <h1 className="text-xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm">
+            <h1 className="text-lg lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+              <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
                 Fleet Folders
               </span>
             </h1>

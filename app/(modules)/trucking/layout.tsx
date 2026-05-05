@@ -1,6 +1,7 @@
 // app/(modules)/trucking/layout.tsx
 import { TruckingSidebar } from "@/components/trucking/trucking-sidebar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ShieldAlert, Truck, User } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -10,7 +11,12 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 // Fetch the logged-in user's fresh data from the database
@@ -44,20 +50,16 @@ export default async function TruckingLayout({
         <TruckingSidebar />
       </aside>
 
-      <main className="md:pl-(--sidebar-width,16rem) flex-1 flex flex-col transition-[padding] duration-300 ease-in-out">
+      <main className="md:pl-(--sidebar-width,16rem) flex-1 flex flex-col min-w-0 transition-[padding] duration-300 ease-in-out">
         <header className="h-16 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-4 sm:px-6 z-40 sticky top-0 shadow-lg">
           <div className="flex items-center gap-3">
             {/* Mobile Sidebar Trigger */}
             <div className="md:hidden">
               <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-white hover:bg-slate-800"
-                  >
-                    <Menu className="w-5 h-5" />
-                  </Button>
+                <SheetTrigger 
+                  className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-white hover:bg-slate-800 focus:outline-none")}
+                >
+                  <Menu className="w-5 h-5" />
                 </SheetTrigger>
                 <SheetContent
                   side="left"
@@ -69,7 +71,7 @@ export default async function TruckingLayout({
               </Sheet>
             </div>
 
-            <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-400 hidden sm:inline-block">
+            <span className="font-bold text-[18px] tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-400 hidden sm:inline-block">
               Live Hauling Dashboard
             </span>
           </div>
@@ -77,16 +79,17 @@ export default async function TruckingLayout({
           <div className="flex items-center gap-2 sm:gap-4">
             {/* The Magic Button: Only renders if isAdmin is true */}
             {isAdmin && (
-              <Link href="/admin/users">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
-                >
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
+                asChild
+              >
+                <Link href="/admin/users">
                   <ShieldAlert className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Admin Portal</span>
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             )}
 
             <div className="w-px h-6 bg-slate-700 hidden sm:block mx-1"></div>
@@ -95,7 +98,9 @@ export default async function TruckingLayout({
           </div>
         </header>
 
-        <div className="flex-1 p-4 md:p-6">{children}</div>
+        <div className="flex-1 p-4 md:p-6 min-w-0 overflow-x-hidden">
+          {children}
+        </div>
       </main>
     </div>
   );

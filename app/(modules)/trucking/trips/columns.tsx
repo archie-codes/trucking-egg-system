@@ -1,19 +1,24 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowRight, Truck } from "lucide-react";
+import { Truck } from "lucide-react";
 
-// This defines the shape of our data based on your Drizzle schema
+// 1. ✨ UPDATE THE DATA SHAPE to include Fleet info and Farm Name
 export type TripRecord = {
   id: number;
-  truckId: string;
+  truckId: number;
+  fleetCode: string | null; // ✨ ADDED
+  plateNumber: string | null; // ✨ ADDED
+  date: string;
   customerId: string;
+  farmName: string; // ✨ Cleaned (Replaced 'area')
   origin: string;
   destination: string;
   qtyHeads: number;
   rate: number;
   tollFees: number;
-  dieselAmount: number;
+  dieselCash: number;
+  dieselPo: number;
   meals: number;
   roroShip: number;
   salary: number;
@@ -21,104 +26,225 @@ export type TripRecord = {
   createdAt: Date;
 };
 
+// Helper for Philippine Peso formatting
+const formatPHP = (amount: number) => {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  }).format(amount);
+};
+
+// Helper for number formatting (e.g., 1,000)
+const formatNum = (num: number) => {
+  return new Intl.NumberFormat("en-US").format(num);
+};
+
 export const columns: ColumnDef<TripRecord>[] = [
+  // ✨ NEW TRUCK COLUMN (Placed right before Customer)
   {
-    accessorKey: "createdAt",
-    header: "Date",
+    id: "truck",
+    header: "TRUCK",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt"));
+      const fleetCode = row.original.fleetCode;
+      const plateNumber = row.original.plateNumber;
+
       return (
-        <div className="flex flex-col">
-          <span className="font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-            {date.toLocaleDateString("en-PH", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+        <div className="flex flex-col min-w-[80px]">
+          <span className="font-bold text-slate-800 dark:text-slate-200">
+            {fleetCode || "N/A"}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            {date.toLocaleTimeString("en-PH", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+          <span className="text-xs text-slate-500 font-mono tracking-tight">
+            {plateNumber || "NO PLATE"}
           </span>
         </div>
       );
     },
   },
   {
-    accessorKey: "truckId",
-    header: "Truck",
-    cell: ({ row }) => (
-      <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 whitespace-nowrap">
-        <Truck className="w-3 h-3 mr-1.5" />
-        {row.getValue("truckId")}
-      </div>
-    ),
-  },
-  {
     accessorKey: "customerId",
-    header: "Customer",
+    header: "CUSTOMER",
     cell: ({ row }) => (
-      <span className="font-medium text-slate-700 dark:text-slate-300">
+      <span className="font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
         {row.getValue("customerId")}
       </span>
     ),
   },
   {
-    id: "route",
-    header: "Route",
+    accessorKey: "origin",
+    header: "FROM",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap text-slate-600 dark:text-slate-300">
+        {row.getValue("origin")}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "destination",
+    header: "TO",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap font-medium text-slate-800 dark:text-slate-200">
+        {row.getValue("destination")}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "date",
+    header: "DATE",
     cell: ({ row }) => {
-      const origin = row.original.origin;
-      const destination = row.original.destination;
+      const rawDate = row.getValue("date") as string;
+      const dateObj = new Date(rawDate);
       return (
-        <div className="flex items-center gap-2 text-sm">
-          <span
-            className="truncate max-w-[120px] lg:max-w-[150px] font-medium text-slate-700 dark:text-slate-300"
-            title={origin}
-          >
-            {origin}
-          </span>
-          <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span
-            className="truncate max-w-[120px] lg:max-w-[150px] font-medium text-slate-700 dark:text-slate-300"
-            title={destination}
-          >
-            {destination}
-          </span>
+        <span className="whitespace-nowrap text-slate-600 dark:text-slate-300">
+          {dateObj.toLocaleDateString("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: "qtyHeads",
+    header: () => <div className="text-right">QTY HDS</div>,
+    cell: ({ row }) => (
+      <div className="text-right font-semibold text-slate-800 dark:text-slate-200">
+        {formatNum(row.getValue("qtyHeads"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "rate",
+    header: () => <div className="text-right">RATE</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-slate-600 dark:text-slate-300">
+        {formatPHP(row.getValue("rate"))}
+      </div>
+    ),
+  },
+  {
+    id: "collectible",
+    header: () => <div className="text-right font-bold">COLLECTIBLE</div>,
+    cell: ({ row }) => {
+      const qty = row.original.qtyHeads;
+      const rate = row.original.rate;
+      return (
+        <div className="text-right font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">
+          {formatPHP(qty * rate)}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "tollFees",
+    header: () => <div className="text-right">TOLL FEES</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("tollFees"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "dieselCash",
+    header: () => <div className="text-right">DIESEL (CASH)</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("dieselCash"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "dieselPo",
+    header: () => <div className="text-right">DIESEL (P.O.)</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("dieselPo"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "meals",
+    header: () => <div className="text-right">MEALS</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("meals"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "roroShip",
+    header: () => <div className="text-right">RORO</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("roroShip"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "others",
+    header: () => <div className="text-right">OTHERS</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("others"))}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "salary",
+    header: () => <div className="text-right">SALARY</div>,
+    cell: ({ row }) => (
+      <div className="text-right text-rose-500 whitespace-nowrap">
+        {formatPHP(row.getValue("salary"))}
+      </div>
+    ),
+  },
+  {
+    id: "total",
+    header: () => <div className="text-right font-bold">TOTAL</div>,
+    cell: ({ row }) => {
+      const t = row.original;
+      const totalExpenses =
+        t.tollFees +
+        t.dieselCash +
+        t.dieselPo +
+        t.meals +
+        t.roroShip +
+        t.salary +
+        t.others;
+      return (
+        <div className="text-right font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+          {formatPHP(totalExpenses)}
         </div>
       );
     },
   },
   {
     id: "netIncome",
-    header: () => <div className="text-right font-bold">Net Income</div>,
+    header: () => (
+      <div className="text-right font-black uppercase">NET INCOME</div>
+    ),
     cell: ({ row }) => {
-      const trip = row.original;
-      const gross = trip.qtyHeads * trip.rate;
+      const t = row.original;
+      const gross = t.qtyHeads * t.rate;
       const expenses =
-        trip.tollFees +
-        trip.dieselAmount +
-        trip.meals +
-        trip.roroShip +
-        trip.salary +
-        trip.others;
+        t.tollFees +
+        t.dieselCash +
+        t.dieselPo +
+        t.meals +
+        t.roroShip +
+        t.salary +
+        t.others;
       const net = gross - expenses;
-
-      const formatted = new Intl.NumberFormat("en-PH", {
-        style: "currency",
-        currency: "PHP",
-      }).format(net);
 
       return (
         <div
-          className={`text-right font-bold whitespace-nowrap ${
+          className={`text-right font-black whitespace-nowrap ${
             net >= 0
               ? "text-emerald-600 dark:text-emerald-400"
               : "text-rose-600 dark:text-rose-400"
           }`}
         >
-          {formatted}
+          {formatPHP(net)}
         </div>
       );
     },
