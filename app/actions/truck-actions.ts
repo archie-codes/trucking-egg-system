@@ -56,8 +56,8 @@
 "use server";
 
 import { db } from "@/db";
-import { truckingFleet } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { truckingFleet, truckingTrips } from "@/db/schema";
+import { eq, or, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -159,5 +159,85 @@ export async function getActiveTrucks() {
   } catch (error) {
     console.error("Failed to fetch trucks:", error);
     return { success: false, error: "Failed to fetch fleet data." };
+  }
+}
+
+// ============================================================================
+// NEW: Fetch trips for a specific truck (formatted perfectly for our DataTable)
+// ============================================================================
+
+export async function getTruckTrips(truckId: number) {
+  try {
+    const data = await db
+      .select({
+        id: truckingTrips.id,
+        truckId: truckingTrips.truckId,
+        date: truckingTrips.date,
+        customerId: truckingTrips.customerId,
+        farmName: truckingTrips.farmName,
+        origin: truckingTrips.origin,
+        destination: truckingTrips.destination,
+        qtyHeads: truckingTrips.qtyHeads,
+        rate: truckingTrips.rate,
+        tollFees: truckingTrips.tollFees,
+        dieselCash: truckingTrips.dieselCash,
+        dieselPo: truckingTrips.dieselPo,
+        meals: truckingTrips.meals,
+        roroShip: truckingTrips.roroShip,
+        salary: truckingTrips.salary,
+        others: truckingTrips.others,
+        createdAt: truckingTrips.createdAt,
+        fleetCode: truckingFleet.fleetCode,
+        plateNumber: truckingFleet.plateNumber,
+      })
+      .from(truckingTrips)
+      .leftJoin(truckingFleet, eq(truckingTrips.truckId, truckingFleet.id))
+      .where(eq(truckingTrips.truckId, truckId))
+      .orderBy(desc(truckingTrips.createdAt));
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Failed to fetch truck trips:", error);
+    return { success: false, error: "Failed to load truck history." };
+  }
+}
+
+// ============================================================================
+// Delete Truck Action
+// ============================================================================
+
+export async function deleteTruck(truckId: number) {
+  try {
+    await db.delete(truckingFleet).where(eq(truckingFleet.id, truckId));
+    revalidatePath("/trucking/fleet");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Delete error:", error);
+    return { success: false, error: "Failed to delete truck." };
+  }
+}
+
+// ============================================================================
+// Update Truck Action
+// ============================================================================
+export async function updateTruck(
+  truckId: number,
+  data: { fleetCode: string; plateNumber: string; status: string },
+) {
+  try {
+    await db
+      .update(truckingFleet)
+      .set({
+        fleetCode: data.fleetCode,
+        plateNumber: data.plateNumber,
+        status: data.status,
+      })
+      .where(eq(truckingFleet.id, truckId));
+
+    revalidatePath("/trucking/fleet"); // Refresh the page to show new details
+    return { success: true };
+  } catch (error: any) {
+    console.error("Update error:", error);
+    return { success: false, error: "Failed to update truck." };
   }
 }

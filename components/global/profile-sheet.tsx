@@ -72,7 +72,7 @@ export function ProfileSheet({
                 {currentUser?.name || "Unknown User"}
               </h3>
               <div className="flex items-center gap-1.5 mt-1 text-[13px] text-slate-500 font-medium">
-                <Mail className="w-3.5 h-3.5 shrink-0" /> 
+                <Mail className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">{currentUser?.email}</span>
               </div>
               <div className="flex items-center gap-2 mt-2">
@@ -125,11 +125,15 @@ export function ProfileSheet({
                 placeholder="Confirm New Password"
                 className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
               />
-              <Button className="w-full h-11 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 font-bold">
-                Update Password
-              </Button>
             </div>
           </div>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="p-4 sm:p-6 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-100 dark:border-slate-800/60 shrink-0 z-20 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+          <Button className="w-full h-11 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 font-bold shadow-lg transition-transform hover:scale-[1.02]">
+            Update Password
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

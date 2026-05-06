@@ -382,7 +382,7 @@ export default function NewTripPage() {
                           >
                             <SelectTrigger
                               id="truckId"
-                              className="w-full rounded-2xl border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 px-4 text-[15px] h-[46px]! shadow-sm focus-within:ring-blue-500"
+                              className="w-full rounded-2xl border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 px-4 text-[15px] h-[46px]! focus-within:ring-blue-500"
                             >
                               <SelectValue
                                 placeholder={
@@ -953,7 +953,7 @@ export default function NewTripPage() {
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Net Income
                 </p>
-                <p className="text-xl sm:text-2xl lg:text-3xl font-black text-emerald-500 drop-shadow-sm flex items-center">
+                <p className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-500 flex items-center">
                   ₱<NumberTicker value={netIncome} />
                 </p>
               </div>

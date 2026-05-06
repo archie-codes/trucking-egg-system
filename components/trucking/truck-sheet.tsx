@@ -61,6 +61,7 @@ export function TruckSheet({
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
           <SheetHeader className="mb-8 mt-2">
             <SheetTitle className="text-lg lg:text-2xl font-black bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm flex items-center gap-2">
+              <Truck className="w-6 h-6 text-blue-500" />
               Register Truck
             </SheetTitle>
             <SheetDescription className="text-base text-slate-500 dark:text-slate-400">

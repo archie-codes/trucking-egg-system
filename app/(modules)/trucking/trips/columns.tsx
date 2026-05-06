@@ -49,13 +49,8 @@ export const columns: ColumnDef<TripRecord>[] = [
       const plateNumber = row.original.plateNumber;
 
       return (
-        <div className="flex flex-col min-w-[80px]">
-          <span className="font-bold text-slate-800 dark:text-slate-200">
-            {fleetCode || "N/A"}
-          </span>
-          <span className="text-xs text-slate-500 font-mono tracking-tight">
-            {plateNumber || "NO PLATE"}
-          </span>
+        <div className="whitespace-nowrap font-bold text-slate-800 dark:text-slate-200">
+          {fleetCode || "N/A"} - {plateNumber || "NO PLATE"}
         </div>
       );
     },

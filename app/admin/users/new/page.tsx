@@ -109,7 +109,7 @@ export default function AddUserPage() {
         <div className="space-y-1 relative">
           <div className="absolute -left-4 top-0 w-12 h-12 bg-blue-500/10 rounded-full blur-xl -z-10" />
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 drop-shadow-sm">
+            <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
               Add New Staff
             </span>
           </h1>
