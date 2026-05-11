@@ -3,6 +3,7 @@
 
 import { db } from "@/db";
 import { truckingTrips } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
@@ -59,5 +60,48 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
       success: false,
       error: error.message || "Failed to save trip to the database.",
     };
+  }
+}
+
+// ✨ DELETE TRIP ACTION
+export async function deleteTripRecord(tripId: number) {
+  try {
+    await db.delete(truckingTrips).where(eq(truckingTrips.id, tripId));
+    revalidatePath("/trucking/trips");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to delete trip:", error);
+    return { success: false, error: "Failed to delete trip record." };
+  }
+}
+
+// ✨ UPDATE TRIP ACTION
+export async function updateTripRecord(tripId: number, data: any) {
+  try {
+    await db
+      .update(truckingTrips)
+      .set({
+        date: data.date,
+        customerId: data.customerId,
+        farmName: data.farmName,
+        origin: data.origin,
+        destination: data.destination,
+        qtyHeads: data.qtyHeads,
+        rate: data.rate,
+        tollFees: data.tollFees,
+        dieselCash: data.dieselCash,
+        dieselPo: data.dieselPo,
+        meals: data.meals,
+        roroShip: data.roroShip,
+        salary: data.salary,
+        others: data.others,
+      })
+      .where(eq(truckingTrips.id, tripId));
+
+    revalidatePath("/trucking/trips");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to update trip:", error);
+    return { success: false, error: "Failed to update trip record." };
   }
 }

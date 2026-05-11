@@ -176,9 +176,8 @@
 import { db } from "@/db";
 import { truckingFleet } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { FolderOpen } from "lucide-react";
 import { AddTruckButton } from "./add-truck-button";
-import { TruckFolderCard } from "./truck-folder-card"; // ✨ IMPORT OUR NEW COMPONENT
+import { FleetClientContainer } from "./fleet-client-container";
 
 export const dynamic = "force-dynamic";
 
@@ -209,28 +208,8 @@ export default async function FleetManagementPage() {
         <AddTruckButton />
       </div>
 
-      {/* CSS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-10 gap-x-4 sm:gap-y-12 sm:gap-x-6">
-        {/* EMPTY STATE */}
-        {fleetData.length === 0 && (
-          <div className="col-span-full py-12 sm:py-16 px-4 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-900/30 rounded-[24px] sm:rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-center">
-            <div className="p-4 sm:p-5 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-3 sm:mb-4">
-              <FolderOpen className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300 dark:text-slate-600" />
-            </div>
-            <p className="font-bold text-lg sm:text-xl text-slate-700 dark:text-slate-300">
-              No folders created yet.
-            </p>
-            <p className="text-xs sm:text-sm font-medium mt-1">
-              Click 'Register Truck' to create your first asset folder.
-            </p>
-          </div>
-        )}
-
-        {/* TRUCK FOLDERS (Cleanly mapped using our new component!) */}
-        {fleetData.map((truck) => (
-          <TruckFolderCard key={truck.id} truck={truck} />
-        ))}
-      </div>
+      {/* Content Container handles View Mode and Sorting */}
+      <FleetClientContainer fleetData={fleetData} />
     </div>
   );
 }

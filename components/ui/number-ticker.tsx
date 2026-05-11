@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 export function NumberTicker({
   value,
   duration = 0.5, // default duration in seconds
+  decimalPlaces = 0,
 }: {
   value: number;
   duration?: number;
+  decimalPlaces?: number;
 }) {
   const [displayValue, setDisplayValue] = useState(value);
 
@@ -49,6 +51,11 @@ export function NumberTicker({
     };
   }, [value, duration]);
 
-  // Round to nearest integer before converting to locale string so we don't see decimals animating rapidly
-  return <span>{Math.round(displayValue).toLocaleString()}</span>;
+  // Use Intl.NumberFormat to handle both thousands separators and decimal places dynamically
+  const formattedValue = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
+  }).format(displayValue);
+
+  return <span>{formattedValue}</span>;
 }

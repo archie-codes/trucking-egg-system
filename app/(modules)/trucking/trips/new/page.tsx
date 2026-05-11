@@ -57,7 +57,11 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 
-// 1. Zod Schema (Cleaned)
+// Helper to accept empty strings but transform to numbers safely for DB insertion
+const numField = z
+  .union([z.string(), z.number()])
+  .transform((val) => Number(val) || 0);
+
 const tripSchema = z.object({
   date: z.string().min(1, "Date is required"),
   truckId: z.number().min(1, "Please select a truck"),
@@ -67,16 +71,16 @@ const tripSchema = z.object({
   origin: z.string().min(1, "Origin is required").toUpperCase(),
   destination: z.string().min(1, "Destination is required").toUpperCase(),
 
-  qtyHeads: z.number().min(1, "Quantity must be at least 1"),
-  rate: z.number().min(0, "Invalid rate"),
+  qtyHeads: numField.pipe(z.number().min(1, "Quantity must be at least 1")),
+  rate: numField.pipe(z.number().min(0, "Invalid rate")),
 
-  tollFees: z.number().min(0),
-  dieselCash: z.number().min(0),
-  dieselPo: z.number().min(0),
-  meals: z.number().min(0),
-  roroShip: z.number().min(0),
-  salary: z.number().min(0),
-  others: z.number().min(0),
+  tollFees: numField,
+  dieselCash: numField,
+  dieselPo: numField,
+  meals: numField,
+  roroShip: numField,
+  salary: numField,
+  others: numField,
 });
 
 export default function NewTripPage() {
@@ -85,7 +89,6 @@ export default function NewTripPage() {
   >([]);
   const [isLoadingTrucks, setIsLoadingTrucks] = useState(true);
 
-  // LOCATIONS FOR COMBOBOXES
   const [phLocations, setPhLocations] = useState<
     { value: string; label: string }[]
   >([]);
@@ -99,7 +102,6 @@ export default function NewTripPage() {
 
   useEffect(() => {
     async function loadInitialData() {
-      // 1. Load Fleet Data
       const truckResult = await getActiveTrucks();
       if (truckResult.success && truckResult.data) {
         setAvailableTrucks(truckResult.data);
@@ -108,7 +110,6 @@ export default function NewTripPage() {
       }
       setIsLoadingTrucks(false);
 
-      // 2. Fetch Provinces AND Cities for Origin/Destination comboboxes
       try {
         const [provRes, cityRes] = await Promise.all([
           fetch("https://psgc.gitlab.io/api/provinces"),
@@ -145,7 +146,11 @@ export default function NewTripPage() {
     loadInitialData();
   }, []);
 
-  const form = useForm<z.infer<typeof tripSchema>>({
+  const form = useForm<
+    z.input<typeof tripSchema>,
+    any,
+    z.infer<typeof tripSchema>
+  >({
     resolver: zodResolver(tripSchema),
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
@@ -154,28 +159,29 @@ export default function NewTripPage() {
       farmName: "",
       origin: "",
       destination: "",
-      qtyHeads: 0,
-      rate: 0,
-      tollFees: 0,
-      dieselCash: 0,
-      dieselPo: 0,
-      meals: 0,
-      roroShip: 0,
-      salary: 0,
-      others: 0,
+      qtyHeads: "",
+      rate: "",
+      tollFees: "",
+      dieselCash: "",
+      dieselPo: "",
+      meals: "",
+      roroShip: "",
+      salary: "",
+      others: "",
     },
   });
 
   const { control } = form;
-  const qtyHeads = useWatch({ control, name: "qtyHeads" }) || 0;
-  const rate = useWatch({ control, name: "rate" }) || 0;
-  const tollFees = useWatch({ control, name: "tollFees" }) || 0;
-  const dieselCash = useWatch({ control, name: "dieselCash" }) || 0;
-  const dieselPo = useWatch({ control, name: "dieselPo" }) || 0;
-  const meals = useWatch({ control, name: "meals" }) || 0;
-  const roroShip = useWatch({ control, name: "roroShip" }) || 0;
-  const salary = useWatch({ control, name: "salary" }) || 0;
-  const others = useWatch({ control, name: "others" }) || 0;
+
+  const qtyHeads = Number(useWatch({ control, name: "qtyHeads" })) || 0;
+  const rate = Number(useWatch({ control, name: "rate" })) || 0;
+  const tollFees = Number(useWatch({ control, name: "tollFees" })) || 0;
+  const dieselCash = Number(useWatch({ control, name: "dieselCash" })) || 0;
+  const dieselPo = Number(useWatch({ control, name: "dieselPo" })) || 0;
+  const meals = Number(useWatch({ control, name: "meals" })) || 0;
+  const roroShip = Number(useWatch({ control, name: "roroShip" })) || 0;
+  const salary = Number(useWatch({ control, name: "salary" })) || 0;
+  const others = Number(useWatch({ control, name: "others" })) || 0;
 
   const grossCollectible = qtyHeads * rate;
   const totalExpenses =
@@ -186,12 +192,12 @@ export default function NewTripPage() {
     setDieselMode(mode);
     if (mode === "cash") {
       const currentPo = form.getValues("dieselPo");
-      form.setValue("dieselCash", currentPo);
-      form.setValue("dieselPo", 0);
+      form.setValue("dieselCash", currentPo || "");
+      form.setValue("dieselPo", "");
     } else {
       const currentCash = form.getValues("dieselCash");
-      form.setValue("dieselPo", currentCash);
-      form.setValue("dieselCash", 0);
+      form.setValue("dieselPo", currentCash || "");
+      form.setValue("dieselCash", "");
     }
   };
 
@@ -212,15 +218,15 @@ export default function NewTripPage() {
           farmName: "",
           origin: "",
           destination: "",
-          qtyHeads: 0,
-          rate: 0,
-          tollFees: 0,
-          dieselCash: 0,
-          dieselPo: 0,
-          meals: 0,
-          roroShip: 0,
-          salary: 0,
-          others: 0,
+          qtyHeads: "",
+          rate: "",
+          tollFees: "",
+          dieselCash: "",
+          dieselPo: "",
+          meals: "",
+          roroShip: "",
+          salary: "",
+          others: "",
         });
 
         setDieselMode("cash");
@@ -255,12 +261,6 @@ export default function NewTripPage() {
     }
   }
 
-  const parseNumber = (val: string) => {
-    if (val === "") return 0;
-    const parsed = Number(val);
-    return isNaN(parsed) ? 0 : parsed;
-  };
-
   return (
     <div className="max-w-5xl mx-auto space-y-6 lg:space-y-8 animate-in fade-in duration-300">
       <div className="space-y-1 relative">
@@ -292,7 +292,6 @@ export default function NewTripPage() {
               </CardHeader>
               <CardContent className="pt-6 lg:pt-8 px-6 lg:px-8">
                 <FieldGroup className="space-y-4 lg:space-y-5">
-                  {/* ROW 1: DATE & TRUCK ASSIGNMENT */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="date"
@@ -374,7 +373,6 @@ export default function NewTripPage() {
                           </FieldLabel>
                           <Select
                             onValueChange={(val) => field.onChange(Number(val))}
-                            // ✨ THE FIX: Check for 0 and return "", preventing the controlled/uncontrolled warning!
                             value={
                               field.value === 0 ? "" : field.value.toString()
                             }
@@ -412,7 +410,6 @@ export default function NewTripPage() {
                     />
                   </div>
 
-                  {/* ROW 2: CUSTOMER NAME & FARM ADDRESS (BOTH TEXT INPUTS) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="customerId"
@@ -471,7 +468,6 @@ export default function NewTripPage() {
                     />
                   </div>
 
-                  {/* ROW 3: ORIGIN AND DESTINATION COMBOBOXES */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50/50 dark:bg-slate-800/20 p-4 rounded-2xl border border-blue-100 dark:border-slate-800/60">
                     <Controller
                       name="origin"
@@ -644,7 +640,6 @@ export default function NewTripPage() {
                     />
                   </div>
 
-                  {/* ROW 4: QTY AND RATE */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="qtyHeads"
@@ -661,10 +656,10 @@ export default function NewTripPage() {
                             {...field}
                             id="qtyHeads"
                             type="number"
+                            step="0.01"
+                            placeholder="0"
                             className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-bold text-blue-600 dark:text-blue-400"
-                            onChange={(e) =>
-                              field.onChange(parseNumber(e.target.value))
-                            }
+                            onChange={(e) => field.onChange(e.target.value)}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
                           />
@@ -690,10 +685,10 @@ export default function NewTripPage() {
                             {...field}
                             id="rate"
                             type="number"
+                            step="0.01"
+                            placeholder="0.00"
                             className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-bold text-emerald-600 dark:text-emerald-400"
-                            onChange={(e) =>
-                              field.onChange(parseNumber(e.target.value))
-                            }
+                            onChange={(e) => field.onChange(e.target.value)}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
                           />
@@ -735,10 +730,10 @@ export default function NewTripPage() {
                           {...field}
                           id="tollFees"
                           type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) =>
-                            field.onChange(parseNumber(e.target.value))
-                          }
+                          onChange={(e) => field.onChange(e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -781,11 +776,10 @@ export default function NewTripPage() {
                                 {...field}
                                 id="dieselCash"
                                 type="number"
-                                placeholder="Enter Cash Amount"
+                                step="0.01"
+                                placeholder="Cash Amount"
                                 className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-blue-600 dark:text-blue-400 w-full pl-4 transition-all focus-visible:ring-blue-500"
-                                onChange={(e) =>
-                                  field.onChange(parseNumber(e.target.value))
-                                }
+                                onChange={(e) => field.onChange(e.target.value)}
                                 onClick={(e) => e.currentTarget.select()}
                                 aria-invalid={fieldState.invalid}
                               />
@@ -806,11 +800,10 @@ export default function NewTripPage() {
                                 {...field}
                                 id="dieselPo"
                                 type="number"
-                                placeholder="Enter P.O. Amount"
+                                step="0.01"
+                                placeholder="P.O. Amount"
                                 className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-emerald-600 dark:text-emerald-400 w-full pl-4 transition-all focus-visible:ring-emerald-500"
-                                onChange={(e) =>
-                                  field.onChange(parseNumber(e.target.value))
-                                }
+                                onChange={(e) => field.onChange(e.target.value)}
                                 onClick={(e) => e.currentTarget.select()}
                                 aria-invalid={fieldState.invalid}
                               />
@@ -836,10 +829,10 @@ export default function NewTripPage() {
                           {...field}
                           id="meals"
                           type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) =>
-                            field.onChange(parseNumber(e.target.value))
-                          }
+                          onChange={(e) => field.onChange(e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -861,10 +854,10 @@ export default function NewTripPage() {
                           {...field}
                           id="roroShip"
                           type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) =>
-                            field.onChange(parseNumber(e.target.value))
-                          }
+                          onChange={(e) => field.onChange(e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -886,10 +879,10 @@ export default function NewTripPage() {
                           {...field}
                           id="salary"
                           type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) =>
-                            field.onChange(parseNumber(e.target.value))
-                          }
+                          onChange={(e) => field.onChange(e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -911,10 +904,10 @@ export default function NewTripPage() {
                           {...field}
                           id="others"
                           type="number"
+                          step="0.01"
+                          placeholder="0.00"
                           className="h-[46px] border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-[15px] font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) =>
-                            field.onChange(parseNumber(e.target.value))
-                          }
+                          onChange={(e) => field.onChange(e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -935,8 +928,9 @@ export default function NewTripPage() {
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Collectible
                 </p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white flex items-center">
-                  ₱<NumberTicker value={grossCollectible} />
+                <p className="text-lg sm:text-lg lg:text-xl font-mono text-slate-900 dark:text-white flex items-center">
+                  {/* ✨ Added decimalPlaces={2} for accurate formatting */}
+                  ₱<NumberTicker value={grossCollectible} decimalPlaces={2} />
                 </p>
               </div>
               <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
@@ -944,8 +938,9 @@ export default function NewTripPage() {
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Total Expenses
                 </p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-rose-500 flex items-center">
-                  - ₱<NumberTicker value={totalExpenses} />
+                <p className="text-lg sm:text-lg lg:text-xl font-mono text-rose-500 flex items-center">
+                  {/* ✨ Added decimalPlaces={2} */}
+                  - ₱<NumberTicker value={totalExpenses} decimalPlaces={2} />
                 </p>
               </div>
               <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
@@ -953,8 +948,9 @@ export default function NewTripPage() {
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Net Income
                 </p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-black text-emerald-500 flex items-center">
-                  ₱<NumberTicker value={netIncome} />
+                <p className="text-lg sm:text-lg lg:text-xl font-mono text-emerald-500 flex items-center">
+                  {/* ✨ Added decimalPlaces={2} */}
+                  ₱<NumberTicker value={netIncome} decimalPlaces={2} />
                 </p>
               </div>
             </div>
