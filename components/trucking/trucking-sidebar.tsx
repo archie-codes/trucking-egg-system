@@ -1,4 +1,3 @@
-// components/trucking-sidebar.tsx (or wherever you placed it)
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,9 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Map,
-  ReceiptText,
-  BarChart3,
-  Truck, // 1. ADDED: Truck icon for the Fleet menu
+  Truck,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -21,7 +18,6 @@ const routes = [
     icon: LayoutDashboard,
     href: "/trucking/dashboard",
   },
-  // 2. ADDED: The new Fleet Registration route
   {
     label: "Truck Fleet",
     icon: Truck,
@@ -32,22 +28,34 @@ const routes = [
     icon: Map,
     href: "/trucking/trips",
   },
-  {
-    label: "Expenses",
-    icon: ReceiptText,
-    href: "/trucking/expenses",
-  },
-  {
-    label: "Reports",
-    icon: BarChart3,
-    href: "/trucking/reports",
-  },
 ];
 
 export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // ✨ FIX: Auto-collapse on Tablet screens (< 1024px)
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handleResize = () => {
+      // If screen is smaller than standard desktop (1024px), automatically collapse it
+      if (window.innerWidth < 1024) {
+        setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
+      }
+    };
+
+    // Run once on load
+    handleResize();
+
+    // Listen for window resizing (e.g., rotating an iPad)
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isMobile]);
+
+  // Update CSS variable for the main content padding
   useEffect(() => {
     if (!isMobile) {
       document.documentElement.style.setProperty(
@@ -69,7 +77,7 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
           </div>
         ) : (
           <h2 className="text-[18px] font-bold text-white tracking-tight">
-            Trucking<span className="text-primary"> History</span>
+            Trucking<span className="text-blue-500"> History</span>
           </h2>
         )}
       </div>
@@ -101,13 +109,13 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
                 isCollapsed && !isMobile ? "justify-center py-3" : "px-3 py-2.5"
               } ${
                 isActive
-                  ? "bg-primary/10 text-primary font-medium"
+                  ? "bg-blue-500/10 text-blue-500 font-medium"
                   : "hover:bg-slate-800 hover:text-white"
               }`}
               title={isCollapsed && !isMobile ? route.label : undefined}
             >
               <route.icon
-                className={`w-5 h-5 ${isCollapsed && !isMobile ? "" : "mr-3"} ${isActive ? "text-primary" : "text-slate-400"}`}
+                className={`w-5 h-5 ${isCollapsed && !isMobile ? "" : "mr-3"} ${isActive ? "text-blue-500" : "text-slate-400"}`}
               />
               {(!isCollapsed || isMobile) && <span>{route.label}</span>}
             </Link>

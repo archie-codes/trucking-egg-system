@@ -161,3 +161,59 @@ export async function restoreStaffAccount(userId: number) {
     return { success: false, error: "Failed to restore account." };
   }
 }
+
+export async function updateUserPassword(
+  userId: number,
+  currentPw: string,
+  newPw: string,
+) {
+  try {
+    // 1. Fetch the user from the database
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+
+    if (!user) {
+      return { success: false, error: "User not found." };
+    }
+
+    // 2. Verify the current password
+    const isPasswordValid = await bcrypt.compare(currentPw, user.passwordHash); // Assuming your DB column is named 'password'
+    if (!isPasswordValid) {
+      return { success: false, error: "Incorrect current password." };
+    }
+
+    // 3. Hash the new password
+    const hashedNewPassword = await bcrypt.hash(newPw, 10);
+
+    // 4. Update the database
+    await db
+      .update(users)
+      .set({ passwordHash: hashedNewPassword })
+      .where(eq(users.id, userId));
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update password:", error);
+    return {
+      success: false,
+      error: "An error occurred while updating the password.",
+    };
+  }
+}
+
+export async function updateUserAvatar(userId: number, avatarUrl: string) {
+  try {
+    // 1. Update the user's avatar URL in the database
+    await db
+      .update(users)
+      .set({ avatarUrl: avatarUrl })
+      .where(eq(users.id, userId));
+
+    // 2. Revalidate the layout so the new avatar instantly shows up in the Navbar!
+    revalidatePath("/", "layout");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update avatar:", error);
+    return { success: false, error: "Failed to update database." };
+  }
+}

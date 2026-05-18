@@ -1,994 +1,9 @@
-// "use client";
-
-// import { useState, useRef, useEffect, useMemo } from "react";
-// import { useRouter } from "next/navigation"; // ✨ Added useRouter
-// import {
-//   Truck,
-//   CheckCircle2,
-//   Wrench,
-//   XCircle,
-//   FolderOpen,
-//   Loader2,
-//   DollarSign,
-//   Activity,
-//   FileSpreadsheet,
-//   Settings,
-//   ShieldCheck,
-//   X,
-//   FilterX,
-//   BarChart3,
-//   Edit,
-//   Trash2,
-//   MoreHorizontal,
-//   MoreVertical,
-// } from "lucide-react";
-// import { Badge } from "@/components/ui/badge";
-// import { toast } from "sonner";
-// import { Button } from "@/components/ui/button";
-// import {
-//   DropdownMenu,
-//   DropdownMenuContent,
-//   DropdownMenuItem,
-//   DropdownMenuSeparator,
-//   DropdownMenuTrigger,
-// } from "@/components/ui/dropdown-menu";
-
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-
-// import {
-//   Sheet,
-//   SheetContent,
-//   SheetHeader,
-//   SheetTitle,
-// } from "@/components/ui/sheet";
-
-// // ✨ Added Dialog, Input, and Label for the Edit Modal
-// import {
-//   Dialog,
-//   DialogContent,
-//   DialogDescription,
-//   DialogFooter,
-//   DialogHeader,
-//   DialogTitle,
-// } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-
-// import {
-//   AlertDialog,
-//   AlertDialogAction,
-//   AlertDialogCancel,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogFooter,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-// } from "@/components/ui/alert-dialog";
-
-// import { DataTable } from "../trips/data-table";
-// import { columns } from "../trips/columns";
-
-// // ✨ Imported our new Server Actions
-// import {
-//   getTruckTrips,
-//   deleteTruck,
-//   updateTruck,
-// } from "@/app/actions/truck-actions";
-
-// function AnimatedNumber({
-//   value,
-//   isCurrency = false,
-// }: {
-//   value: number;
-//   isCurrency?: boolean;
-// }) {
-//   const [current, setCurrent] = useState(0);
-
-//   useEffect(() => {
-//     let startTime: number;
-//     const startValue = current;
-//     const distance = value - startValue;
-
-//     if (distance === 0) return;
-
-//     const animate = (timestamp: number) => {
-//       if (!startTime) startTime = timestamp;
-//       const progress = timestamp - startTime;
-//       const percentage = Math.min(progress / 1000, 1);
-
-//       const easeOut = 1 - Math.pow(1 - percentage, 4);
-
-//       setCurrent(startValue + distance * easeOut);
-
-//       if (percentage < 1) {
-//         requestAnimationFrame(animate);
-//       } else {
-//         setCurrent(value);
-//       }
-//     };
-
-//     const rafId = requestAnimationFrame(animate);
-//     return () => cancelAnimationFrame(rafId);
-//   }, [value]);
-
-//   if (isCurrency) {
-//     return (
-//       <>
-//         {new Intl.NumberFormat("en-PH", {
-//           style: "currency",
-//           currency: "PHP",
-//         }).format(current)}
-//       </>
-//     );
-//   }
-
-//   return <>{Math.round(current)}</>;
-// }
-
-// export function TruckFolderCard({
-//   truck,
-//   viewMode = "grid",
-// }: {
-//   truck: any;
-//   viewMode?: "grid" | "list";
-// }) {
-//   const router = useRouter(); // ✨ Used to refresh the UI
-
-//   const [isProfileOpen, setIsProfileOpen] = useState(false);
-//   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-
-//   // ✨ NEW: States for Edit/Delete logic
-//   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-//   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-//   const [isDeleting, setIsDeleting] = useState(false);
-//   const [isUpdating, setIsUpdating] = useState(false);
-
-//   // ✨ State to hold the form data while editing
-//   const [editForm, setEditForm] = useState({
-//     fleetCode: truck.fleetCode || "",
-//     plateNumber: truck.plateNumber || "",
-//     status: truck.status || "active",
-//   });
-
-//   const [trips, setTrips] = useState<any[]>([]);
-//   const [isLoading, setIsLoading] = useState(false);
-
-//   const [selectedYear, setSelectedYear] = useState<string>("all");
-//   const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
-//   const [selectedDestination, setSelectedDestination] = useState<string>("all");
-
-//   const dashboardRef = useRef<HTMLDivElement>(null);
-
-//   useEffect(() => {
-//     if (isDashboardOpen && dashboardRef.current) dashboardRef.current.focus();
-//   }, [isDashboardOpen]);
-
-//   // ✨ NEW: Listen for 'trip-updated' events to silently refresh data in real-time
-//   useEffect(() => {
-//     const handleTripUpdate = async () => {
-//       if (isDashboardOpen || isProfileOpen) {
-//         const result = await getTruckTrips(truck.id);
-//         if (result.success && result.data) {
-//           setTrips(result.data);
-//         }
-//       }
-//     };
-
-//     window.addEventListener("trip-updated", handleTripUpdate);
-//     return () => window.removeEventListener("trip-updated", handleTripUpdate);
-//   }, [isDashboardOpen, isProfileOpen, truck.id]);
-
-//   const handleOpenProfile = async (e: React.MouseEvent) => {
-//     e.stopPropagation();
-//     setIsProfileOpen(true);
-//     setIsLoading(true);
-
-//     setSelectedYear("all");
-//     setSelectedCustomer("all");
-//     setSelectedDestination("all");
-
-//     const result = await getTruckTrips(truck.id);
-//     if (result.success && result.data) {
-//       setTrips(result.data);
-//     } else {
-//       toast.error("Failed to load truck history.");
-//     }
-
-//     setIsLoading(false);
-//   };
-
-//   // ✨ THE WORKING EDIT HANDLER
-//   const handleEditTruck = () => {
-//     setIsEditDialogOpen(true); // Opens the modal
-//   };
-
-//   const handleEditSubmit = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     setIsUpdating(true);
-
-//     const result = await updateTruck(truck.id, editForm);
-
-//     if (result.success) {
-//       toast.success("Truck details updated successfully!");
-//       setIsEditDialogOpen(false); // Close the edit modal
-//       router.refresh(); // Refresh the page to show new details
-//     } else {
-//       toast.error(result.error || "Failed to update truck.");
-//     }
-
-//     setIsUpdating(false);
-//   };
-
-//   // ✨ THE WORKING DELETE HANDLER
-//   const confirmDelete = async () => {
-//     setIsDeleting(true);
-//     const toastId = toast.loading("Deleting truck...");
-
-//     const result = await deleteTruck(truck.id);
-
-//     if (result.success) {
-//       toast.success(`Truck ${truck.fleetCode} deleted successfully.`, {
-//         id: toastId,
-//       });
-//       setIsDeleteDialogOpen(false);
-//       setIsProfileOpen(false); // Close the side panel
-//       router.refresh(); // Tell Next.js to fetch fresh data
-//     } else {
-//       toast.error(result.error || "Failed to delete truck.", { id: toastId });
-//     }
-
-//     setIsDeleting(false);
-//   };
-
-//   const uniqueYears = useMemo(() => {
-//     const years = new Set(
-//       trips.map((t) => new Date(t.date).getFullYear().toString()),
-//     );
-//     return Array.from(years).sort().reverse();
-//   }, [trips]);
-
-//   const uniqueCustomers = useMemo(() => {
-//     return Array.from(new Set(trips.map((t) => t.customerId))).sort();
-//   }, [trips]);
-
-//   const uniqueDestinations = useMemo(() => {
-//     return Array.from(new Set(trips.map((t) => t.destination))).sort();
-//   }, [trips]);
-
-//   const filteredTrips = useMemo(() => {
-//     return trips.filter((t) => {
-//       const matchYear =
-//         selectedYear === "all" ||
-//         new Date(t.date).getFullYear().toString() === selectedYear;
-//       const matchCustomer =
-//         selectedCustomer === "all" || t.customerId === selectedCustomer;
-//       const matchDestination =
-//         selectedDestination === "all" || t.destination === selectedDestination;
-//       return matchYear && matchCustomer && matchDestination;
-//     });
-//   }, [trips, selectedYear, selectedCustomer, selectedDestination]);
-
-//   const lifetimeTrips = trips.length;
-//   const lifetimeGross = trips.reduce((sum, t) => sum + t.qtyHeads * t.rate, 0);
-//   const lifetimeExpenses = trips.reduce(
-//     (sum, t) =>
-//       sum +
-//       (t.tollFees +
-//         t.dieselCash +
-//         t.dieselPo +
-//         t.meals +
-//         t.roroShip +
-//         t.salary +
-//         t.others),
-//     0,
-//   );
-//   const lifetimeNet = lifetimeGross - lifetimeExpenses;
-
-//   const filteredTotalTrips = filteredTrips.length;
-//   const filteredTotalGross = filteredTrips.reduce(
-//     (sum, t) => sum + t.qtyHeads * t.rate,
-//     0,
-//   );
-//   const filteredTotalExpenses = filteredTrips.reduce(
-//     (sum, t) =>
-//       sum +
-//       (t.tollFees +
-//         t.dieselCash +
-//         t.dieselPo +
-//         t.meals +
-//         t.roroShip +
-//         t.salary +
-//         t.others),
-//     0,
-//   );
-//   const filteredTotalNet = filteredTotalGross - filteredTotalExpenses;
-
-//   const formatPHP = (amount: number) =>
-//     new Intl.NumberFormat("en-PH", {
-//       style: "currency",
-//       currency: "PHP",
-//     }).format(amount);
-
-//   const hasActiveFilters =
-//     selectedYear !== "all" ||
-//     selectedCustomer !== "all" ||
-//     selectedDestination !== "all";
-
-//   const renderCardUI = () => {
-//     if (viewMode === "list") {
-//       return (
-//         <div
-//           onClick={handleOpenProfile}
-//           className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group gap-4 w-full"
-//         >
-//           <div className="flex items-center gap-4">
-//             <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-//               <Truck className="w-5 h-5" />
-//             </div>
-//             <div>
-//               <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-//                 {truck.fleetCode}{" "}
-//                 <span className="text-slate-400 font-normal">-</span>{" "}
-//                 <span className="font-mono text-slate-600 dark:text-slate-400">
-//                   {truck.plateNumber}
-//                 </span>
-//               </h3>
-//               <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-//                 <FolderOpen className="w-3 h-3" /> Digital Logistics Asset
-//               </p>
-//             </div>
-//           </div>
-//           <div>
-//             {truck.status === "active" && (
-//               <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-none px-2.5 py-1 text-xs font-bold">
-//                 <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Active
-//               </Badge>
-//             )}
-//             {truck.status === "maintenance" && (
-//               <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border-none px-2.5 py-1 text-xs font-bold">
-//                 <Wrench className="w-3.5 h-3.5 mr-1.5" /> Garage
-//               </Badge>
-//             )}
-//             {truck.status === "inactive" && (
-//               <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300 border-none px-2.5 py-1 text-xs font-bold">
-//                 <XCircle className="w-3.5 h-3.5 mr-1.5" /> Inactive
-//               </Badge>
-//             )}
-//           </div>
-//         </div>
-//       );
-//     }
-
-//     return (
-//       <div
-//         onClick={handleOpenProfile}
-//         className="relative group flex flex-col items-center justify-center w-full max-w-[260px] sm:max-w-[270px] mx-auto h-[150px] sm:h-[160px] cursor-pointer transition-transform duration-300 hover:scale-105"
-//       >
-//         <div className="file relative w-full h-full origin-bottom perspective-[1500px] z-10">
-//           <div className="work-5 bg-amber-600 dark:bg-amber-700 w-full h-full origin-top rounded-2xl rounded-tl-none group-hover:shadow-[0_20px_40px_rgba(0,0,0,.2)] transition-all ease duration-300 relative after:absolute after:content-[''] after:bottom-[99%] after:left-0 after:w-[35%] after:h-4 after:bg-amber-600 dark:after:bg-amber-700 after:rounded-t-2xl before:absolute before:content-[''] before:top-[-15px] before:left-[calc(35%-4px)] before:w-4 before:h-4 before:bg-amber-600 dark:before:bg-amber-700 before:[clip-path:polygon(0_35%,0%_100%,50%_100%)]" />
-
-//           <div className="work-4 absolute inset-1 bg-zinc-400 dark:bg-zinc-600 rounded-2xl transition-all ease duration-300 origin-bottom select-none group-hover:transform-[rotateX(-20deg)]" />
-//           <div className="work-3 absolute inset-1 bg-zinc-300 dark:bg-zinc-500 rounded-2xl transition-all ease duration-300 origin-bottom group-hover:transform-[rotateX(-30deg)]" />
-//           <div className="work-2 absolute inset-1 bg-zinc-100 dark:bg-slate-200 rounded-2xl transition-all ease duration-300 origin-bottom group-hover:transform-[rotateX(-38deg)] p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2 shadow-inner overflow-hidden">
-//             <div className="w-1/3 h-2 sm:h-2.5 bg-zinc-200 dark:bg-slate-300 rounded-full mb-1"></div>
-//             <div className="w-full h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-//             <div className="w-5/6 h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-//             <div className="w-4/5 h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-//             <div className="w-full h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full mt-2"></div>
-//             <div className="w-3/4 h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-//             <div className="mt-auto flex justify-end">
-//               <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-zinc-200 dark:border-slate-300 rounded-full flex items-center justify-center opacity-50 transform -rotate-12">
-//                 <span className="text-[7px] sm:text-[9px] font-bold text-zinc-300 dark:text-slate-400">
-//                   OK
-//                 </span>
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="work-1 absolute bottom-0 bg-linear-to-t from-amber-500 to-amber-400 dark:from-amber-600 dark:to-amber-500 w-full h-[calc(100%-4px)] rounded-2xl rounded-tr-none after:absolute after:content-[''] after:bottom-[99%] after:right-0 after:w-[50%] after:h-[16px] after:bg-amber-400 dark:after:bg-amber-500 after:rounded-t-2xl before:absolute before:content-[''] before:top-[-10px] before:right-[calc(50%-4px)] before:size-3 before:bg-amber-400 dark:before:bg-amber-500 before:[clip-path:polygon(100%_14%,50%_100%,100%_100%)] transition-all ease duration-300 origin-bottom flex flex-col justify-between p-3 sm:p-4 group-hover:shadow-[inset_0_20px_40px_#fbbf24,inset_0_-20px_40px_#d97706] dark:group-hover:shadow-[inset_0_20px_40px_#b45309,inset_0_-20px_40px_#92400e] group-hover:transform-[rotateX(-46deg)_translateY(1px)]">
-//             <div className="flex justify-between items-start">
-//               <div className="p-1.5 sm:p-2 bg-white/20 dark:bg-black/20 rounded-md sm:rounded-lg text-amber-50 dark:text-amber-100 group-hover:bg-white/30 transition-colors">
-//                 <FolderOpen
-//                   className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110"
-//                   strokeWidth={2}
-//                 />
-//               </div>
-//               <div>
-//                 {truck.status === "active" && (
-//                   <Badge className="bg-emerald-500 text-white border-none shadow-sm px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px]">
-//                     <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />{" "}
-//                     Active
-//                   </Badge>
-//                 )}
-//                 {truck.status === "maintenance" && (
-//                   <Badge className="bg-orange-500 text-white border-none shadow-sm px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px]">
-//                     <Wrench className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" /> Garage
-//                   </Badge>
-//                 )}
-//                 {truck.status === "inactive" && (
-//                   <Badge className="bg-slate-500 text-white border-none shadow-sm px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px]">
-//                     <XCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />{" "}
-//                     Inactive
-//                   </Badge>
-//                 )}
-//               </div>
-//             </div>
-
-//             <div className="mt-1 sm:mt-2">
-//               <h3 className="text-sm sm:text-base font-black text-white flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tracking-tight drop-shadow-sm">
-//                 <span className="truncate max-w-full">{truck.fleetCode}</span>
-//                 <span className="text-white font-normal shrink-0">-</span>
-//                 <span className="font-mono text-sm sm:text-base text-white truncate max-w-full">
-//                   {truck.plateNumber}
-//                 </span>
-//               </h3>
-//               <p className="text-[9px] sm:text-[10px] text-white font-medium mt-0.5 sm:mt-1 flex items-center gap-1">
-//                 <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Logistics Asset
-//               </p>
-//             </div>
-
-//             <div className="mt-auto pt-2 sm:pt-3 border-t border-amber-300/30 dark:border-amber-700/50 flex justify-between items-center">
-//               {truck.isActive ? (
-//                 <div className="flex items-center gap-1.5">
-//                   <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
-//                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-//                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-400"></span>
-//                   </span>
-//                   <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-emerald-100 uppercase">
-//                     Operational
-//                   </span>
-//                 </div>
-//               ) : (
-//                 <div className="flex items-center gap-1.5">
-//                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-red-400"></span>
-//                   <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-red-100 uppercase">
-//                     Disabled
-//                   </span>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   };
-
-//   return (
-//     <>
-//       {/* 1. THE ASSET RENDER */}
-//       {renderCardUI()}
-
-//       {/* 2. THE SLIDE-OUT ASSET PROFILE */}
-//       <Sheet open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-//         <SheetContent className="sm:max-w-[450px] w-full flex flex-col bg-slate-50 dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 p-0">
-//           <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 opacity-90 z-10" />
-
-//           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-//             <SheetHeader className="mb-6 sm:mb-8 relative bg-linear-to-br from-blue-600 to-indigo-700 p-4 sm:p-5 rounded-2xl shadow-md mt-2 sm:mt-0 overflow-hidden text-white">
-//               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent pointer-events-none"></div>
-
-//               <div className="flex justify-between items-center w-full gap-2 relative z-10">
-//                 <SheetTitle className="flex items-center gap-3 font-black text-white min-w-0">
-//                   <div className="p-2 sm:p-2.5 shrink-0">
-//                     <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-//                   </div>
-//                   <div className="text-left min-w-0">
-//                     <div className="text-lg sm:text-xl truncate drop-shadow-md">
-//                       {truck.fleetCode}{" "}
-//                       <span className="text-white/60 font-normal shrink-0">
-//                         -
-//                       </span>{" "}
-//                       {truck.plateNumber}
-//                     </div>
-//                   </div>
-//                 </SheetTitle>
-
-//                 <div className="flex items-center gap-1.5 shrink-0">
-//                   <DropdownMenu>
-//                     <DropdownMenuTrigger asChild>
-//                       <Button
-//                         variant="ghost"
-//                         size="icon"
-//                         className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-white/20 text-white border-0 shadow-none focus-visible:ring-transparent"
-//                         title="Options"
-//                       >
-//                         <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5 " />
-//                       </Button>
-//                     </DropdownMenuTrigger>
-//                     <DropdownMenuContent
-//                       align="end"
-//                       className="w-48 rounded-xl border-slate-200 dark:border-slate-800 shadow-lg"
-//                     >
-//                       <DropdownMenuItem
-//                         onClick={handleEditTruck}
-//                         className="cursor-pointer gap-2 py-2"
-//                       >
-//                         <Edit className="w-4 h-4 text-slate-500" />
-//                         <span className="font-medium text-slate-700 dark:text-slate-300">
-//                           Edit Details
-//                         </span>
-//                       </DropdownMenuItem>
-//                       <DropdownMenuSeparator className="bg-slate-100 dark:border-slate-800" />
-//                       <DropdownMenuItem
-//                         onClick={(e) => {
-//                           e.preventDefault();
-//                           setIsDeleteDialogOpen(true);
-//                         }}
-//                         className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50 dark:focus:bg-rose-900/20 gap-2 py-2"
-//                       >
-//                         {isDeleting ? (
-//                           <Loader2 className="w-4 h-4 animate-spin" />
-//                         ) : (
-//                           <Trash2 className="w-4 h-4" />
-//                         )}
-//                         <span className="font-medium">Delete Truck</span>
-//                       </DropdownMenuItem>
-//                     </DropdownMenuContent>
-//                   </DropdownMenu>
-//                 </div>
-//               </div>
-//             </SheetHeader>
-
-//             {isLoading ? (
-//               <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-//                 <Loader2 className="w-8 h-8 animate-spin mb-4 text-blue-500" />
-//                 <p className="font-medium animate-pulse">
-//                   Loading asset metrics...
-//                 </p>
-//               </div>
-//             ) : (
-//               <div className="space-y-8 pb-4">
-//                 <div className="space-y-3">
-//                   <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-//                     Lifetime Overview
-//                   </h4>
-//                   <div className="grid grid-cols-2 gap-3">
-//                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-//                       <div className="text-slate-500 dark:text-slate-400 font-bold text-[10px] tracking-wider uppercase mb-1">
-//                         Total Trips
-//                       </div>
-//                       <div className="text-sm font-black text-slate-800 dark:text-slate-100">
-//                         {lifetimeTrips}
-//                       </div>
-//                     </div>
-//                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-//                       <div className="text-slate-500 dark:text-slate-400 font-bold text-[10px] tracking-wider uppercase mb-1">
-//                         Net Income
-//                       </div>
-//                       <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-//                         {formatPHP(lifetimeNet)}
-//                       </div>
-//                     </div>
-//                   </div>
-//                 </div>
-
-//                 <div className="space-y-3">
-//                   <h4 className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">
-//                     Hardware Details
-//                   </h4>
-//                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-//                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 gap-3">
-//                       <span className="text-xs sm:text-sm font-medium text-slate-500 flex items-center gap-2 shrink-0">
-//                         <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />{" "}
-//                         Engine No.
-//                       </span>
-//                       <span className="text-xs sm:text-sm font-mono font-bold text-slate-800 dark:text-slate-200 text-right truncate">
-//                         4HF1-88392A
-//                       </span>
-//                     </div>
-//                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 gap-3">
-//                       <span className="text-xs sm:text-sm font-medium text-slate-500 flex items-center gap-2 shrink-0">
-//                         <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />{" "}
-//                         Chassis No.
-//                       </span>
-//                       <span className="text-xs sm:text-sm font-mono font-bold text-slate-800 dark:text-slate-200 text-right truncate">
-//                         NKR66E-72819
-//                       </span>
-//                     </div>
-//                     <div className="flex justify-between items-center gap-3">
-//                       <span className="text-xs sm:text-sm font-medium text-slate-500 shrink-0">
-//                         LTO Expiry
-//                       </span>
-//                       <span className="text-xs sm:text-sm font-bold text-rose-600 text-right">
-//                         Oct 2026
-//                       </span>
-//                     </div>
-//                   </div>
-//                 </div>
-//               </div>
-//             )}
-//           </div>
-
-//           {/* Fixed Footer */}
-//           {!isLoading && (
-//             <div className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-20">
-//               <Button
-//                 onClick={() => {
-//                   setIsDashboardOpen(true);
-//                   setIsProfileOpen(false);
-//                 }}
-//                 className="relative w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-bold text-sm sm:text-base"
-//               >
-//                 <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-//                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />
-//                 Open Analytics & Ledgers
-//               </Button>
-//             </div>
-//           )}
-//         </SheetContent>
-//       </Sheet>
-
-//       {/* 3. ✨ THE UNIFIED FULL-SCREEN DASHBOARD MODAL */}
-//       {isDashboardOpen && (
-//         <div className="fixed inset-0 z-100 flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto">
-//           <div
-//             ref={dashboardRef}
-//             tabIndex={0}
-//             className="bg-slate-50 dark:bg-slate-950 w-full h-full sm:h-[95vh] max-w-[1500px] rounded-none sm:rounded-lg shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-slate-200 dark:border-slate-800 outline-none animate-in zoom-in-95 sm:zoom-in-100 duration-200"
-//           >
-//             <div className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
-//               <div>
-//                 <h2 className="text-base sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-//                   <FileSpreadsheet className="w-5 h-5 text-blue-600 hidden sm:block" />
-//                   Asset Dashboard: {truck.fleetCode}
-//                 </h2>
-//                 <p className="text-[11px] sm:text-sm font-medium text-slate-500 mt-0.5">
-//                   Plate:{" "}
-//                   <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">
-//                     {truck.plateNumber}
-//                   </span>
-//                 </p>
-//               </div>
-//               <button
-//                 onClick={() => setIsDashboardOpen(false)}
-//                 className="p-2 sm:p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 outline-none"
-//               >
-//                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
-//               </button>
-//             </div>
-
-//             <div className="flex-1 overflow-y-auto p-3 sm:p-4 custom-scrollbar bg-slate-50 dark:bg-slate-950 space-y-4">
-//               {/* SECTION A: FILTERS */}
-//               <div className="bg-white dark:bg-slate-900 p-6 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
-//                 <div className="flex justify-between items-center mb-5">
-//                   <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-//                     <FilterX className="w-4 h-4 text-slate-400 hidden sm:block" />{" "}
-//                     Filter Records
-//                   </h4>
-//                   {hasActiveFilters && (
-//                     <button
-//                       onClick={() => {
-//                         setSelectedYear("all");
-//                         setSelectedCustomer("all");
-//                         setSelectedDestination("all");
-//                       }}
-//                       className="text-xs flex items-center gap-1 font-bold text-rose-500 hover:text-rose-600 transition-colors bg-rose-50 dark:bg-rose-950/50 px-3 py-1.5 rounded-lg"
-//                     >
-//                       <FilterX className="w-3.5 h-3.5" /> Clear All Filters
-//                     </button>
-//                   )}
-//                 </div>
-
-//                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-//                   <div className="space-y-1.5">
-//                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-//                       Period / Year
-//                     </label>
-//                     <Select
-//                       value={selectedYear}
-//                       onValueChange={setSelectedYear}
-//                     >
-//                       <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 h-12 rounded-xl font-semibold focus:ring-blue-500/50">
-//                         <SelectValue placeholder="All Years" />
-//                       </SelectTrigger>
-//                       <SelectContent className="z-110 rounded-xl border-slate-200 dark:border-slate-800">
-//                         <SelectItem value="all" className="font-bold">
-//                           All Years
-//                         </SelectItem>
-//                         {uniqueYears.map((year) => (
-//                           <SelectItem key={year} value={year}>
-//                             {year}
-//                           </SelectItem>
-//                         ))}
-//                       </SelectContent>
-//                     </Select>
-//                   </div>
-
-//                   <div className="space-y-1.5">
-//                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-//                       Customer / Client
-//                     </label>
-//                     <Select
-//                       value={selectedCustomer}
-//                       onValueChange={setSelectedCustomer}
-//                     >
-//                       <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 h-12 rounded-xl font-semibold focus:ring-blue-500/50">
-//                         <SelectValue placeholder="All Customers" />
-//                       </SelectTrigger>
-//                       <SelectContent className="z-110 rounded-xl border-slate-200 dark:border-slate-800">
-//                         <SelectItem value="all" className="font-bold">
-//                           All Customers
-//                         </SelectItem>
-//                         {uniqueCustomers.map((c) => (
-//                           <SelectItem key={c} value={c}>
-//                             {c}
-//                           </SelectItem>
-//                         ))}
-//                       </SelectContent>
-//                     </Select>
-//                   </div>
-
-//                   <div className="space-y-1.5">
-//                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-//                       Delivery Route
-//                     </label>
-//                     <Select
-//                       value={selectedDestination}
-//                       onValueChange={setSelectedDestination}
-//                     >
-//                       <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 h-12 rounded-xl font-semibold truncate focus:ring-blue-500/50">
-//                         <SelectValue placeholder="All Routes" />
-//                       </SelectTrigger>
-//                       <SelectContent className="z-110 rounded-xl border-slate-200 dark:border-slate-800">
-//                         <SelectItem value="all" className="font-bold">
-//                           All Routes
-//                         </SelectItem>
-//                         {uniqueDestinations.map((d) => (
-//                           <SelectItem key={d} value={d}>
-//                             {d}
-//                           </SelectItem>
-//                         ))}
-//                       </SelectContent>
-//                     </Select>
-//                   </div>
-//                 </div>
-//               </div>
-
-//               {/* SECTION B: ANALYTICS METRICS (✨ Unified Card Design) */}
-//               {filteredTrips.length === 0 ? (
-//                 <div className="bg-slate-50 dark:bg-[#0a1520] border border-slate-200 dark:border-white/10 rounded-xl p-8 text-center shrink-0">
-//                   <Activity className="w-8 h-8 text-slate-300 dark:text-white/20 mx-auto mb-3" />
-//                   <p className="text-sm font-medium text-slate-500 dark:text-white/40">
-//                     No trips match these specific filters.
-//                   </p>
-//                 </div>
-//               ) : (
-//                 <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3 shrink-0">
-//                   {/* Net Income */}
-//                   <div className="bg-emerald-50 dark:bg-[#0a2e1a] rounded-lg p-4 border border-emerald-200/60 dark:border-[#3dff9a]/15 relative overflow-hidden">
-//                     <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-emerald-500 dark:bg-[#3dff9a] opacity-10 pointer-events-none" />
-//                     <p className="text-[10px] font-bold tracking-widest uppercase text-emerald-700 dark:text-[#3dff9a] mb-2 relative z-10">
-//                       Net Income
-//                     </p>
-//                     <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-//                       <AnimatedNumber
-//                         value={filteredTotalNet}
-//                         isCurrency={true}
-//                       />
-//                     </div>
-//                   </div>
-
-//                   {/* Gross */}
-//                   <div className="bg-blue-50 dark:bg-[#0d1f3c] rounded-lg p-4 border border-blue-200/60 dark:border-[#5cabff]/15 relative overflow-hidden">
-//                     <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-blue-500 dark:bg-[#5cabff] opacity-10 pointer-events-none" />
-//                     <p className="text-[10px] font-bold tracking-widest uppercase text-blue-700 dark:text-[#5cabff] mb-2 relative z-10">
-//                       Collectibles
-//                     </p>
-//                     <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-//                       <AnimatedNumber
-//                         value={filteredTotalGross}
-//                         isCurrency={true}
-//                       />
-//                     </div>
-//                   </div>
-
-//                   {/* Expenses */}
-//                   <div className="bg-rose-50 dark:bg-[#2d0d1a] rounded-lg p-4 border border-rose-200/60 dark:border-[#ff5c8a]/15 relative overflow-hidden">
-//                     <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-rose-500 dark:bg-[#ff5c8a] opacity-10 pointer-events-none" />
-//                     <p className="text-[10px] font-bold tracking-widest uppercase text-rose-700 dark:text-[#ff5c8a] mb-2 relative z-10">
-//                       Expenses
-//                     </p>
-//                     <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-//                       <AnimatedNumber
-//                         value={filteredTotalExpenses}
-//                         isCurrency={true}
-//                       />
-//                     </div>
-//                   </div>
-
-//                   {/* Trips */}
-//                   <div className="bg-purple-50 dark:bg-[#160b2e] rounded-lg p-4 border border-purple-200/60 dark:border-[#b97aff]/15 relative overflow-hidden">
-//                     <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-purple-500 dark:bg-[#b97aff] opacity-10 pointer-events-none" />
-//                     <p className="text-[10px] font-bold tracking-widest uppercase text-purple-700 dark:text-[#b97aff] mb-2 relative z-10">
-//                       Trips
-//                     </p>
-//                     <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-//                       <AnimatedNumber value={filteredTotalTrips} />
-//                     </div>
-//                   </div>
-//                 </div>
-//               )}
-
-//               {/* SECTION C: THE FILTERED DATA TABLE */}
-//               <div className="shrink-0 w-full mt-2">
-//                 <DataTable columns={columns} data={filteredTrips} />
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//       )}
-
-//       {/* 4. ✨ NEW: THE EDIT TRUCK MODAL */}
-//       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-//         <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl">
-//           <DialogHeader>
-//             <DialogTitle className="text-xl font-black">
-//               Edit Asset Details
-//             </DialogTitle>
-//             <DialogDescription>
-//               Update the registration and operational status of this truck.
-//             </DialogDescription>
-//           </DialogHeader>
-
-//           <form onSubmit={handleEditSubmit} className="space-y-4 py-4">
-//             <div className="space-y-2">
-//               <Label
-//                 htmlFor="fleetCode"
-//                 className="text-xs font-bold uppercase tracking-wider text-slate-500"
-//               >
-//                 Fleet Code / Name
-//               </Label>
-//               <Input
-//                 id="fleetCode"
-//                 value={editForm.fleetCode}
-//                 onChange={(e) =>
-//                   setEditForm({ ...editForm, fleetCode: e.target.value })
-//                 }
-//                 className="w-full h-[46px]! border-slate-200 dark:border-slate-800/80  rounded-xl bg-white dark:bg-slate-900"
-//                 required
-//               />
-//             </div>
-
-//             <div className="space-y-2">
-//               <Label
-//                 htmlFor="plateNumber"
-//                 className="text-xs font-bold uppercase tracking-wider text-slate-500"
-//               >
-//                 Plate Number
-//               </Label>
-//               <Input
-//                 id="plateNumber"
-//                 value={editForm.plateNumber}
-//                 onChange={(e) =>
-//                   setEditForm({ ...editForm, plateNumber: e.target.value })
-//                 }
-//                 className="w-full h-11 border-slate-200 dark:border-slate-800/80  rounded-xl font-mono uppercase bg-white dark:bg-slate-900"
-//                 required
-//               />
-//             </div>
-
-//             <div className="space-y-2">
-//               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-//                 Operational Status
-//               </Label>
-//               <Select
-//                 value={editForm.status}
-//                 onValueChange={(val) =>
-//                   setEditForm({ ...editForm, status: val })
-//                 }
-//               >
-//                 <SelectTrigger className="w-full h-[46px]! border-slate-200 dark:border-slate-800/80  rounded-xl bg-white dark:bg-slate-900">
-//                   <SelectValue placeholder="Select status" />
-//                 </SelectTrigger>
-//                 <SelectContent className="rounded-xl z-150">
-//                   <SelectItem value="active">
-//                     <div className="flex items-center text-emerald-600 font-bold">
-//                       <CheckCircle2 className="w-4 h-4 mr-2" /> Active
-//                     </div>
-//                   </SelectItem>
-//                   <SelectItem value="maintenance">
-//                     <div className="flex items-center text-orange-500 font-bold">
-//                       <Wrench className="w-4 h-4 mr-2" /> Garage / Maintenance
-//                     </div>
-//                   </SelectItem>
-//                   <SelectItem value="inactive">
-//                     <div className="flex items-center text-slate-500 font-bold">
-//                       <XCircle className="w-4 h-4 mr-2" /> Inactive
-//                     </div>
-//                   </SelectItem>
-//                 </SelectContent>
-//               </Select>
-//             </div>
-
-//             <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800">
-//               <Button
-//                 type="button"
-//                 variant="outline"
-//                 onClick={() => setIsEditDialogOpen(false)}
-//                 className="rounded-xl h-11 w-full sm:w-auto"
-//               >
-//                 Cancel
-//               </Button>
-//               <Button
-//                 type="submit"
-//                 disabled={isUpdating}
-//                 className="rounded-xl h-11 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold"
-//               >
-//                 {isUpdating ? (
-//                   <>
-//                     <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
-//                   </>
-//                 ) : (
-//                   "Save Changes"
-//                 )}
-//               </Button>
-//             </DialogFooter>
-//           </form>
-//         </DialogContent>
-//       </Dialog>
-
-//       {/* 5. ✨ NEW: THE DELETE CONFIRMATION ALERT */}
-//       <AlertDialog
-//         open={isDeleteDialogOpen}
-//         onOpenChange={setIsDeleteDialogOpen}
-//       >
-//         <AlertDialogContent className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl max-w-md">
-//           <AlertDialogHeader className="flex flex-row items-start gap-4 text-left sm:text-left">
-//             <div className="shrink-0 w-12 h-12 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mt-1">
-//               <Trash2 className="w-6 h-6 text-rose-600 dark:text-rose-400" />
-//             </div>
-//             <div className="flex flex-col flex-1">
-//               <AlertDialogTitle className="text-xl font-black text-slate-800 dark:text-slate-100">
-//                 Delete Truck Asset
-//               </AlertDialogTitle>
-//               <AlertDialogDescription className="text-slate-500 mt-1.5 text-sm sm:text-base leading-relaxed">
-//                 Are you sure you want to permanently delete{" "}
-//                 <span className="font-bold text-slate-700 dark:text-slate-300">
-//                   {truck.fleetCode} ({truck.plateNumber})
-//                 </span>
-//                 ? This action cannot be undone and will remove the truck from
-//                 your fleet.
-//               </AlertDialogDescription>
-//             </div>
-//           </AlertDialogHeader>
-//           <AlertDialogFooter className="mt-6 flex gap-3 sm:justify-center">
-//             <AlertDialogCancel
-//               disabled={isDeleting}
-//               className="flex-1 rounded-xl h-12 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
-//             >
-//               Cancel
-//             </AlertDialogCancel>
-//             <Button
-//               variant="destructive"
-//               disabled={isDeleting}
-//               onClick={confirmDelete}
-//               className="flex-1 rounded-xl h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold"
-//             >
-//               {isDeleting ? (
-//                 <>
-//                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...
-//                 </>
-//               ) : (
-//                 "Yes, Delete Asset"
-//               )}
-//             </Button>
-//           </AlertDialogFooter>
-//         </AlertDialogContent>
-//       </AlertDialog>
-//     </>
-//   );
-// }
-
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   Truck,
   CheckCircle2,
@@ -996,7 +11,6 @@ import {
   XCircle,
   FolderOpen,
   Loader2,
-  DollarSign,
   Activity,
   FileSpreadsheet,
   Settings,
@@ -1006,9 +20,12 @@ import {
   BarChart3,
   Edit,
   Trash2,
-  MoreHorizontal,
   MoreVertical,
-  Save, // ✨ Added Save icon for the button
+  Save,
+  CalendarIcon,
+  TrendingUp,
+  TrendingDown,
+  Hash,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -1020,7 +37,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 import {
   Select,
   SelectContent,
@@ -1028,14 +44,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
 import {
   Dialog,
   DialogContent,
@@ -1046,7 +60,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1057,16 +70,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 import { DataTable } from "../trips/data-table";
 import { columns } from "../trips/columns";
-
 import {
   getTruckTrips,
   deleteTruck,
   updateTruck,
 } from "@/app/actions/truck-actions";
 
+// ── Animated counter ─────────────────────────────────────────────────────────
 function AnimatedNumber({
   value,
   isCurrency = false,
@@ -1075,48 +94,154 @@ function AnimatedNumber({
   isCurrency?: boolean;
 }) {
   const [current, setCurrent] = useState(0);
-
   useEffect(() => {
     let startTime: number;
     const startValue = current;
     const distance = value - startValue;
-
     if (distance === 0) return;
-
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = timestamp - startTime;
-      const percentage = Math.min(progress / 1000, 1);
-
-      const easeOut = 1 - Math.pow(1 - percentage, 4);
-
-      setCurrent(startValue + distance * easeOut);
-
-      if (percentage < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setCurrent(value);
-      }
+    const animate = (ts: number) => {
+      if (!startTime) startTime = ts;
+      const pct = Math.min((ts - startTime) / 900, 1);
+      const eased = 1 - Math.pow(1 - pct, 4);
+      setCurrent(startValue + distance * eased);
+      if (pct < 1) requestAnimationFrame(animate);
+      else setCurrent(value);
     };
-
-    const rafId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafId);
+    const id = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(id);
   }, [value]);
 
-  if (isCurrency) {
-    return (
-      <>
-        {new Intl.NumberFormat("en-PH", {
-          style: "currency",
-          currency: "PHP",
-        }).format(current)}
-      </>
-    );
-  }
-
-  return <>{Math.round(current)}</>;
+  return isCurrency ? (
+    <>
+      {new Intl.NumberFormat("en-PH", {
+        style: "currency",
+        currency: "PHP",
+      }).format(current)}
+    </>
+  ) : (
+    <>{Math.round(current)}</>
+  );
 }
 
+// ── Status config ─────────────────────────────────────────────────────────────
+const STATUS = {
+  active: {
+    label: "Active",
+    icon: CheckCircle2,
+    badge:
+      "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20",
+    dot: "bg-amber-500",
+    ping: true,
+    folderTab:
+      "bg-amber-600 dark:bg-amber-700 after:bg-amber-600 dark:after:bg-amber-700 before:bg-amber-600 dark:before:bg-amber-700",
+    folderFront:
+      "bg-linear-to-t from-amber-500 to-amber-400 dark:from-amber-600 dark:to-amber-500 after:bg-amber-400 dark:after:bg-amber-500 before:bg-amber-400 dark:before:bg-amber-500 group-hover:shadow-[inset_0_20px_40px_#fbbf24,inset_0_-20px_40px_#d97706] dark:group-hover:shadow-[inset_0_20px_40px_#b45309,inset_0_-20px_40px_#92400e]",
+    folderIconBg: "bg-white/20 text-amber-50",
+    folderBorder: "border-amber-300/30",
+    listBg:
+      "bg-amber-50/50 dark:bg-amber-500/10 hover:border-amber-400/50 dark:hover:border-amber-600/40",
+  },
+  maintenance: {
+    label: "Maintenance",
+    icon: Wrench,
+    badge:
+      "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20",
+    dot: "bg-emerald-500",
+    ping: false,
+    folderTab:
+      "bg-emerald-600 dark:bg-emerald-700 after:bg-emerald-600 dark:after:bg-emerald-700 before:bg-emerald-600 dark:before:bg-emerald-700",
+    folderFront:
+      "bg-linear-to-t from-emerald-500 to-emerald-400 dark:from-emerald-600 dark:to-emerald-500 after:bg-emerald-400 dark:after:bg-emerald-500 before:bg-emerald-400 dark:before:bg-emerald-500 group-hover:shadow-[inset_0_20px_40px_#34d399,inset_0_-20px_40px_#059669] dark:group-hover:shadow-[inset_0_20px_40px_#059669,inset_0_-20px_40px_#047857]",
+    folderIconBg: "bg-white/20 text-emerald-50",
+    folderBorder: "border-emerald-300/30",
+    listBg:
+      "bg-emerald-50/50 dark:bg-emerald-500/10 hover:border-emerald-400/50 dark:hover:border-emerald-600/40",
+  },
+  inactive: {
+    label: "Inactive / Sold",
+    icon: XCircle,
+    badge:
+      "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20",
+    dot: "bg-rose-500",
+    ping: false,
+    folderTab:
+      "bg-rose-600 dark:bg-rose-700 after:bg-rose-600 dark:after:bg-rose-700 before:bg-rose-600 dark:before:bg-rose-700",
+    folderFront:
+      "bg-linear-to-t from-rose-500 to-rose-400 dark:from-rose-600 dark:to-rose-500 after:bg-rose-400 dark:after:bg-rose-500 before:bg-rose-400 dark:before:bg-rose-500 group-hover:shadow-[inset_0_20px_40px_#fb7185,inset_0_-20px_40px_#e11d48] dark:group-hover:shadow-[inset_0_20px_40px_#e11d48,inset_0_-20px_40px_#be123c]",
+    folderIconBg: "bg-white/20 text-rose-50",
+    folderBorder: "border-rose-300/30",
+    listBg:
+      "bg-rose-50/50 dark:bg-rose-500/10 hover:border-rose-400/50 dark:hover:border-rose-600/40",
+  },
+};
+
+// ── Section divider ───────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 whitespace-nowrap">
+        {children}
+      </span>
+      <div className="flex-1 h-px bg-border/40" />
+    </div>
+  );
+}
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  isCurrency,
+  accent,
+}: {
+  label: string;
+  value: number;
+  isCurrency?: boolean;
+  accent: "emerald" | "blue" | "rose" | "violet";
+}) {
+  const colors = {
+    emerald:
+      "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200/60 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400",
+    blue: "bg-blue-50 dark:bg-blue-950/30 border-blue-200/60 dark:border-blue-900/50 text-blue-700 dark:text-blue-400",
+    rose: "bg-rose-50 dark:bg-rose-950/30 border-rose-200/60 dark:border-rose-900/50 text-rose-700 dark:text-rose-400",
+    violet:
+      "bg-violet-50 dark:bg-violet-950/30 border-violet-200/60 dark:border-violet-900/50 text-violet-700 dark:text-violet-400",
+  }[accent];
+
+  return (
+    <div className={cn("rounded-xl border p-4", colors)}>
+      <p className="text-[10px] font-semibold uppercase tracking-widest opacity-70 mb-2">
+        {label}
+      </p>
+      <p className="text-base font-bold font-mono leading-none">
+        <AnimatedNumber value={value} isCurrency={isCurrency} />
+      </p>
+    </div>
+  );
+}
+
+// ── Edit form field ────────────────────────────────────────────────────────────
+function EditField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+const fieldClass =
+  "h-10 rounded-lg text-sm bg-muted/40 border-border/50 focus-visible:ring-1 focus-visible:ring-blue-500/40 focus-visible:border-blue-500/40";
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export function TruckFolderCard({
   truck,
   viewMode = "grid",
@@ -1125,27 +250,30 @@ export function TruckFolderCard({
   viewMode?: "grid" | "list";
 }) {
   const router = useRouter();
-
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [editForm, setEditForm] = useState({
     fleetCode: truck.fleetCode || "",
     plateNumber: truck.plateNumber || "",
     status: truck.status || "active",
+    engineNo: truck.engineNo || "",
+    chassisNo: truck.chassisNo || "",
+    ltoExpiry: truck.ltoExpiry
+      ? new Date(truck.ltoExpiry).toISOString().split("T")[0]
+      : "",
   });
 
   const [trips, setTrips] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  const [selectedYear, setSelectedYear] = useState<string>("all");
-  const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
-  const [selectedDestination, setSelectedDestination] = useState<string>("all");
+  const [selectedYear, setSelectedYear] = useState("all");
+  const [selectedCustomer, setSelectedCustomer] = useState("all");
+  const [selectedDestination, setSelectedDestination] = useState("all");
 
   const dashboardRef = useRef<HTMLDivElement>(null);
 
@@ -1157,12 +285,9 @@ export function TruckFolderCard({
     const handleTripUpdate = async () => {
       if (isDashboardOpen || isProfileOpen) {
         const result = await getTruckTrips(truck.id);
-        if (result.success && result.data) {
-          setTrips(result.data);
-        }
+        if (result.success && result.data) setTrips(result.data);
       }
     };
-
     window.addEventListener("trip-updated", handleTripUpdate);
     return () => window.removeEventListener("trip-updated", handleTripUpdate);
   }, [isDashboardOpen, isProfileOpen, truck.id]);
@@ -1171,268 +296,294 @@ export function TruckFolderCard({
     e.stopPropagation();
     setIsProfileOpen(true);
     setIsLoading(true);
-
     setSelectedYear("all");
     setSelectedCustomer("all");
     setSelectedDestination("all");
-
     const result = await getTruckTrips(truck.id);
-    if (result.success && result.data) {
-      setTrips(result.data);
-    } else {
-      toast.error("Failed to load truck history.");
-    }
-
+    if (result.success && result.data) setTrips(result.data);
+    else toast.error("Failed to load truck history.");
     setIsLoading(false);
-  };
-
-  const handleEditTruck = () => {
-    setIsEditDialogOpen(true);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
-
     const result = await updateTruck(truck.id, editForm);
-
     if (result.success) {
-      toast.success("Truck details updated successfully!");
+      toast.success("Truck updated successfully.");
       setIsEditDialogOpen(false);
       router.refresh();
     } else {
       toast.error(result.error || "Failed to update truck.");
     }
-
     setIsUpdating(false);
   };
 
   const confirmDelete = async () => {
     setIsDeleting(true);
-    const toastId = toast.loading("Deleting truck...");
-
+    const id = toast.loading("Deleting truck…");
     const result = await deleteTruck(truck.id);
-
     if (result.success) {
-      toast.success(`Truck ${truck.fleetCode} deleted successfully.`, {
-        id: toastId,
-      });
+      toast.success(`${truck.fleetCode} deleted.`, { id });
       setIsDeleteDialogOpen(false);
       setIsProfileOpen(false);
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to delete truck.", { id: toastId });
+      toast.error(result.error || "Failed to delete.", { id });
     }
-
     setIsDeleting(false);
   };
 
-  const uniqueYears = useMemo(() => {
-    const years = new Set(
-      trips.map((t) => new Date(t.date).getFullYear().toString()),
-    );
-    return Array.from(years).sort().reverse();
-  }, [trips]);
-
+  const uniqueYears = useMemo(
+    () =>
+      Array.from(
+        new Set(trips.map((t) => new Date(t.date).getFullYear().toString())),
+      )
+        .sort()
+        .reverse(),
+    [trips],
+  );
   const uniqueCustomers = useMemo(() => {
-    return Array.from(new Set(trips.map((t) => t.customerId))).sort();
-  }, [trips]);
-
+    const relevantTrips = trips.filter((t) => {
+      const matchYear =
+        selectedYear === "all" ||
+        new Date(t.date).getFullYear().toString() === selectedYear;
+      const matchDest =
+        selectedDestination === "all" || t.destination === selectedDestination;
+      return matchYear && matchDest;
+    });
+    return Array.from(new Set(relevantTrips.map((t) => t.customerId))).sort();
+  }, [trips, selectedYear, selectedDestination]);
   const uniqueDestinations = useMemo(() => {
-    return Array.from(new Set(trips.map((t) => t.destination))).sort();
-  }, [trips]);
-
-  const filteredTrips = useMemo(() => {
-    return trips.filter((t) => {
+    const relevantTrips = trips.filter((t) => {
       const matchYear =
         selectedYear === "all" ||
         new Date(t.date).getFullYear().toString() === selectedYear;
       const matchCustomer =
         selectedCustomer === "all" || t.customerId === selectedCustomer;
-      const matchDestination =
-        selectedDestination === "all" || t.destination === selectedDestination;
-      return matchYear && matchCustomer && matchDestination;
+      return matchYear && matchCustomer;
     });
-  }, [trips, selectedYear, selectedCustomer, selectedDestination]);
+    return Array.from(new Set(relevantTrips.map((t) => t.destination))).sort();
+  }, [trips, selectedYear, selectedCustomer]);
 
-  const lifetimeTrips = trips.length;
-  const lifetimeGross = trips.reduce((sum, t) => sum + t.qtyHeads * t.rate, 0);
-  const lifetimeExpenses = trips.reduce(
-    (sum, t) =>
-      sum +
-      (t.tollFees +
-        t.dieselCash +
-        t.dieselPo +
-        t.meals +
-        t.roroShip +
-        t.salary +
-        t.others),
-    0,
+  const filteredTrips = useMemo(
+    () =>
+      trips
+        .filter((t) => {
+          const matchYear =
+            selectedYear === "all" ||
+            new Date(t.date).getFullYear().toString() === selectedYear;
+          const matchCustomer =
+            selectedCustomer === "all" || t.customerId === selectedCustomer;
+          const matchDest =
+            selectedDestination === "all" ||
+            t.destination === selectedDestination;
+          return matchYear && matchCustomer && matchDest;
+        })
+        .map((t) => ({
+          ...t,
+          fleetCode: truck.fleetCode,
+          plateNumber: truck.plateNumber,
+        })),
+    [
+      trips,
+      selectedYear,
+      selectedCustomer,
+      selectedDestination,
+      truck.fleetCode,
+      truck.plateNumber,
+    ],
   );
-  const lifetimeNet = lifetimeGross - lifetimeExpenses;
+  // ✨ AUTO-RESET: If a selected filter is no longer valid based on the other selections, reset it to "all"
+  useEffect(() => {
+    if (
+      selectedCustomer !== "all" &&
+      !uniqueCustomers.includes(selectedCustomer)
+    ) {
+      setSelectedCustomer("all");
+    }
+    if (
+      selectedDestination !== "all" &&
+      !uniqueDestinations.includes(selectedDestination)
+    ) {
+      setSelectedDestination("all");
+    }
+  }, [
+    selectedYear,
+    uniqueCustomers,
+    uniqueDestinations,
+    selectedCustomer,
+    selectedDestination,
+  ]);
 
-  const filteredTotalTrips = filteredTrips.length;
-  const filteredTotalGross = filteredTrips.reduce(
-    (sum, t) => sum + t.qtyHeads * t.rate,
-    0,
-  );
-  const filteredTotalExpenses = filteredTrips.reduce(
-    (sum, t) =>
-      sum +
-      (t.tollFees +
-        t.dieselCash +
-        t.dieselPo +
-        t.meals +
-        t.roroShip +
-        t.salary +
-        t.others),
-    0,
-  );
-  const filteredTotalNet = filteredTotalGross - filteredTotalExpenses;
+  const calc = (arr: any[]) => {
+    const gross = arr.reduce((s, t) => s + t.qtyHeads * t.rate, 0);
+    const exp = arr.reduce(
+      (s, t) =>
+        s +
+        (t.tollFees +
+          t.dieselCash +
+          t.dieselPo +
+          t.meals +
+          t.roroShip +
+          t.salary +
+          t.others),
+      0,
+    );
+    return { gross, exp, net: gross - exp, count: arr.length };
+  };
 
-  const formatPHP = (amount: number) =>
-    new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-    }).format(amount);
-
+  const lifetime = calc(trips);
+  const filtered = calc(filteredTrips);
   const hasActiveFilters =
     selectedYear !== "all" ||
     selectedCustomer !== "all" ||
     selectedDestination !== "all";
 
-  const renderCardUI = () => {
+  const statusCfg =
+    STATUS[truck.status as keyof typeof STATUS] ?? STATUS.inactive;
+  const StatusIcon = statusCfg.icon;
+
+  // ── Card render ──────────────────────────────────────────────────────────────
+  const renderCard = () => {
     if (viewMode === "list") {
       return (
         <div
           onClick={handleOpenProfile}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group gap-4 w-full"
+          className={cn(
+            "group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border border-border/60 rounded-xl cursor-pointer hover:shadow-sm transition-all",
+            statusCfg.listBg,
+          )}
         >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-              <Truck className="w-5 h-5" />
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 transition-colors">
+              <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
-            <div>
-              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold text-sm text-foreground truncate">
                 {truck.fleetCode}{" "}
-                <span className="text-slate-400 font-normal">-</span>{" "}
-                <span className="font-mono text-slate-600 dark:text-slate-400">
-                  {truck.plateNumber}
-                </span>
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                <FolderOpen className="w-3 h-3" /> Digital Logistics Asset
+                <span className="text-muted-foreground font-normal">·</span>{" "}
+                <span className="font-mono">{truck.plateNumber}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Logistics asset
               </p>
             </div>
           </div>
-          <div>
-            {truck.status === "active" && (
-              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-none px-2.5 py-1 text-xs font-bold">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Active
-              </Badge>
+          <Badge
+            className={cn(
+              "shrink-0 text-xs font-semibold px-2.5 py-1 border-0",
+              statusCfg.badge,
             )}
-            {truck.status === "maintenance" && (
-              <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border-none px-2.5 py-1 text-xs font-bold">
-                <Wrench className="w-3.5 h-3.5 mr-1.5" /> Garage
-              </Badge>
-            )}
-            {truck.status === "inactive" && (
-              <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300 border-none px-2.5 py-1 text-xs font-bold">
-                <XCircle className="w-3.5 h-3.5 mr-1.5" /> Inactive
-              </Badge>
-            )}
-          </div>
+          >
+            <StatusIcon className="h-3 w-3 mr-1.5" />
+            {statusCfg.label}
+          </Badge>
         </div>
       );
     }
 
+    // Grid / folder card
     return (
       <div
         onClick={handleOpenProfile}
         className="relative group flex flex-col items-center justify-center w-full max-w-[260px] sm:max-w-[270px] mx-auto h-[150px] sm:h-[160px] cursor-pointer transition-transform duration-300 hover:scale-105"
       >
         <div className="file relative w-full h-full origin-bottom perspective-[1500px] z-10">
-          <div className="work-5 bg-amber-600 dark:bg-amber-700 w-full h-full origin-top rounded-2xl rounded-tl-none group-hover:shadow-[0_20px_40px_rgba(0,0,0,.2)] transition-all ease duration-300 relative after:absolute after:content-[''] after:bottom-[99%] after:left-0 after:w-[35%] after:h-4 after:bg-amber-600 dark:after:bg-amber-700 after:rounded-t-2xl before:absolute before:content-[''] before:top-[-15px] before:left-[calc(35%-4px)] before:w-4 before:h-4 before:bg-amber-600 dark:before:bg-amber-700 before:[clip-path:polygon(0_35%,0%_100%,50%_100%)]" />
-
+          {/* Folder tab bg */}
+          <div
+            className={cn(
+              "work-5 w-full h-full origin-top rounded-2xl rounded-tl-none group-hover:shadow-[0_20px_40px_rgba(0,0,0,.2)] transition-all ease duration-300 relative after:absolute after:content-[''] after:bottom-[99%] after:left-0 after:w-[35%] after:h-4 after:rounded-t-2xl before:absolute before:content-[''] before:top-[-15px] before:left-[calc(35%-4px)] before:w-4 before:h-4 before:[clip-path:polygon(0_35%,0%_100%,50%_100%)]",
+              statusCfg.folderTab,
+            )}
+          />
+          {/* Paper layers */}
           <div className="work-4 absolute inset-1 bg-zinc-400 dark:bg-zinc-600 rounded-2xl transition-all ease duration-300 origin-bottom select-none group-hover:transform-[rotateX(-20deg)]" />
           <div className="work-3 absolute inset-1 bg-zinc-300 dark:bg-zinc-500 rounded-2xl transition-all ease duration-300 origin-bottom group-hover:transform-[rotateX(-30deg)]" />
           <div className="work-2 absolute inset-1 bg-zinc-100 dark:bg-slate-200 rounded-2xl transition-all ease duration-300 origin-bottom group-hover:transform-[rotateX(-38deg)] p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2 shadow-inner overflow-hidden">
-            <div className="w-1/3 h-2 sm:h-2.5 bg-zinc-200 dark:bg-slate-300 rounded-full mb-1"></div>
-            <div className="w-full h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-            <div className="w-5/6 h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-            <div className="w-4/5 h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
-            <div className="w-full h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full mt-2"></div>
-            <div className="w-3/4 h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full"></div>
+            <div className="w-1/3 h-2 sm:h-2.5 bg-zinc-200 dark:bg-slate-300 rounded-full mb-1" />
+            {[1, 5 / 6, 4 / 5, 1, 3 / 4].map((w, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "h-1.5 sm:h-2 bg-zinc-200 dark:bg-slate-300 rounded-full",
+                  i === 3 && "mt-2",
+                )}
+                style={{ width: `${w * 100}%` }}
+              />
+            ))}
             <div className="mt-auto flex justify-end">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-zinc-200 dark:border-slate-300 rounded-full flex items-center justify-center opacity-50 transform -rotate-12">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-zinc-200 dark:border-slate-300 rounded-full flex items-center justify-center opacity-50 -rotate-12">
                 <span className="text-[7px] sm:text-[9px] font-bold text-zinc-300 dark:text-slate-400">
                   OK
                 </span>
               </div>
             </div>
           </div>
-
-          <div className="work-1 absolute bottom-0 bg-linear-to-t from-amber-500 to-amber-400 dark:from-amber-600 dark:to-amber-500 w-full h-[calc(100%-4px)] rounded-2xl rounded-tr-none after:absolute after:content-[''] after:bottom-[99%] after:right-0 after:w-[50%] after:h-[16px] after:bg-amber-400 dark:after:bg-amber-500 after:rounded-t-2xl before:absolute before:content-[''] before:top-[-10px] before:right-[calc(50%-4px)] before:size-3 before:bg-amber-400 dark:before:bg-amber-500 before:[clip-path:polygon(100%_14%,50%_100%,100%_100%)] transition-all ease duration-300 origin-bottom flex flex-col justify-between p-3 sm:p-4 group-hover:shadow-[inset_0_20px_40px_#fbbf24,inset_0_-20px_40px_#d97706] dark:group-hover:shadow-[inset_0_20px_40px_#b45309,inset_0_-20px_40px_#92400e] group-hover:transform-[rotateX(-46deg)_translateY(1px)]">
+          {/* Front face */}
+          <div
+            className={cn(
+              "work-1 absolute bottom-0 w-full h-[calc(100%-4px)] rounded-2xl rounded-tr-none after:absolute after:content-[''] after:bottom-[99%] after:right-0 after:w-[50%] after:h-[16px] after:rounded-t-2xl before:absolute before:content-[''] before:top-[-10px] before:right-[calc(50%-4px)] before:size-3 before:[clip-path:polygon(100%_14%,50%_100%,100%_100%)] transition-all ease duration-300 origin-bottom flex flex-col justify-between p-3 sm:p-4 group-hover:transform-[rotateX(-46deg)_translateY(1px)]",
+              statusCfg.folderFront,
+            )}
+          >
             <div className="flex justify-between items-start">
-              <div className="p-1.5 sm:p-2 bg-white/20 dark:bg-black/20 rounded-md sm:rounded-lg text-amber-50 dark:text-amber-100 group-hover:bg-white/30 transition-colors">
+              <div
+                className={cn(
+                  "p-1.5 sm:p-2 rounded-md transition-colors group-hover:bg-white/30",
+                  statusCfg.folderIconBg,
+                )}
+              >
                 <FolderOpen
                   className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110"
                   strokeWidth={2}
                 />
               </div>
-              <div>
-                {truck.status === "active" && (
-                  <Badge className="bg-emerald-500 text-white border-none shadow-sm px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px]">
-                    <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />{" "}
-                    Active
-                  </Badge>
+              <Badge
+                className={cn(
+                  "border-0 shadow-sm text-[8px] sm:text-[10px] px-1.5 py-0.5 sm:px-2 sm:py-1 bg-white/25 text-white",
                 )}
-                {truck.status === "maintenance" && (
-                  <Badge className="bg-orange-500 text-white border-none shadow-sm px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px]">
-                    <Wrench className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" /> Garage
-                  </Badge>
-                )}
-                {truck.status === "inactive" && (
-                  <Badge className="bg-slate-500 text-white border-none shadow-sm px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px]">
-                    <XCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />{" "}
-                    Inactive
-                  </Badge>
-                )}
-              </div>
+              >
+                <StatusIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
+                {statusCfg.label}
+              </Badge>
             </div>
-
             <div className="mt-1 sm:mt-2">
               <h3 className="text-sm sm:text-base font-black text-white flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tracking-tight drop-shadow-sm">
                 <span className="truncate max-w-full">{truck.fleetCode}</span>
-                <span className="text-white font-normal shrink-0">-</span>
-                <span className="font-mono text-sm sm:text-base text-white truncate max-w-full">
+                <span className="font-normal text-white/60 shrink-0">·</span>
+                <span className="font-mono truncate max-w-full">
                   {truck.plateNumber}
                 </span>
               </h3>
-              <p className="text-[9px] sm:text-[10px] text-white font-medium mt-0.5 sm:mt-1 flex items-center gap-1">
-                <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Logistics Asset
+              <p className="text-[9px] sm:text-[10px] text-white/80 font-medium mt-0.5 flex items-center gap-1">
+                <Truck className="w-3 h-3" /> Logistics Asset
               </p>
             </div>
-
-            <div className="mt-auto pt-2 sm:pt-3 border-t border-amber-300/30 dark:border-amber-700/50 flex justify-between items-center">
-              {truck.isActive ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-400"></span>
-                  </span>
-                  <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-emerald-100 uppercase">
-                    Operational
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-red-400"></span>
-                  <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-red-100 uppercase">
-                    Disabled
-                  </span>
-                </div>
+            <div
+              className={cn(
+                "mt-auto pt-2 border-t flex items-center gap-1.5",
+                statusCfg.folderBorder,
               )}
+            >
+              <span
+                className={cn(
+                  "relative flex h-1.5 w-1.5 sm:h-2 sm:w-2 shrink-0",
+                )}
+              >
+                {statusCfg.ping && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+                )}
+                <span
+                  className={cn(
+                    "relative inline-flex rounded-full h-full w-full",
+                    statusCfg.dot,
+                  )}
+                />
+              </span>
+              <span className="text-[8px] sm:text-[9px] font-semibold tracking-wider text-white/80 uppercase">
+                {statusCfg.label}
+              </span>
             </div>
           </div>
         </div>
@@ -1442,206 +593,245 @@ export function TruckFolderCard({
 
   return (
     <>
-      {/* 1. THE ASSET RENDER */}
-      {renderCardUI()}
+      {renderCard()}
 
-      {/* 2. THE SLIDE-OUT ASSET PROFILE */}
+      {/* ── Profile sheet ──────────────────────────────────────────────────────── */}
       <Sheet open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <SheetContent className="sm:max-w-[450px] w-full flex flex-col bg-slate-50 dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 p-0">
-          <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-blue-500 via-indigo-500 to-cyan-500 opacity-90 z-10" />
+        {/* ✨ FIX: Added [&>button]:hidden to remove Shadcn's floating X button */}
+        <SheetContent className="flex flex-col p-0 gap-0 w-full sm:max-w-[400px] bg-background border-l border-border/60 z-200 [&>button]:hidden">
+          {/* Accent bar */}
+          <div className="absolute top-0 inset-x-0 h-[3px] bg-linear-to-r from-blue-500 to-blue-400 z-10" />
 
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <SheetHeader className="mb-6 sm:mb-8 relative bg-linear-to-br from-blue-600 to-indigo-700 p-4 sm:p-5 rounded-2xl shadow-md mt-2 sm:mt-0 overflow-hidden text-white">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent pointer-events-none"></div>
-
-              <div className="flex justify-between items-center w-full gap-2 relative z-10">
-                <SheetTitle className="flex items-center gap-3 font-black text-white min-w-0">
-                  <div className="p-2 sm:p-2.5 shrink-0">
-                    <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                  </div>
-                  <div className="text-left min-w-0">
-                    <div className="text-lg sm:text-xl truncate drop-shadow-md">
-                      {truck.fleetCode}{" "}
-                      <span className="text-white/60 font-normal shrink-0">
-                        -
-                      </span>{" "}
-                      {truck.plateNumber}
-                    </div>
-                  </div>
-                </SheetTitle>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-white/20 text-white border-0 shadow-none focus-visible:ring-transparent"
-                        title="Options"
-                      >
-                        <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5 " />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-48 rounded-xl border-slate-200 dark:border-slate-800 shadow-lg"
-                    >
-                      <DropdownMenuItem
-                        onClick={handleEditTruck}
-                        className="cursor-pointer gap-2 py-2"
-                      >
-                        <Edit className="w-4 h-4 text-slate-500" />
-                        <span className="font-medium text-slate-700 dark:text-slate-300">
-                          Edit Details
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator className="bg-slate-100 dark:border-slate-800" />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setIsDeleteDialogOpen(true);
-                        }}
-                        className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50 dark:focus:bg-rose-900/20 gap-2 py-2"
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                        <span className="font-medium">Delete Truck</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+          {/* Header */}
+          <SheetHeader className="shrink-0 px-5 pt-6 pb-4 border-b border-border/60">
+            <div className="flex items-start justify-between gap-3">
+              <SheetTitle className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50">
+                  <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
-              </div>
-            </SheetHeader>
+                <div className="min-w-0 flex flex-col items-start">
+                  <p className="text-[15px] font-semibold text-foreground truncate leading-tight">
+                    {truck.fleetCode}{" "}
+                    <span className="text-muted-foreground font-normal">·</span>{" "}
+                    <span className="font-mono">{truck.plateNumber}</span>
+                  </p>
+                  <Badge
+                    className={cn(
+                      "mt-1 text-[10px] font-semibold px-2 py-0.5 border-0",
+                      statusCfg.badge,
+                    )}
+                  >
+                    <StatusIcon className="h-2.5 w-2.5 mr-1" />
+                    {statusCfg.label}
+                  </Badge>
+                </div>
+              </SheetTitle>
 
+              {/* ✨ FIX: Custom aligned control group with the Dropdown and Close buttons directly next to each other */}
+              <div className="flex items-center gap-1 shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-44 rounded-xl border-border/60 shadow-md z-250"
+                  >
+                    <DropdownMenuItem
+                      onClick={() => setIsEditDialogOpen(true)}
+                      className="cursor-pointer gap-2 py-2 text-sm"
+                    >
+                      <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">Edit details</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="cursor-pointer gap-2 py-2 text-sm text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="font-medium">Delete truck</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="h-8 w-8 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </SheetHeader>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                <Loader2 className="w-8 h-8 animate-spin mb-4 text-blue-500" />
-                <p className="font-medium animate-pulse">
-                  Loading asset metrics...
-                </p>
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+                <Loader2 className="h-7 w-7 animate-spin text-blue-500" />
+                <p className="text-sm animate-pulse">Loading metrics…</p>
               </div>
             ) : (
-              <div className="space-y-8 pb-4">
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Lifetime Overview
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-                      <div className="text-slate-500 dark:text-slate-400 font-bold text-[10px] tracking-wider uppercase mb-1">
-                        Total Trips
-                      </div>
-                      <div className="text-sm font-black text-slate-800 dark:text-slate-100">
-                        {lifetimeTrips}
-                      </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
-                      <div className="text-slate-500 dark:text-slate-400 font-bold text-[10px] tracking-wider uppercase mb-1">
-                        Net Income
-                      </div>
-                      <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {formatPHP(lifetimeNet)}
-                      </div>
-                    </div>
+              <>
+                {/* Lifetime stats */}
+                <div>
+                  <SectionLabel>Lifetime overview</SectionLabel>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <StatCard
+                      label="Total trips"
+                      value={lifetime.count}
+                      accent="violet"
+                    />
+                    <StatCard
+                      label="Net income"
+                      value={lifetime.net}
+                      isCurrency
+                      accent="emerald"
+                    />
+                    <StatCard
+                      label="Collectibles"
+                      value={lifetime.gross}
+                      isCurrency
+                      accent="blue"
+                    />
+                    <StatCard
+                      label="Expenses"
+                      value={lifetime.exp}
+                      isCurrency
+                      accent="rose"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h4 className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Hardware Details
-                  </h4>
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 gap-3">
-                      <span className="text-xs sm:text-sm font-medium text-slate-500 flex items-center gap-2 shrink-0">
-                        <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />{" "}
-                        Engine No.
+                {/* Hardware details */}
+                <div>
+                  <SectionLabel>Hardware details</SectionLabel>
+                  <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden divide-y divide-border/40">
+                    {[
+                      {
+                        icon: Settings,
+                        label: "Engine No.",
+                        value: truck.engineNo,
+                      },
+                      {
+                        icon: ShieldCheck,
+                        label: "Chassis No.",
+                        value: truck.chassisNo,
+                      },
+                    ].map(({ icon: Icon, label, value }) => (
+                      <div
+                        key={label}
+                        className="flex items-center gap-3 px-4 py-3"
+                      >
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-[13px] text-muted-foreground flex-1">
+                          {label}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-[13px] font-mono font-medium text-right",
+                            !value && "text-muted-foreground/40",
+                          )}
+                        >
+                          {value || "—"}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <CalendarIcon className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                      <span className="text-[13px] text-muted-foreground flex-1">
+                        LTO expiry
                       </span>
-                      <span className="text-xs sm:text-sm font-mono font-bold text-slate-800 dark:text-slate-200 text-right truncate">
-                        4HF1-88392A
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 gap-3">
-                      <span className="text-xs sm:text-sm font-medium text-slate-500 flex items-center gap-2 shrink-0">
-                        <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />{" "}
-                        Chassis No.
-                      </span>
-                      <span className="text-xs sm:text-sm font-mono font-bold text-slate-800 dark:text-slate-200 text-right truncate">
-                        NKR66E-72819
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center gap-3">
-                      <span className="text-xs sm:text-sm font-medium text-slate-500 shrink-0">
-                        LTO Expiry
-                      </span>
-                      <span className="text-xs sm:text-sm font-bold text-rose-600 text-right">
-                        Oct 2026
+                      <span
+                        className={cn(
+                          "text-[13px] font-medium text-right",
+                          truck.ltoExpiry
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-muted-foreground/40",
+                        )}
+                      >
+                        {truck.ltoExpiry
+                          ? format(new Date(truck.ltoExpiry), "MMM dd, yyyy")
+                          : "Unregistered"}
                       </span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 
-          {/* Fixed Footer */}
+          {/* Footer */}
           {!isLoading && (
-            <div className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-20">
+            <div className="shrink-0 px-5 py-4 border-t border-border/60 bg-muted/10">
               <Button
                 onClick={() => {
                   setIsDashboardOpen(true);
                   setIsProfileOpen(false);
                 }}
-                className="relative w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-bold text-sm sm:text-base"
+                className="relative w-full h-11 rounded-xl text-sm font-semibold bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn"
               >
                 <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />
-                Open Analytics & Ledgers
+                Open Analytics & Ledger
               </Button>
             </div>
           )}
         </SheetContent>
       </Sheet>
 
-      {/* 3. ✨ THE UNIFIED FULL-SCREEN DASHBOARD MODAL */}
+      {/* ── Full-screen dashboard ──────────────────────────────────────────────── */}
       {isDashboardOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div
             ref={dashboardRef}
             tabIndex={0}
-            className="bg-slate-50 dark:bg-slate-950 w-full h-full sm:h-[95vh] max-w-[1500px] rounded-none sm:rounded-lg shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-slate-200 dark:border-slate-800 outline-none animate-in zoom-in-95 sm:zoom-in-100 duration-200"
+            className="bg-background w-full h-full sm:h-[95vh] max-w-[1500px] rounded-none sm:rounded-lg shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-border/60 outline-none animate-in zoom-in-95 duration-200"
           >
-            <div className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
-              <div>
-                <h2 className="text-base sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <FileSpreadsheet className="w-5 h-5 text-blue-600 hidden sm:block" />
-                  Asset Dashboard: {truck.fleetCode}
-                </h2>
-                <p className="text-[11px] sm:text-sm font-medium text-slate-500 mt-0.5">
-                  Plate:{" "}
-                  <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">
-                    {truck.plateNumber}
-                  </span>
-                </p>
+            {/* Dashboard header */}
+            <div className="h-[3px] bg-linear-to-r from-blue-500 to-blue-400 w-full" />
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 bg-card border-b border-border/60 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50">
+                  <FileSpreadsheet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold text-foreground truncate">
+                    {truck.fleetCode}{" "}
+                    <span className="text-muted-foreground font-normal">·</span>{" "}
+                    <span className="font-mono">{truck.plateNumber}</span>
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Analytics & trip ledger
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsDashboardOpen(false)}
-                className="p-2 sm:p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 outline-none"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 custom-scrollbar bg-slate-50 dark:bg-slate-950 space-y-4">
-              {/* SECTION A: FILTERS */}
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
-                <div className="flex justify-between items-center mb-5">
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <FilterX className="w-4 h-4 text-slate-400 hidden sm:block" />{" "}
-                    Filter Records
-                  </h4>
+            {/* Dashboard body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20 dark:bg-background custom-scrollbar">
+              {/* Filter bar */}
+              <div className="bg-card rounded-xl border border-border/60 p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[13px] font-semibold text-foreground flex items-center gap-2">
+                    <FilterX className="h-3.5 w-3.5 text-muted-foreground" />
+                    Filter records
+                  </p>
                   {hasActiveFilters && (
                     <button
                       onClick={() => {
@@ -1649,155 +839,98 @@ export function TruckFolderCard({
                         setSelectedCustomer("all");
                         setSelectedDestination("all");
                       }}
-                      className="text-xs flex items-center gap-1 font-bold text-rose-500 hover:text-rose-600 transition-colors bg-rose-50 dark:bg-rose-950/50 px-3 py-1.5 rounded-lg"
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1.5 rounded-lg transition-colors"
                     >
-                      <FilterX className="w-3.5 h-3.5" /> Clear All Filters
+                      <X className="h-3 w-3" /> Clear filters
                     </button>
                   )}
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                      Period / Year
-                    </label>
-                    <Select
-                      value={selectedYear}
-                      onValueChange={setSelectedYear}
-                    >
-                      <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 h-12 rounded-xl font-semibold focus:ring-blue-500/50">
-                        <SelectValue placeholder="All Years" />
-                      </SelectTrigger>
-                      <SelectContent className="z-110 rounded-xl border-slate-200 dark:border-slate-800">
-                        <SelectItem value="all" className="font-bold">
-                          All Years
-                        </SelectItem>
-                        {uniqueYears.map((year) => (
-                          <SelectItem key={year} value={year}>
-                            {year}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    {
+                      label: "Period / Year",
+                      value: selectedYear,
+                      setter: setSelectedYear,
+                      options: uniqueYears,
+                      placeholder: "All years",
+                    },
+                    {
+                      label: "Customer",
+                      value: selectedCustomer,
+                      setter: setSelectedCustomer,
+                      options: uniqueCustomers,
+                      placeholder: "All customers",
+                    },
+                    {
+                      label: "Route",
+                      value: selectedDestination,
+                      setter: setSelectedDestination,
+                      options: uniqueDestinations,
+                      placeholder: "All routes",
+                    },
+                  ].map(({ label, value, setter, options, placeholder }) => (
+                    <div key={label} className="space-y-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                        {label}
+                      </p>
+                      <Select value={value} onValueChange={setter}>
+                        <SelectTrigger className="h-9 w-full text-sm rounded-lg bg-background border-border/60 focus:ring-1 focus:ring-blue-500/40">
+                          <SelectValue placeholder={placeholder} />
+                        </SelectTrigger>
+                        <SelectContent className="z-110 rounded-xl border-border/60 shadow-md">
+                          <SelectItem value="all" className="font-medium">
+                            {placeholder}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                      Customer / Client
-                    </label>
-                    <Select
-                      value={selectedCustomer}
-                      onValueChange={setSelectedCustomer}
-                    >
-                      <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 h-12 rounded-xl font-semibold focus:ring-blue-500/50">
-                        <SelectValue placeholder="All Customers" />
-                      </SelectTrigger>
-                      <SelectContent className="z-110 rounded-xl border-slate-200 dark:border-slate-800">
-                        <SelectItem value="all" className="font-bold">
-                          All Customers
-                        </SelectItem>
-                        {uniqueCustomers.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                      Delivery Route
-                    </label>
-                    <Select
-                      value={selectedDestination}
-                      onValueChange={setSelectedDestination}
-                    >
-                      <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 h-12 rounded-xl font-semibold truncate focus:ring-blue-500/50">
-                        <SelectValue placeholder="All Routes" />
-                      </SelectTrigger>
-                      <SelectContent className="z-110 rounded-xl border-slate-200 dark:border-slate-800">
-                        <SelectItem value="all" className="font-bold">
-                          All Routes
-                        </SelectItem>
-                        {uniqueDestinations.map((d) => (
-                          <SelectItem key={d} value={d}>
-                            {d}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                          {options.map((o: string) => (
+                            <SelectItem key={o} value={o}>
+                              {o}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* SECTION B: ANALYTICS METRICS */}
+              {/* Metric cards */}
               {filteredTrips.length === 0 ? (
-                <div className="bg-slate-50 dark:bg-[#0a1520] border border-slate-200 dark:border-white/10 rounded-xl p-8 text-center shrink-0">
-                  <Activity className="w-8 h-8 text-slate-300 dark:text-white/20 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-slate-500 dark:text-white/40">
-                    No trips match these specific filters.
+                <div className="bg-card rounded-xl border border-border/60 p-10 text-center">
+                  <Activity className="h-8 w-8 text-muted-foreground/20 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No trips match these filters.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3 shrink-0">
-                  {/* Net Income */}
-                  <div className="bg-emerald-50 dark:bg-[#0a2e1a] rounded-lg p-4 border border-emerald-200/60 dark:border-[#3dff9a]/15 relative overflow-hidden">
-                    <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-emerald-500 dark:bg-[#3dff9a] opacity-10 pointer-events-none" />
-                    <p className="text-[10px] font-bold tracking-widest uppercase text-emerald-700 dark:text-[#3dff9a] mb-2 relative z-10">
-                      Net Income
-                    </p>
-                    <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-                      <AnimatedNumber
-                        value={filteredTotalNet}
-                        isCurrency={true}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Gross */}
-                  <div className="bg-blue-50 dark:bg-[#0d1f3c] rounded-lg p-4 border border-blue-200/60 dark:border-[#5cabff]/15 relative overflow-hidden">
-                    <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-blue-500 dark:bg-[#5cabff] opacity-10 pointer-events-none" />
-                    <p className="text-[10px] font-bold tracking-widest uppercase text-blue-700 dark:text-[#5cabff] mb-2 relative z-10">
-                      Collectibles
-                    </p>
-                    <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-                      <AnimatedNumber
-                        value={filteredTotalGross}
-                        isCurrency={true}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Expenses */}
-                  <div className="bg-rose-50 dark:bg-[#2d0d1a] rounded-lg p-4 border border-rose-200/60 dark:border-[#ff5c8a]/15 relative overflow-hidden">
-                    <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-rose-500 dark:bg-[#ff5c8a] opacity-10 pointer-events-none" />
-                    <p className="text-[10px] font-bold tracking-widest uppercase text-rose-700 dark:text-[#ff5c8a] mb-2 relative z-10">
-                      Expenses
-                    </p>
-                    <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-                      <AnimatedNumber
-                        value={filteredTotalExpenses}
-                        isCurrency={true}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Trips */}
-                  <div className="bg-purple-50 dark:bg-[#160b2e] rounded-lg p-4 border border-purple-200/60 dark:border-[#b97aff]/15 relative overflow-hidden">
-                    <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full bg-purple-500 dark:bg-[#b97aff] opacity-10 pointer-events-none" />
-                    <p className="text-[10px] font-bold tracking-widest uppercase text-purple-700 dark:text-[#b97aff] mb-2 relative z-10">
-                      Trips
-                    </p>
-                    <div className="text-lg font-bold text-slate-900 dark:text-white font-mono relative z-10">
-                      <AnimatedNumber value={filteredTotalTrips} />
-                    </div>
-                  </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <StatCard
+                    label="Net income"
+                    value={filtered.net}
+                    isCurrency
+                    accent="emerald"
+                  />
+                  <StatCard
+                    label="Collectibles"
+                    value={filtered.gross}
+                    isCurrency
+                    accent="blue"
+                  />
+                  <StatCard
+                    label="Expenses"
+                    value={filtered.exp}
+                    isCurrency
+                    accent="rose"
+                  />
+                  <StatCard
+                    label="Trips"
+                    value={filtered.count}
+                    accent="violet"
+                  />
                 </div>
               )}
 
-              {/* SECTION C: THE FILTERED DATA TABLE */}
-              <div className="shrink-0 w-full mt-2">
+              {/* Data table */}
+              <div className="bg-card rounded-xl border border-border/60 p-4">
                 <DataTable columns={columns} data={filteredTrips} />
               </div>
             </div>
@@ -1805,147 +938,228 @@ export function TruckFolderCard({
         </div>
       )}
 
-      {/* 4. ✨ THE UPGRADED EDIT TRUCK MODAL */}
+      {/* ── Edit dialog ────────────────────────────────────────────────────────── */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black">
-              Edit Asset Details
-            </DialogTitle>
-            <DialogDescription>
-              Update the registration and operational status of this truck.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="w-[95vw] sm:w-full max-w-md sm:max-w-[480px] max-h-[95dvh] overflow-y-auto custom-scrollbar rounded-2xl bg-background border-border/60 z-200 p-0 gap-0">
+          {/* Dialog accent */}
+          <div className="h-[3px] bg-linear-to-r from-blue-500 to-blue-400 w-full" />
 
-          <form onSubmit={handleEditSubmit} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="fleetCode"
-                className="text-xs font-bold uppercase tracking-wider text-slate-500"
-              >
-                Fleet Code / Name
-              </Label>
-              <Input
-                id="fleetCode"
-                value={editForm.fleetCode}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, fleetCode: e.target.value })
-                }
-                className="w-full h-[46px]! border-slate-200 dark:border-slate-800/80  rounded-xl bg-white dark:bg-slate-900"
-                required
-              />
-            </div>
+          <div className="p-6">
+            <DialogHeader className="mb-5">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50">
+                  <Edit className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <DialogTitle className="text-[15px] font-semibold">
+                  Edit asset details
+                </DialogTitle>
+              </div>
+              <DialogDescription className="text-[13px] text-muted-foreground ml-11">
+                Update registration and operational info for {truck.fleetCode}.
+              </DialogDescription>
+            </DialogHeader>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="plateNumber"
-                className="text-xs font-bold uppercase tracking-wider text-slate-500"
-              >
-                Plate Number
-              </Label>
-              <Input
-                id="plateNumber"
-                value={editForm.plateNumber}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, plateNumber: e.target.value })
-                }
-                className="w-full h-11 border-slate-200 dark:border-slate-800/80  rounded-xl font-mono uppercase bg-white dark:bg-slate-900"
-                required
-              />
-            </div>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              {/* ID fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <EditField label="Fleet Code">
+                  <Input
+                    value={editForm.fleetCode}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, fleetCode: e.target.value })
+                    }
+                    className={fieldClass}
+                    required
+                  />
+                </EditField>
+                <EditField label="Plate No.">
+                  <Input
+                    value={editForm.plateNumber}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, plateNumber: e.target.value })
+                    }
+                    className={cn(fieldClass, "font-mono uppercase")}
+                    required
+                  />
+                </EditField>
+              </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Operational Status
-              </Label>
-              <Select
-                value={editForm.status}
-                onValueChange={(val) =>
-                  setEditForm({ ...editForm, status: val })
-                }
-              >
-                <SelectTrigger className="w-full h-[46px]! border-slate-200 dark:border-slate-800/80  rounded-xl bg-white dark:bg-slate-900">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl z-150">
-                  <SelectItem value="active">
-                    <div className="flex items-center text-emerald-600 font-bold">
-                      <CheckCircle2 className="w-4 h-4 mr-2" /> Active
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="maintenance">
-                    <div className="flex items-center text-orange-500 font-bold">
-                      <Wrench className="w-4 h-4 mr-2" /> Garage / Maintenance
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="inactive">
-                    <div className="flex items-center text-slate-500 font-bold">
-                      <XCircle className="w-4 h-4 mr-2" /> Inactive
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Hardware fields */}
+              <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden divide-y divide-border/40">
+                {[
+                  { icon: Settings, key: "engineNo", label: "Engine No." },
+                  { icon: ShieldCheck, key: "chassisNo", label: "Chassis No." },
+                ].map(({ icon: Icon, key, label }) => (
+                  <div
+                    key={key}
+                    className="flex items-center gap-3 px-4 py-2.5"
+                  >
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[12px] text-muted-foreground w-24 shrink-0">
+                      {label}
+                    </span>
+                    <Input
+                      value={(editForm as any)[key]}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, [key]: e.target.value })
+                      }
+                      className="h-8 border-0 bg-transparent p-0 text-sm font-mono uppercase shadow-none focus-visible:ring-0 placeholder:font-sans placeholder:normal-case placeholder:text-muted-foreground/40"
+                      placeholder="Optional"
+                    />
+                  </div>
+                ))}
 
-            <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-3 sm:gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-                className="rounded-xl h-12 w-full sm:w-auto font-bold border-slate-200 dark:border-white/10 dark:text-white dark:bg-transparent dark:hover:bg-white/5 transition-colors"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isUpdating}
-                className="relative rounded-xl h-12 w-full sm:flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black shadow-lg transition-all duration-300 overflow-hidden group/btn border-none disabled:opacity-70 disabled:pointer-events-none px-6"
-              >
-                <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
+                {/* LTO expiry row */}
+                <div className="flex items-center gap-3 px-4 py-2.5">
+                  <CalendarIcon className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                  <span className="text-[12px] text-muted-foreground w-24 shrink-0">
+                    LTO Expiry
+                  </span>
+                  <Popover
+                    open={isCalendarOpen}
+                    onOpenChange={setIsCalendarOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex flex-1 items-center text-sm transition-colors",
+                          editForm.ltoExpiry
+                            ? "text-foreground font-medium"
+                            : "text-muted-foreground/50",
+                        )}
+                      >
+                        {editForm.ltoExpiry
+                          ? format(new Date(editForm.ltoExpiry), "MMM dd, yyyy")
+                          : "Pick a date"}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 z-250 rounded-xl border-border/60 shadow-lg"
+                      align="start"
+                      sideOffset={8}
+                    >
+                      <Calendar
+                        mode="single"
+                        selected={
+                          editForm.ltoExpiry
+                            ? new Date(editForm.ltoExpiry)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          setEditForm({
+                            ...editForm,
+                            ltoExpiry: date ? format(date, "yyyy-MM-dd") : "",
+                          });
+                          setIsCalendarOpen(false);
+                        }}
+                        captionLayout="dropdown"
+                        fromYear={2000}
+                        toYear={new Date().getFullYear() + 10}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Status */}
+              <EditField label="Operational Status">
+                <Select
+                  value={editForm.status}
+                  onValueChange={(v) => setEditForm({ ...editForm, status: v })}
+                >
+                  <SelectTrigger className={cn(fieldClass, "px-3 w-full")}>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl z-250 border-border/60">
+                    {Object.entries(STATUS).map(([val, cfg]) => {
+                      return (
+                        <SelectItem key={val} value={val} className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "h-2 w-2 rounded-full shrink-0",
+                                cfg.dot,
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                "text-sm font-medium",
+                                cfg.badge
+                                  .split(" ")
+                                  .find((c) => c.startsWith("text-")),
+                              )}
+                            >
+                              {cfg.label}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </EditField>
+
+              <DialogFooter className="pt-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                  className="flex-1 h-10 rounded-xl text-sm font-medium border-border/60"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="flex-2 h-11 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white border-0 shadow-sm gap-2 transition-all"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" /> Save changes
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* 5. THE DELETE CONFIRMATION ALERT */}
+      {/* ── Delete confirmation ────────────────────────────────────────────────── */}
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <AlertDialogContent className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl max-w-md">
-          <AlertDialogHeader className="flex flex-row items-start gap-4 text-left sm:text-left">
-            <div className="shrink-0 w-12 h-12 bg-rose-100 dark:bg-rose-900/50 rounded-full flex items-center justify-center mt-1">
-              <Trash2 className="w-6 h-6 text-rose-600 dark:text-rose-400" />
-            </div>
-            <div className="flex flex-col flex-1">
-              <AlertDialogTitle className="text-xl font-black text-slate-800 dark:text-slate-100">
-                Delete Truck Asset
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-500 mt-1.5 text-sm sm:text-base leading-relaxed">
-                Are you sure you want to permanently delete{" "}
-                <span className="font-bold text-slate-700 dark:text-slate-300">
-                  {truck.fleetCode} ({truck.plateNumber})
-                </span>
-                ? This action cannot be undone and will remove the truck from
-                your fleet.
-              </AlertDialogDescription>
+        <AlertDialogContent className="sm:max-w-[400px] rounded-2xl bg-background border-border/60 z-200">
+          <AlertDialogHeader>
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50">
+                <Trash2 className="h-4.5 w-4.5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-[15px] font-semibold text-foreground">
+                  Delete truck asset
+                </AlertDialogTitle>
+                <AlertDialogDescription className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+                  Permanently delete{" "}
+                  <span className="font-semibold text-foreground">
+                    {truck.fleetCode} ({truck.plateNumber})
+                  </span>
+                  ? This cannot be undone.
+                </AlertDialogDescription>
+              </div>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex gap-3 sm:justify-center">
+          <AlertDialogFooter className="mt-5 flex gap-2">
             <AlertDialogCancel
               disabled={isDeleting}
-              className="flex-1 rounded-xl h-12 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+              className="flex-1 h-10 rounded-xl text-sm font-medium border-border/60 hover:bg-muted"
             >
               Cancel
             </AlertDialogCancel>
@@ -1953,14 +1167,14 @@ export function TruckFolderCard({
               variant="destructive"
               disabled={isDeleting}
               onClick={confirmDelete}
-              className="flex-1 rounded-xl h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              className="flex-1 h-10 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 active:scale-[0.98] border-0 shadow-sm gap-2 transition-all"
             >
               {isDeleting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Deleting…
                 </>
               ) : (
-                "Yes, Delete Asset"
+                "Delete asset"
               )}
             </Button>
           </AlertDialogFooter>

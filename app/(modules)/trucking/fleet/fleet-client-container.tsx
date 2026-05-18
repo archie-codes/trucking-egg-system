@@ -16,13 +16,13 @@ export function FleetClientContainer({ fleetData }: { fleetData: any[] }) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const sortedData = [...fleetData].sort((a, b) => {
-    // Primary sort by fleet code (alphabetical)
     const codeA = (a.fleetCode || "").toLowerCase();
     const codeB = (b.fleetCode || "").toLowerCase();
 
-    if (codeA < codeB) return sortOrder === "asc" ? -1 : 1;
-    if (codeA > codeB) return sortOrder === "asc" ? 1 : -1;
-    return 0;
+    // ✨ FIX: Using localeCompare with numeric: true for Natural Sorting
+    const comparison = codeA.localeCompare(codeB, undefined, { numeric: true });
+
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 
   return (

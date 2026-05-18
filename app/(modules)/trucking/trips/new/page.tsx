@@ -104,7 +104,19 @@ export default function NewTripPage() {
     async function loadInitialData() {
       const truckResult = await getActiveTrucks();
       if (truckResult.success && truckResult.data) {
-        setAvailableTrucks(truckResult.data);
+        // ✨ FIX: Bulletproof Natural Sorting using Regex Number Extraction
+        // This physically pulls the numbers out of "F10" and "F9" to mathematically compare them.
+        const sortedTrucks = [...truckResult.data].sort((a, b) => {
+          const numA = parseInt(a.code.replace(/\D/g, "")) || 0;
+          const numB = parseInt(b.code.replace(/\D/g, "")) || 0;
+
+          if (numA !== numB) {
+            return numA - numB; // 10 will always be greater than 9
+          }
+          return a.code.localeCompare(b.code); // Fallback if no numbers exist
+        });
+
+        setAvailableTrucks(sortedTrucks);
       } else {
         toast.error("Failed to load trucks");
       }
@@ -262,7 +274,7 @@ export default function NewTripPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 lg:space-y-8 animate-in fade-in duration-300">
+    <div className="sm:h-[95vh] max-w-[1500px] mx-auto space-y-4 animate-in fade-in duration-300">
       <div className="space-y-1 relative">
         <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
         <div className="flex items-center gap-4 mb-1">
@@ -281,9 +293,9 @@ export default function NewTripPage() {
         onSubmit={form.handleSubmit(onSubmit, onError)}
         className="pb-36 lg:pb-32"
       >
-        <div className="flex flex-col gap-6 lg:gap-8">
-          <div className="w-full space-y-6">
-            <Card className="shadow-lg border-slate-200 dark:border-slate-800/80 rounded-3xl overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+        <div className="flex flex-col gap-6 lg:gap-4">
+          <div className="w-full space-y-2">
+            <Card className="shadow-lg border-slate-200 dark:border-slate-800/80 rounded-lg overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
               <CardHeader className=" border-b border-slate-100 dark:border-slate-800/60 pb-5 px-6 lg:px-8">
                 <CardTitle className="text-xl text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
                   <FileText className="w-5 h-5 text-blue-500" />
@@ -326,7 +338,7 @@ export default function NewTripPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent
-                              className="w-auto overflow-hidden p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+                              className="w-auto overflow-hidden p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
                               align="start"
                             >
                               <Calendar
@@ -390,7 +402,7 @@ export default function NewTripPage() {
                                 }
                               />
                             </SelectTrigger>
-                            <SelectContent className="border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
+                            <SelectContent className="border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 z-200">
                               {availableTrucks.map((truck) => (
                                 <SelectItem
                                   key={truck.id}
@@ -508,7 +520,7 @@ export default function NewTripPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent
-                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
                               align="start"
                             >
                               <Command>
@@ -593,7 +605,7 @@ export default function NewTripPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent
-                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950"
+                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
                               align="start"
                             >
                               <Command>
@@ -920,54 +932,57 @@ export default function NewTripPage() {
           </div>
         </div>
 
-        {/* STICKY BOTTOM BAR */}
+        {/* ✨ FIX: STICKY BOTTOM BAR (Perfectly aligned to your screenshot) */}
         <div className="fixed bottom-0 right-0 left-0 md:left-(--sidebar-width,16rem) transition-[left] duration-300 ease-in-out bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex w-full md:w-auto justify-between md:justify-start space-x-2 sm:space-x-8 lg:space-x-12">
-              <div className="text-center md:text-left">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+            {/* LEFT SIDE: Financial Metrics */}
+            <div className="flex items-center justify-between w-full sm:w-auto space-x-2 sm:space-x-6 lg:space-x-12">
+              <div className="text-left flex-1 sm:flex-none">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Collectible
                 </p>
-                <p className="text-lg sm:text-lg lg:text-xl font-mono text-slate-900 dark:text-white flex items-center">
-                  {/* ✨ Added decimalPlaces={2} for accurate formatting */}
+                <p className="text-[13px] sm:text-base md:text-lg font-mono text-slate-900 dark:text-white flex items-center font-bold">
                   ₱<NumberTicker value={grossCollectible} decimalPlaces={2} />
                 </p>
               </div>
-              <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
-              <div className="text-center md:text-left">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
-                  Total Expenses
+
+              <div className="w-px h-6 sm:h-8 bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+              <div className="text-left flex-1 sm:flex-none">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
+                  Expenses
                 </p>
-                <p className="text-lg sm:text-lg lg:text-xl font-mono text-rose-500 flex items-center">
-                  {/* ✨ Added decimalPlaces={2} */}
+                <p className="text-[13px] sm:text-base md:text-lg font-mono text-rose-500 flex items-center font-bold">
                   - ₱<NumberTicker value={totalExpenses} decimalPlaces={2} />
                 </p>
               </div>
-              <div className="w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
-              <div className="text-center md:text-left">
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
+
+              <div className="w-px h-6 sm:h-8 bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+              <div className="text-left flex-1 sm:flex-none">
+                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
                   Net Income
                 </p>
-                <p className="text-lg sm:text-lg lg:text-xl font-mono text-emerald-500 flex items-center">
-                  {/* ✨ Added decimalPlaces={2} */}
+                <p className="text-[13px] sm:text-base md:text-lg font-mono text-emerald-500 flex items-center font-bold">
                   ₱<NumberTicker value={netIncome} decimalPlaces={2} />
                 </p>
               </div>
             </div>
+
+            {/* RIGHT SIDE: Save Button */}
             <Button
               type="submit"
               form="new-trip-form"
               disabled={form.formState.isSubmitting}
-              className="relative h-12 sm:h-14 px-6 lg:px-10 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-bold w-full md:w-auto text-base lg:text-lg disabled:opacity-70 disabled:pointer-events-none"
+              className="relative h-10 sm:h-11 px-6 lg:px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-300 font-semibold disabled:opacity-70 shrink-0 w-full sm:w-auto mt-1 sm:mt-0"
             >
-              <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
               {form.formState.isSubmitting ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Saving...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
                 </>
               ) : (
                 <>
-                  <Save className="w-5 h-5 sm:w-6 sm:h-6 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />{" "}
+                  <Save className="w-4 h-4 mr-2" />
                   Save Record
                 </>
               )}

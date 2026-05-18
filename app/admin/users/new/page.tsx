@@ -1,7 +1,7 @@
 // app/admin/users/new/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,21 +15,18 @@ import {
   ShieldCheck,
   ArrowLeft,
   CheckCircle2,
-  Image as ImageIcon,
+  ImageIcon,
+  Eye,
+  EyeOff,
+  ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -42,13 +39,10 @@ import {
   createStaffAccount,
   getAdminClearance,
 } from "@/app/actions/user-actions";
-import { useEffect } from "react"; // Also add useEffect to your React imports!
-
-// UploadThing Imports (Using Button instead of Dropzone to save space!)
 import { UploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
-// Premium pre-generated avatars for quick selection
+// ── Preset avatars ─────────────────────────────────────────────────────────────
 const PRESET_AVATARS = [
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=b6e3f4",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka&backgroundColor=c0aede",
@@ -58,16 +52,59 @@ const PRESET_AVATARS = [
   "https://api.dicebear.com/9.x/avataaars/svg?seed=Riley&backgroundColor=b6e3f4",
 ];
 
+// ── Section divider ────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 whitespace-nowrap">
+        {children}
+      </span>
+      <div className="flex-1 h-px bg-border/40" />
+    </div>
+  );
+}
+
+// ── Form field wrapper ─────────────────────────────────────────────────────────
+function FormField({
+  id,
+  label,
+  icon: Icon,
+  children,
+}: {
+  id?: string;
+  label: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+}) {
+  return (
+    <Field className="space-y-1.5">
+      <FieldLabel
+        htmlFor={id}
+        className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground/80"
+      >
+        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        {label}
+      </FieldLabel>
+      {children}
+    </Field>
+  );
+}
+
+const inputClass =
+  "h-10 rounded-lg text-sm bg-muted/40 border-border/50 focus-visible:ring-1 focus-visible:ring-blue-500/40 focus-visible:border-blue-500/40 placeholder:text-muted-foreground/40";
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 export default function AddUserPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string>("");
-
-  const [adminDept, setAdminDept] = useState<string>("trucking");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [adminDept, setAdminDept] = useState("trucking");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     getAdminClearance().then((dept) => setAdminDept(dept));
   }, []);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -77,306 +114,339 @@ export default function AddUserPage() {
     const result = await createStaffAccount(formData);
 
     if (result.success) {
-      const employeeName = formData.get("name") as string;
-      const department = formData.get("department") as string;
-
-      toast.success("Staff Account Created! 🎉", {
-        description: `${employeeName} has been granted access to the ${
-          department === "all" ? "Global" : department
-        } portal.`,
-        duration: 5000,
-        icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-        className:
-          "border-emerald-500/30 bg-emerald-50/80 dark:bg-emerald-950/50 backdrop-blur-md dark:border-emerald-800/50 shadow-xl",
+      const name = formData.get("name") as string;
+      const dept = formData.get("department") as string;
+      toast.success(`${name}'s account has been created.`, {
+        description: `Access granted to the ${dept === "all" ? "Global" : dept} portal.`,
+        icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
       });
-
       formElement.reset();
-      setAvatarUrl(""); // Reset the image preview
-      setIsSubmitting(false);
+      setAvatarUrl("");
     } else {
-      toast.error("Account Creation Failed", {
-        description: result.error,
-        className: "border-red-500/30 bg-red-50/80 backdrop-blur-md shadow-xl",
-      });
-      setIsSubmitting(false);
+      toast.error("Account creation failed.", { description: result.error });
     }
+
+    setIsSubmitting(false);
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-200">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between">
-        <div className="space-y-1 relative">
-          <div className="absolute -left-4 top-0 w-12 h-12 bg-blue-500/10 rounded-full blur-xl -z-10" />
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
+    <div className="max-w-2xl mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+      {/* ── Page header ── */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50">
+            <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-semibold text-foreground leading-tight truncate">
               Add New Staff
-            </span>
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-md mt-2">
-            Create and configure access credentials for new employees.
-          </p>
+            </h1>
+            <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+              Create access credentials for a new employee.
+            </p>
+          </div>
         </div>
-        <Link href="/admin/users">
+
+        <Link href="/admin/users" className="shrink-0">
           <Button
             variant="outline"
-            className="group hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300 rounded-xl"
+            size="sm"
+            className="h-9 gap-1.5 rounded-xl text-sm font-medium border-border/60 hover:bg-muted group"
           >
-            <ArrowLeft className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:-translate-x-1" />
-            Back to Directory
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
         </Link>
       </div>
 
-      <Card className="relative overflow-hidden border-0 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl rounded-3xl ring-1 ring-slate-200/50 dark:ring-white/10 transition-all duration-500 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-90" />
+      {/* ── Form card ── */}
+      <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+        {/* Accent bar */}
+        <div className="h-[3px] bg-linear-to-r from-blue-500 to-blue-400 w-full" />
 
-        <CardHeader className="pb-8 pt-5 px-8 border-b border-slate-100/50 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-950/20">
-          <CardTitle className="flex items-center gap-3 text-2xl">
-            <div className="p-2.5 bg-blue-100 dark:bg-blue-500/20 rounded-xl text-blue-600 dark:text-blue-400 shadow-inner">
-              <UserPlus className="w-6 h-6" strokeWidth={2.5} />
-            </div>
-            Account Details
-          </CardTitle>
-          <CardDescription className="text-base ml-14 mt-1">
-            Fill in the details below. A temporary password is required for
-            their first login.
-          </CardDescription>
-        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <input type="hidden" name="avatarUrl" value={avatarUrl} />
 
-        <CardContent className="p-5 sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <input type="hidden" name="avatarUrl" value={avatarUrl} />
-
-            {/* UPGRADED AVATAR SECTION */}
-            <div className="p-4 sm:p-5 bg-white/50 dark:bg-slate-950/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row gap-6 items-start sm:items-center transition-all hover:border-blue-200 dark:hover:border-blue-900/50 shadow-sm">
-              {/* Profile Picture Preview */}
-              <div className="shrink-0 relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-900 ring-4 ring-white dark:ring-slate-800 shadow-lg flex items-center justify-center">
-                {avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    alt="Avatar"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <ImageIcon className="w-10 h-10 text-slate-300 dark:text-slate-700" />
-                )}
-              </div>
-
-              {/* The Upload vs Select Tabs */}
-              <div className="flex-1 w-full">
-                <Tabs defaultValue="choose" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4 bg-slate-100 dark:bg-slate-900/50 rounded-xl p-1">
-                    <TabsTrigger value="choose" className="rounded-lg">
-                      Choose Avatar
-                    </TabsTrigger>
-                    <TabsTrigger value="upload" className="rounded-lg">
-                      Upload Photo
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="choose" className="mt-0">
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 pt-2">
-                      {PRESET_AVATARS.map((url, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setAvatarUrl(url)}
-                          className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${
-                            avatarUrl === url
-                              ? "border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-                              : "border-transparent hover:border-slate-300"
-                          }`}
-                        >
-                          <Image
-                            src={url}
-                            alt={`Avatar option ${idx}`}
-                            fill
-                            className="object-cover"
-                            unoptimized
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="upload" className="mt-0 pt-2">
-                    <div className="flex items-center justify-start">
-                      <UploadButton<OurFileRouter, "avatarUploader">
-                        endpoint="avatarUploader"
-                        onClientUploadComplete={(res) => {
-                          setAvatarUrl(res[0].url);
-                          toast.success("Image uploaded successfully!");
-                        }}
-                        onUploadError={(error: Error) => {
-                          toast.error(`Upload failed: ${error.message}`);
-                        }}
-                        appearance={{
-                          button:
-                            "bg-blue-600 hover:bg-blue-700 text-sm h-10 px-6 rounded-xl ut-uploading:cursor-not-allowed",
-                          allowedContent: "hidden", // This hides the "Images up to 4MB" text to save lots of space
-                        }}
+          <div className="p-5 sm:p-6 space-y-6">
+            {/* ── Avatar section ── */}
+            <div>
+              <SectionLabel>Profile photo</SectionLabel>
+              <div className="mt-3 flex flex-col sm:flex-row gap-5 items-start">
+                {/* Preview */}
+                <div className="shrink-0">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden border border-border/60 bg-muted flex items-center justify-center">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt="Avatar preview"
+                        width={80}
+                        height={80}
+                        className="object-cover w-full h-full"
+                        unoptimized
                       />
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                    ) : (
+                      <ImageIcon className="h-7 w-7 text-muted-foreground/30" />
+                    )}
+                  </div>
+                  {avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setAvatarUrl("")}
+                      className="mt-1.5 w-full text-center text-[11px] text-muted-foreground/60 hover:text-rose-500 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                {/* Tabs */}
+                <div className="flex-1 w-full min-w-0">
+                  <Tabs defaultValue="choose" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 h-8 rounded-lg bg-muted/50 p-0.5 mb-3">
+                      <TabsTrigger
+                        value="choose"
+                        className="rounded-md text-xs h-full"
+                      >
+                        Choose preset
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="upload"
+                        className="rounded-md text-xs h-full"
+                      >
+                        Upload photo
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="choose" className="mt-0">
+                      <div className="flex flex-wrap gap-2">
+                        {PRESET_AVATARS.map((url, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setAvatarUrl(url)}
+                            className={cn(
+                              "relative w-11 h-11 rounded-xl overflow-hidden border-2 transition-all hover:scale-105",
+                              avatarUrl === url
+                                ? "border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]"
+                                : "border-border/50 hover:border-blue-400/50",
+                            )}
+                          >
+                            <Image
+                              src={url}
+                              alt={`Avatar ${idx + 1}`}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                            {avatarUrl === url && (
+                              <div className="absolute inset-0 bg-blue-500/10 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="upload" className="mt-0">
+                      <div className="flex items-center">
+                        <UploadButton<OurFileRouter, "avatarUploader">
+                          endpoint="avatarUploader"
+                          onClientUploadComplete={(res) => {
+                            setAvatarUrl(res[0].url);
+                            toast.success("Photo uploaded.");
+                          }}
+                          onUploadError={(error: Error) => {
+                            toast.error(`Upload failed: ${error.message}`);
+                          }}
+                          appearance={{
+                            button:
+                              "bg-blue-600 hover:bg-blue-700 text-xs h-9 px-4 rounded-lg ut-uploading:cursor-not-allowed ut-uploading:opacity-60",
+                            allowedContent: "hidden",
+                          }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/60 mt-2">
+                        PNG, JPG or WebP · Max 4 MB
+                      </p>
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
             </div>
 
-            {/* Standard Input Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field className="space-y-2 group">
-                <FieldLabel
-                  htmlFor="name"
-                  className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold mb-2"
-                >
-                  <User className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />{" "}
-                  Full Name
-                </FieldLabel>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Juan Dela Cruz"
-                  required
-                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
-                />
-              </Field>
+            {/* ── Account info ── */}
+            <div>
+              <SectionLabel>Account information</SectionLabel>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField id="name" label="Full name" icon={User}>
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="Juan Dela Cruz"
+                    required
+                    className={inputClass}
+                  />
+                </FormField>
 
-              <Field className="space-y-2 group">
-                <FieldLabel
-                  htmlFor="email"
-                  className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold mb-2"
-                >
-                  <Mail className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />{" "}
-                  Corporate Email
-                </FieldLabel>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="juan@fhernielogistics.com"
-                  required
-                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
-                />
-              </Field>
+                <FormField id="email" label="Corporate email" icon={Mail}>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="juan@fhernielogistics.com"
+                    required
+                    className={inputClass}
+                  />
+                </FormField>
 
-              <Field className="space-y-2 group">
-                <FieldLabel
-                  htmlFor="password"
-                  className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold mb-2"
-                >
-                  <Key className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />{" "}
-                  Temporary Password
-                </FieldLabel>
-                <Input
-                  id="password"
-                  name="password"
-                  type="text"
-                  placeholder="e.g., Fhernie123!"
-                  required
-                  className="px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500/50 shadow-sm"
-                />
-              </Field>
-
-              <Field className="space-y-2 group">
-                <FieldLabel
-                  htmlFor="department"
-                  className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold mb-2"
-                >
-                  <Building2 className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />{" "}
-                  Assigned Department
-                </FieldLabel>
-                <Select
-                  name="department"
-                  defaultValue={adminDept === "all" ? "trucking" : adminDept}
-                >
-                  <SelectTrigger className=" px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 shadow-sm group-hover:border-blue-200 dark:group-hover:border-blue-900/50">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl shadow-xl">
-                    {/* ONLY show Trucking if they are Super Admin OR Trucking Admin */}
-                    {(adminDept === "all" || adminDept === "trucking") && (
-                      <SelectItem
-                        value="trucking"
-                        className="cursor-pointer rounded-lg hover:bg-slate-100"
-                      >
-                        Fhernie Logistics (Trucking)
-                      </SelectItem>
-                    )}
-
-                    {/* ONLY show Eggs if they are Super Admin OR Egg Admin */}
-                    {(adminDept === "all" || adminDept === "eggs") && (
-                      <SelectItem
-                        value="eggs"
-                        className="cursor-pointer rounded-lg hover:bg-slate-100"
-                      >
-                        Otso Dragon Corp (Egg Sales)
-                      </SelectItem>
-                    )}
-
-                    {/* ONLY show Global Access if they are a Super Admin */}
-                    {adminDept === "all" && (
-                      <SelectItem
-                        value="all"
-                        className="cursor-pointer rounded-lg hover:bg-slate-100"
-                      >
-                        Global Access (Both)
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field className="space-y-2 group md:col-span-2 lg:col-span-1">
-                <FieldLabel
-                  htmlFor="role"
-                  className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold mb-2"
-                >
-                  <ShieldCheck className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />{" "}
-                  System Role
-                </FieldLabel>
-                <Select name="role" defaultValue="encoder">
-                  <SelectTrigger className="h-12 px-4 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/50 shadow-sm">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl shadow-xl">
-                    <SelectItem value="encoder">
-                      Data Encoder (Standard)
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      Administrator (Manager)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
+                <FormField id="password" label="Temporary password" icon={Key}>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="e.g., Fhernie123!"
+                      required
+                      className={cn(inputClass, "pr-10")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1 leading-relaxed">
+                    Staff will use this to log in for the first time.
+                  </p>
+                </FormField>
+              </div>
             </div>
 
-            <div className="flex justify-end pt-5 mt-2 border-t border-slate-100 dark:border-slate-800/60">
+            {/* ── Access & permissions ── */}
+            <div>
+              <SectionLabel>Access & permissions</SectionLabel>
+              <div className="mt-3 rounded-xl border border-border/50 bg-muted/20 overflow-hidden divide-y divide-border/40">
+                {/* Department row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[13px] text-muted-foreground w-28 shrink-0">
+                    Department
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      name="department"
+                      defaultValue={
+                        adminDept === "all" ? "trucking" : adminDept
+                      }
+                    >
+                      <SelectTrigger className="h-8 border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/60 shadow-md z-110">
+                        {(adminDept === "all" || adminDept === "trucking") && (
+                          <SelectItem
+                            value="trucking"
+                            className="text-sm py-2.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                              Fhernie Logistics
+                            </div>
+                          </SelectItem>
+                        )}
+                        {(adminDept === "all" || adminDept === "eggs") && (
+                          <SelectItem value="eggs" className="text-sm py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                              Otso Dragon Corp
+                            </div>
+                          </SelectItem>
+                        )}
+                        {adminDept === "all" && (
+                          <SelectItem value="all" className="text-sm py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                              Global access (both)
+                            </div>
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Role row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[13px] text-muted-foreground w-28 shrink-0">
+                    System role
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <Select name="role" defaultValue="encoder">
+                      <SelectTrigger className="h-8 border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/60 shadow-md z-110">
+                        <SelectItem value="encoder" className="text-sm py-2.5">
+                          <div className="flex items-center gap-2">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            Data Encoder
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="admin" className="text-sm py-2.5">
+                          <div className="flex items-center gap-2">
+                            <ShieldAlert className="h-3.5 w-3.5 text-indigo-500" />
+                            <span className="text-indigo-700 dark:text-indigo-400 font-medium">
+                              Administrator
+                            </span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Footer ── */}
+          <div className="px-5 sm:px-6 py-4 border-t border-border/60 bg-muted/10 flex flex-col sm:flex-row gap-2.5 sm:justify-end">
+            <Link href="/admin/users" className="sm:order-1">
               <Button
-                type="submit"
-                size="lg"
-                disabled={isSubmitting}
-                className="relative h-14 px-8 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] transition-all duration-300 hover:-translate-y-0.5 overflow-hidden group/btn font-bold text-base"
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto h-11 rounded-xl text-sm font-medium border-border/60 hover:bg-muted"
               >
-                <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-3 h-5 w-5 animate-spin" /> Creating
-                    Account...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-3 h-5 w-5 transition-transform group-hover/btn:scale-110" />{" "}
-                    Create Account
-                  </>
-                )}
+                Cancel
               </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            </Link>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="sm:order-2 relative h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold"
+            >
+              <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Creating…
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />{" "}
+                  Create account
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

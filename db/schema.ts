@@ -8,6 +8,7 @@ import {
   text,
   boolean,
   real,
+  date,
 } from "drizzle-orm/pg-core";
 
 // ======================================================================
@@ -40,13 +41,17 @@ export const users = pgTable("users", {
 
 export const truckingFleet = pgTable("trucking_fleet", {
   id: serial("id").primaryKey(),
-  fleetCode: varchar("fleet_code", { length: 20 }).notNull().unique(),
-  plateNumber: varchar("plate_number", { length: 20 }).notNull().unique(),
+  fleetCode: varchar("fleet_code").notNull(),
+  plateNumber: varchar("plate_number").notNull(),
+  status: varchar("status").notNull().default("active"),
+  engineNo: varchar("engine_no"),
+  chassisNo: varchar("chassis_no"),
+  ltoExpiry: date("lto_expiry"),
 
-  // e.g., 'active', 'maintenance', 'out-of-service'
-  status: varchar("status", { length: 20 }).default("active").notNull(),
+  // ✨ FIX 1 & 2: Added isActive so you can filter active trucks
   isActive: boolean("is_active").default(true).notNull(),
 
+  // ✨ FIX 3: Added createdAt so you can sort folders by newest first
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
