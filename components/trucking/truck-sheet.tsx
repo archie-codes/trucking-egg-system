@@ -408,7 +408,7 @@ export function TruckSheet({
 
     if (result.success) {
       toast.success("Truck registered", {
-        description: `${formData.get("fleetCode")} has been added to the fleet.`,
+        description: `${String(formData.get("fleetCode")).toUpperCase()} has been added to the fleet.`,
       });
       setLtoExpiry(undefined);
       setStatus("active");

@@ -157,7 +157,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white/95 dark:bg-[#0a1520]/95 border border-emerald-200/60 dark:border-[#3dff9a]/20 rounded-[10px] py-2.5 px-3 shadow-xl dark:shadow-2xl backdrop-blur-md">
+      <div className="bg-white/95 dark:bg-[#0a1520]/95 border border-emerald-200/60 dark:border-[#3dff9a]/20 rounded-lg py-2.5 px-3 shadow-xl dark:shadow-2xl backdrop-blur-md">
         <p className="text-[10px] font-bold tracking-widest uppercase text-emerald-700 dark:text-[#3dff9a] mb-2">
           {data.name}
         </p>
@@ -204,7 +204,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
   const isDark = mounted ? resolvedTheme === "dark" : true; // Default to dark during SSR
 
   return (
-    <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 rounded-2xl p-5 sm:p-6 h-full flex flex-col relative overflow-hidden shadow-sm dark:shadow-none">
+    <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-white/10 rounded-lg p-5 sm:p-6 h-full flex flex-col relative overflow-hidden shadow-sm dark:shadow-none">
       {/* Background glows */}
       <div className="absolute -top-20 right-[60px] w-[240px] h-[240px] rounded-full bg-emerald-500 dark:bg-[#3dff9a] opacity-5 pointer-events-none" />
       <div className="absolute -bottom-16 -left-10 w-[200px] h-[200px] rounded-full bg-blue-500 dark:bg-[#5cabff] opacity-5 pointer-events-none" />

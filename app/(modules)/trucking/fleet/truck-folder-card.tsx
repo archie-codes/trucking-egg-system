@@ -209,11 +209,11 @@ function StatCard({
   }[accent];
 
   return (
-    <div className={cn("rounded-xl border p-4", colors)}>
-      <p className="text-[10px] font-semibold uppercase tracking-widest opacity-70 mb-2">
+    <div className={cn("rounded-xl border p-3.5 sm:p-4 overflow-hidden min-w-0 flex flex-col justify-center", colors)}>
+      <p className="text-[10px] font-semibold uppercase tracking-widest opacity-70 mb-1.5 truncate">
         {label}
       </p>
-      <p className="text-base font-bold font-mono leading-none">
+      <p className="text-[14px] sm:text-[15px] font-bold font-mono leading-none truncate w-full">
         <AnimatedNumber value={value} isCurrency={isCurrency} />
       </p>
     </div>
@@ -1113,15 +1113,18 @@ export function TruckFolderCard({
                 <Button
                   type="submit"
                   disabled={isUpdating}
-                  className="flex-2 h-11 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white border-0 shadow-sm gap-2 transition-all"
+                  className="flex-2 relative h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold"
                 >
+                  <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+
                   {isUpdating ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                     </>
                   ) : (
                     <>
-                      <Save className="h-3.5 w-3.5" /> Save changes
+                      <Save className="w-5 h-5 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />{" "}
+                      Save changes
                     </>
                   )}
                 </Button>

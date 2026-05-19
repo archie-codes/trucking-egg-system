@@ -41,7 +41,7 @@ export function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
   const displaySec = String(time.getSeconds()).padStart(2, "0");
 
   return (
-    <div className="bg-white dark:bg-[#0d1117] rounded-lg p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 border border-slate-200 dark:border-white/10 dark:shadow-none relative overflow-hidden mb-6">
+    <div className="bg-white dark:bg-[#0d1117] rounded-lg p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 border border-slate-200 dark:border-white/10 dark:shadow-none relative overflow-hidden mb-3">
       {/* Background glows */}
       <div className="absolute -top-16 -left-10 w-[220px] h-[220px] rounded-full bg-emerald-500 dark:bg-[#3dff9a] opacity-5 pointer-events-none" />
       <div className="absolute -bottom-20 right-10 w-[180px] h-[180px] rounded-full bg-blue-500 dark:bg-[#5cabff] opacity-5 pointer-events-none" />

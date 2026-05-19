@@ -57,7 +57,7 @@ export default async function AdminLayout({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-slate-300 hover:bg-blue-600 hover:text-white transition-colors rounded-lg px-2 py-2"
+                className="text-slate-300 h-10! hover:bg-blue-600 hover:text-white transition-colors rounded-lg px-2 py-2"
               >
                 <Truck className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Trucking Portal</span>
@@ -71,7 +71,7 @@ export default async function AdminLayout({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-slate-300 hover:bg-amber-600 hover:text-white transition-colors rounded-lg px-2 py-2"
+                className="text-slate-300 h-10! hover:bg-amber-600 hover:text-white transition-colors rounded-lg px-2 py-2"
               >
                 <Egg className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Egg Sales Portal</span>

@@ -9,6 +9,7 @@ import {
   Truck,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
 
@@ -69,7 +70,7 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
     <div className="flex flex-col h-full text-slate-300 relative group">
       {/* Sidebar Header / Branding */}
       <div
-        className={`h-16 flex items-center border-b border-slate-800 ${isCollapsed && !isMobile ? "justify-center px-0" : "px-6"}`}
+        className={`h-16 flex items-center border-b border-slate-800 ${isCollapsed && !isMobile ? "justify-center px-0" : "px-6 justify-between"}`}
       >
         {isCollapsed && !isMobile ? (
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
@@ -80,13 +81,19 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
             Trucking<span className="text-blue-500"> History</span>
           </h2>
         )}
+        {isMobile && (
+          <SheetClose className="p-2 -mr-2 text-slate-400 hover:text-white rounded-md transition-colors focus:outline-none">
+            <X className="w-5 h-5" />
+            <span className="sr-only">Close</span>
+          </SheetClose>
+        )}
       </div>
 
       {/* Collapse Toggle Button (Desktop Only) */}
       {!isMobile && (
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-20 bg-slate-800 text-slate-400 hover:text-white border border-slate-700 rounded-full p-1 transition-opacity z-50 shadow-md"
+          className="absolute -right-3 top-20 bg-slate-800 text-slate-100 hover:text-white border border-slate-700 rounded-full p-1 transition-opacity z-50 shadow-md"
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4" />

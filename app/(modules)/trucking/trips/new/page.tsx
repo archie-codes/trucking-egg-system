@@ -974,15 +974,17 @@ export default function NewTripPage() {
               type="submit"
               form="new-trip-form"
               disabled={form.formState.isSubmitting}
-              className="relative h-10 sm:h-11 px-6 lg:px-8 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-300 font-semibold disabled:opacity-70 shrink-0 w-full sm:w-auto mt-1 sm:mt-0"
+              className="relative h-11 px-6 lg:px-8 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold shrink-0 w-full sm:w-auto mt-1 sm:mt-0"
             >
+              <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+
               {form.formState.isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 mr-2" />
+                  <Save className="w-4 h-4 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />
                   Save Record
                 </>
               )}

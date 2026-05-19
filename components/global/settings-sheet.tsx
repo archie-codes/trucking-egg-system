@@ -1,5 +1,17 @@
-// // components/settings-sheet.tsx
 // "use client";
+
+// import { useEffect, useState } from "react";
+// import { useTheme } from "next-themes";
+// import {
+//   Settings,
+//   Moon,
+//   Sun,
+//   Monitor,
+//   CheckCircle2,
+//   Info,
+//   ChevronRight,
+//   X,
+// } from "lucide-react";
 
 // import {
 //   Sheet,
@@ -8,73 +20,280 @@
 //   SheetHeader,
 //   SheetTitle,
 // } from "@/components/ui/sheet";
-// import { Settings, Moon, Sun, Monitor } from "lucide-react";
-// import { useTheme } from "next-themes";
-// import { useEffect, useState } from "react";
+// import { Button } from "@/components/ui/button";
+// import { cn } from "@/lib/utils";
 
 // interface SettingsSheetProps {
 //   isOpen: boolean;
 //   onClose: () => void;
 // }
 
+// // ── Shared UI Components ─────────────────────────────────────────────────────
+
+// function SectionLabel({ children }: { children: React.ReactNode }) {
+//   return (
+//     <div className="flex items-center gap-3 mb-4">
+//       <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+//         {children}
+//       </span>
+//       <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800/60" />
+//     </div>
+//   );
+// }
+
+// // ── Configuration Data ────────────────────────────────────────────────────────
+
+// const THEMES = [
+//   {
+//     value: "light",
+//     label: "Light",
+//     icon: Sun,
+//     description: "Clean & bright",
+//     previewBg: "bg-slate-100",
+//     previewBorder: "border-slate-200",
+//     previewElements: "bg-white",
+//     previewAccent: "bg-amber-400",
+//   },
+//   {
+//     value: "dark",
+//     label: "Dark",
+//     icon: Moon,
+//     description: "Easy on eyes",
+//     previewBg: "bg-slate-950",
+//     previewBorder: "border-slate-800",
+//     previewElements: "bg-slate-800",
+//     previewAccent: "bg-blue-500",
+//   },
+//   {
+//     value: "system",
+//     label: "System",
+//     icon: Monitor,
+//     description: "Auto sync OS",
+//     previewBg: "bg-linear-to-br from-slate-100 to-slate-900",
+//     previewBorder: "border-slate-300 dark:border-slate-700",
+//     previewElements: "bg-white/50 dark:bg-slate-800/50",
+//     previewAccent: "bg-slate-400",
+//   },
+// ] as const;
+
+// type AppInfoItem = {
+//   label: string;
+//   value: string;
+//   isHighlight?: boolean;
+// };
+
+// const APP_INFO: AppInfoItem[] = [
+//   { label: "Application", value: "Trucking System", isHighlight: true },
+//   { label: "Version", value: "v2.4.0 (Stable)" },
+//   { label: "Build", value: "Fhernie Logistics" },
+// ];
+
+// // ── Main Component ────────────────────────────────────────────────────────────
+
 // export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
-//   const { theme, setTheme } = useTheme();
+//   const { theme, setTheme, systemTheme } = useTheme();
 //   const [mounted, setMounted] = useState(false);
 
-//   // We use this to prevent a Next.js hydration mismatch on the icons
+//   // Prevent hydration mismatch
 //   useEffect(() => {
 //     setMounted(true);
 //   }, []);
 
+//   const currentTheme = theme === "system" ? systemTheme : theme;
+//   const isDark = currentTheme === "dark";
+
 //   return (
 //     <Sheet open={isOpen} onOpenChange={onClose}>
-//       <SheetContent className="overflow-hidden w-full sm:max-w-md bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl border-l border-white/20 dark:border-slate-800/50 shadow-2xl p-0 flex flex-col h-full">
-//         <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-amber-500 via-orange-500 to-rose-500 opacity-90 z-10" />
+//       <SheetContent
+//         showCloseButton={false}
+//         className="flex flex-col p-0 w-full sm:max-w-[420px] bg-white dark:bg-[#0B0F19] border-l border-slate-200 dark:border-slate-800/60 z-200 h-full overflow-hidden shadow-2xl"
+//       >
+//         {/* Dynamic Top Gradient Bar */}
+//         <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-amber-400 via-orange-500 to-rose-500 z-10" />
 
-//         <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar space-y-8">
-//           <SheetHeader className="mt-2">
-//             <SheetTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-//               <Settings className="w-6 h-6 text-amber-500" />
-//               App Settings
-//             </SheetTitle>
-//             <SheetDescription className="text-slate-500 dark:text-slate-400">
-//               Customize your OtsoTrack experience.
-//             </SheetDescription>
-//           </SheetHeader>
+//         {/* Subtle Background Glow (Dark Mode Only) */}
+//         <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl opacity-0 dark:opacity-100 transition-opacity duration-1000" />
 
-//           {/* Theme Selection */}
-//           <div className="space-y-4">
-//             <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs flex items-center gap-2">
-//               Appearance
-//             </h4>
+//         {/* ── Header ───────────────────────────────────────────────────────── */}
+//         <SheetHeader className="relative shrink-0 px-6 pt-10 pb-6 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/20 backdrop-blur-md">
+//           <Button
+//             variant="ghost"
+//             size="icon"
+//             onClick={onClose}
+//             className="absolute top-4 right-4 h-8 w-8 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+//           >
+//             <X className="h-4 w-4" />
+//           </Button>
 
-//             {/* Only render the buttons once mounted to avoid server/client mismatch */}
-//             {mounted && (
-//               <div className="grid grid-cols-3 gap-2">
-//                 <button
-//                   onClick={() => setTheme("light")}
-//                   className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${theme === "light" ? "border-amber-500 bg-amber-50 dark:bg-amber-500/10 text-amber-600" : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700"}`}
-//                 >
-//                   <Sun className="w-5 h-5" />
-//                   <span className="text-xs font-semibold">Light</span>
-//                 </button>
-//                 <button
-//                   onClick={() => setTheme("dark")}
-//                   className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${theme === "dark" ? "border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-500" : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700"}`}
-//                 >
-//                   <Moon className="w-5 h-5" />
-//                   <span className="text-xs font-semibold">Dark</span>
-//                 </button>
-//                 <button
-//                   onClick={() => setTheme("system")}
-//                   className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${theme === "system" ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600" : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700"}`}
-//                 >
-//                   <Monitor className="w-5 h-5" />
-//                   <span className="text-xs font-semibold">System</span>
-//                 </button>
+//           <div className="flex items-center gap-4">
+//             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/20 shadow-sm">
+//               <Settings className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+//             </div>
+//             <div className="flex flex-col text-left">
+//               <SheetTitle className="text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
+//                 Preferences
+//               </SheetTitle>
+//               <SheetDescription className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
+//                 Customize your application experience.
+//               </SheetDescription>
+//             </div>
+//           </div>
+//         </SheetHeader>
+
+//         {/* ── Scrollable Body ───────────────────────────────────────────────── */}
+//         <div className="flex-1 overflow-y-auto px-6 py-8 space-y-10 custom-scrollbar relative z-10">
+//           {/* Theme Section */}
+//           <section>
+//             <SectionLabel>Appearance</SectionLabel>
+
+//             {mounted ? (
+//               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+//                 {THEMES.map((t) => {
+//                   const isActive = theme === t.value;
+//                   const Icon = t.icon;
+
+//                   return (
+//                     <button
+//                       key={t.value}
+//                       onClick={() => setTheme(t.value)}
+//                       className={cn(
+//                         "group relative flex flex-col items-start gap-3 p-4 rounded-2xl border text-left transition-all duration-300",
+//                         isActive
+//                           ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-500/10 shadow-[0_0_15px_-3px_rgba(245,158,11,0.1)] ring-1 ring-amber-500/20"
+//                           : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 shadow-sm",
+//                       )}
+//                     >
+//                       {/* Active Indicator */}
+//                       {isActive && (
+//                         <div className="absolute top-3 right-3 flex items-center justify-center">
+//                           <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-20 animate-ping"></span>
+//                           <CheckCircle2 className="h-4 w-4 text-amber-600 dark:text-amber-400 relative z-10" />
+//                         </div>
+//                       )}
+
+//                       {/* Mini Preview UI */}
+//                       <div
+//                         className={cn(
+//                           "w-full h-12 rounded-xl border flex flex-col gap-1.5 p-2 transition-colors",
+//                           t.previewBg,
+//                           t.previewBorder,
+//                         )}
+//                       >
+//                         <div className="flex items-center gap-1 w-full">
+//                           <div
+//                             className={cn(
+//                               "h-1.5 w-1.5 rounded-full",
+//                               t.previewAccent,
+//                             )}
+//                           />
+//                           <div
+//                             className={cn(
+//                               "h-1.5 w-1.5 rounded-full",
+//                               t.previewElements,
+//                             )}
+//                           />
+//                           <div
+//                             className={cn(
+//                               "h-1.5 flex-1 rounded-full",
+//                               t.previewElements,
+//                             )}
+//                           />
+//                         </div>
+//                         <div
+//                           className={cn(
+//                             "h-4 w-full rounded-md mt-0.5",
+//                             t.previewElements,
+//                           )}
+//                         />
+//                       </div>
+
+//                       {/* Info */}
+//                       <div>
+//                         <div className="flex items-center gap-1.5 text-slate-900 dark:text-white">
+//                           <Icon
+//                             className={cn(
+//                               "h-3.5 w-3.5 transition-colors",
+//                               isActive
+//                                 ? "text-amber-600 dark:text-amber-400"
+//                                 : "text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200",
+//                             )}
+//                           />
+//                           <span className="text-[13px] font-semibold">
+//                             {t.label}
+//                           </span>
+//                         </div>
+//                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
+//                           {t.description}
+//                         </p>
+//                       </div>
+//                     </button>
+//                   );
+//                 })}
+//               </div>
+//             ) : (
+//               // Skeleton Loader
+//               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+//                 {[1, 2, 3].map((i) => (
+//                   <div
+//                     key={i}
+//                     className="h-32 rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse"
+//                   />
+//                 ))}
 //               </div>
 //             )}
-//           </div>
+
+//             <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-4 flex items-start gap-2 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+//               <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+//               <span>
+//                 Theme changes are applied globally and instantly across the
+//                 entire dashboard interface.
+//               </span>
+//             </p>
+//           </section>
+
+//           {/* System Info Section */}
+//           <section>
+//             <SectionLabel>System Information</SectionLabel>
+//             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 overflow-hidden shadow-sm">
+//               <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+//                 {APP_INFO.map((item, idx) => (
+//                   <div
+//                     key={idx}
+//                     className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
+//                   >
+//                     <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
+//                       {item.label}
+//                     </span>
+//                     <div className="flex items-center gap-2">
+//                       <span
+//                         className={cn(
+//                           "text-[13px] font-semibold",
+//                           item.isHighlight
+//                             ? "text-slate-900 dark:text-white"
+//                             : "text-slate-700 dark:text-slate-300",
+//                         )}
+//                       >
+//                         {item.value}
+//                       </span>
+//                       {item.isHighlight && (
+//                         <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 transition-colors" />
+//                       )}
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+//             </div>
+//           </section>
+//         </div>
+
+//         {/* ── Footer ───────────────────────────────────────────────────────── */}
+//         <div className="shrink-0 p-6 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20 backdrop-blur-md">
+//           <Button
+//             onClick={onClose}
+//             className="w-full h-12 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-semibold shadow-lg transition-all active:scale-[0.98]"
+//           >
+//             Done
+//           </Button>
 //         </div>
 //       </SheetContent>
 //     </Sheet>
@@ -320,8 +539,9 @@ export function SettingsSheet({ isOpen, onClose }: SettingsSheetProps) {
         <div className="shrink-0 px-5 py-4 border-t border-border/60 bg-muted/10">
           <button
             onClick={onClose}
-            className="w-full h-10 rounded-xl text-sm font-medium border border-border/60 bg-background hover:bg-muted transition-colors text-foreground"
+            className="flex-2 relative w-full h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold"
           >
+            <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
             Close
           </button>
         </div>

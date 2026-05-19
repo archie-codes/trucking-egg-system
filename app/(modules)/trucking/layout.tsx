@@ -10,6 +10,7 @@ import { UserProfileMenu } from "@/components/global/user-profile-menu";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { LtoNotificationBell } from "@/components/trucking/lto-notification-bell";
 
 import {
   Sheet,
@@ -70,6 +71,7 @@ export default async function TruckingLayout({
                 <SheetContent
                   side="left"
                   className="w-64 p-0 bg-slate-900 border-r border-slate-800 text-slate-300"
+                  showCloseButton={false}
                 >
                   <SheetTitle className="sr-only">Trucking Menu</SheetTitle>
                   <TruckingSidebar isMobile />
@@ -88,7 +90,7 @@ export default async function TruckingLayout({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-slate-300 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
+                className="text-slate-300 h-10! hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
                 asChild
               >
                 <Link href="/admin/users">
@@ -99,7 +101,7 @@ export default async function TruckingLayout({
             )}
 
             <div className="w-px h-6 bg-slate-700 hidden sm:block mx-1"></div>
-
+            <LtoNotificationBell />
             <UserProfileMenu currentUser={currentUser} />
           </div>
         </header>
