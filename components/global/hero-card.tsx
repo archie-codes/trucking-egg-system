@@ -13,6 +13,7 @@ interface HeroCardProps {
   href: string;
   buttonText: string;
   variant?: "first" | "second" | "third" | "fourth";
+  badge?: string;
 }
 
 export default function HeroCard({
@@ -24,6 +25,7 @@ export default function HeroCard({
   href,
   buttonText,
   variant = "first",
+  badge,
 }: HeroCardProps) {
   // You can adjust these gradients to match Fhernie/Otso branding colors
   const gradientClass =
@@ -47,6 +49,24 @@ export default function HeroCard({
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
       </div>
+
+      {/* Badge Area */}
+      {badge && (
+        <div className="absolute top-5 right-5 z-30 transition-transform duration-500 group-hover:-translate-y-1">
+          <span className="flex items-center px-3 py-1.5 bg-black/40 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-white uppercase tracking-widest shadow-lg">
+            {badge.toLowerCase() === "now online" && (
+              <span className="w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+            )}
+            {badge.toLowerCase() === "under development" && (
+              <span className="w-2 h-2 rounded-full bg-orange-400 mr-2 animate-pulse shadow-[0_0_8px_rgba(251,146,60,0.8)]" />
+            )}
+            {badge.toLowerCase() === "coming soon" && (
+              <span className="w-2 h-2 rounded-full bg-blue-400 mr-2 animate-pulse shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+            )}
+            {badge}
+          </span>
+        </div>
+      )}
 
       {/* Skewed Gradient Overlay */}
       <div
