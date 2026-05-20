@@ -1,5 +1,5 @@
 // app/admin/layout.tsx
-import { ShieldAlert, Truck, Egg, User } from "lucide-react";
+import { ShieldAlert, Truck, Egg } from "lucide-react";
 import { UserProfileMenu } from "@/components/global/user-profile-menu";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -20,7 +20,7 @@ async function getCurrentUser() {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   } catch (error) {
-    console.error("Failed to fetch user");
+    console.error("Failed to fetch user:", error);
     return null;
   }
 }
@@ -93,8 +93,8 @@ export default async function AdminLayout({
   );
 }
 
-// Quick helper component
-function Button({ className, variant, size, children, ...props }: any) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function Button({ className, children, ...props }: any) {
   return (
     <button
       className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${className}`}

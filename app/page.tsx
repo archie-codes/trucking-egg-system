@@ -128,7 +128,6 @@
 // }
 
 import HeroCard from "@/components/global/hero-card";
-import { Truck, Egg } from "lucide-react";
 import { NavBar } from "@/components/global/navbar";
 
 export default function DashboardSelection() {

@@ -6,13 +6,11 @@ import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
-  Truck,
   MoreHorizontal,
   Edit,
   Trash,
   Loader2,
   Save,
-  AlertTriangle,
   CalendarIcon,
   Check,
   ChevronsUpDown,
@@ -124,6 +122,7 @@ function AnimatedNumber({
 
     const rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]); // intentionally leaving out current from deps
 
   if (isCurrency) {
@@ -202,15 +201,23 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
         const cityData = await cityRes.json();
 
         const provMap = new Map();
-        provData.forEach((p: any) => provMap.set(p.code, p.name));
+        provData.forEach(
+          (
+            p: any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
+          ) => provMap.set(p.code, p.name),
+        );
 
-        const formattedLocations = cityData.map((city: any) => {
-          const provName = provMap.get(city.provinceCode) || "Metro Manila";
-          const label = `${city.name}, ${provName}`;
-          return { value: label.toUpperCase(), label };
-        });
+        const formattedLocations = cityData.map(
+          (
+            city: any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
+          ) => {
+            const provName = provMap.get(city.provinceCode) || "Metro Manila";
+            const label = `${city.name}, ${provName}`;
+            return { value: label.toUpperCase(), label };
+          },
+        );
 
-        formattedLocations.sort((a: any, b: any) =>
+        formattedLocations.sort((a: { label: string }, b: { label: string }) =>
           a.label.localeCompare(b.label),
         );
         setPhLocations(formattedLocations);
@@ -905,6 +912,15 @@ export const columns: ColumnDef<TripRecord>[] = [
     cell: ({ row }) => (
       <span className="font-medium whitespace-nowrap">
         {row.getValue("customerId")}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "farmName",
+    header: "Farm Name",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap font-medium text-slate-600 dark:text-slate-400">
+        {row.getValue("farmName") || "-"}
       </span>
     ),
   },

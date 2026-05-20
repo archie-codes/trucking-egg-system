@@ -23,9 +23,7 @@ import {
   MoreVertical,
   Save,
   CalendarIcon,
-  TrendingUp,
-  TrendingDown,
-  Hash,
+  Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -62,7 +60,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -109,6 +106,7 @@ function AnimatedNumber({
     };
     const id = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return isCurrency ? (
@@ -246,6 +244,7 @@ export function TruckFolderCard({
   truck,
   viewMode = "grid",
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   truck: any;
   viewMode?: "grid" | "list";
 }) {
@@ -269,10 +268,12 @@ export function TruckFolderCard({
       : "",
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trips, setTrips] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState("all");
+  const [selectedFarmName, setSelectedFarmName] = useState("all");
   const [selectedDestination, setSelectedDestination] = useState("all");
 
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -298,6 +299,7 @@ export function TruckFolderCard({
     setIsLoading(true);
     setSelectedYear("all");
     setSelectedCustomer("all");
+    setSelectedFarmName("all");
     setSelectedDestination("all");
     const result = await getTruckTrips(truck.id);
     if (result.success && result.data) setTrips(result.data);
@@ -348,12 +350,29 @@ export function TruckFolderCard({
       const matchYear =
         selectedYear === "all" ||
         new Date(t.date).getFullYear().toString() === selectedYear;
+      const matchFarm =
+        selectedFarmName === "all" || (t.farmName || "-") === selectedFarmName;
       const matchDest =
         selectedDestination === "all" || t.destination === selectedDestination;
-      return matchYear && matchDest;
+      return matchYear && matchFarm && matchDest;
     });
     return Array.from(new Set(relevantTrips.map((t) => t.customerId))).sort();
-  }, [trips, selectedYear, selectedDestination]);
+  }, [trips, selectedYear, selectedFarmName, selectedDestination]);
+
+  const uniqueFarmNames = useMemo(() => {
+    const relevantTrips = trips.filter((t) => {
+      const matchYear =
+        selectedYear === "all" ||
+        new Date(t.date).getFullYear().toString() === selectedYear;
+      const matchCustomer =
+        selectedCustomer === "all" || t.customerId === selectedCustomer;
+      const matchDest =
+        selectedDestination === "all" || t.destination === selectedDestination;
+      return matchYear && matchCustomer && matchDest;
+    });
+    return Array.from(new Set(relevantTrips.map((t) => t.farmName || "-"))).sort();
+  }, [trips, selectedYear, selectedCustomer, selectedDestination]);
+
   const uniqueDestinations = useMemo(() => {
     const relevantTrips = trips.filter((t) => {
       const matchYear =
@@ -361,10 +380,12 @@ export function TruckFolderCard({
         new Date(t.date).getFullYear().toString() === selectedYear;
       const matchCustomer =
         selectedCustomer === "all" || t.customerId === selectedCustomer;
-      return matchYear && matchCustomer;
+      const matchFarm =
+        selectedFarmName === "all" || (t.farmName || "-") === selectedFarmName;
+      return matchYear && matchCustomer && matchFarm;
     });
     return Array.from(new Set(relevantTrips.map((t) => t.destination))).sort();
-  }, [trips, selectedYear, selectedCustomer]);
+  }, [trips, selectedYear, selectedCustomer, selectedFarmName]);
 
   const filteredTrips = useMemo(
     () =>
@@ -375,10 +396,12 @@ export function TruckFolderCard({
             new Date(t.date).getFullYear().toString() === selectedYear;
           const matchCustomer =
             selectedCustomer === "all" || t.customerId === selectedCustomer;
+          const matchFarm =
+            selectedFarmName === "all" || (t.farmName || "-") === selectedFarmName;
           const matchDest =
             selectedDestination === "all" ||
             t.destination === selectedDestination;
-          return matchYear && matchCustomer && matchDest;
+          return matchYear && matchCustomer && matchFarm && matchDest;
         })
         .map((t) => ({
           ...t,
@@ -389,6 +412,7 @@ export function TruckFolderCard({
       trips,
       selectedYear,
       selectedCustomer,
+      selectedFarmName,
       selectedDestination,
       truck.fleetCode,
       truck.plateNumber,
@@ -400,7 +424,14 @@ export function TruckFolderCard({
       selectedCustomer !== "all" &&
       !uniqueCustomers.includes(selectedCustomer)
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedCustomer("all");
+    }
+    if (
+      selectedFarmName !== "all" &&
+      !uniqueFarmNames.includes(selectedFarmName)
+    ) {
+      setSelectedFarmName("all");
     }
     if (
       selectedDestination !== "all" &&
@@ -411,11 +442,14 @@ export function TruckFolderCard({
   }, [
     selectedYear,
     uniqueCustomers,
+    uniqueFarmNames,
     uniqueDestinations,
     selectedCustomer,
+    selectedFarmName,
     selectedDestination,
   ]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const calc = (arr: any[]) => {
     const gross = arr.reduce((s, t) => s + t.qtyHeads * t.rate, 0);
     const exp = arr.reduce(
@@ -438,6 +472,7 @@ export function TruckFolderCard({
   const hasActiveFilters =
     selectedYear !== "all" ||
     selectedCustomer !== "all" ||
+    selectedFarmName !== "all" ||
     selectedDestination !== "all";
 
   const statusCfg =
@@ -815,12 +850,21 @@ export function TruckFolderCard({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsDashboardOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => router.push(`/trucking/trips/new?truckId=${truck.id}`)}
+                  className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Record New Trip</span>
+                </Button>
+                <button
+                  onClick={() => setIsDashboardOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Dashboard body */}
@@ -837,6 +881,7 @@ export function TruckFolderCard({
                       onClick={() => {
                         setSelectedYear("all");
                         setSelectedCustomer("all");
+                        setSelectedFarmName("all");
                         setSelectedDestination("all");
                       }}
                       className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1.5 rounded-lg transition-colors"
@@ -845,7 +890,7 @@ export function TruckFolderCard({
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     {
                       label: "Period / Year",
@@ -860,6 +905,13 @@ export function TruckFolderCard({
                       setter: setSelectedCustomer,
                       options: uniqueCustomers,
                       placeholder: "All customers",
+                    },
+                    {
+                      label: "Farm Name",
+                      value: selectedFarmName,
+                      setter: setSelectedFarmName,
+                      options: uniqueFarmNames,
+                      placeholder: "All farms",
                     },
                     {
                       label: "Route",
@@ -940,7 +992,10 @@ export function TruckFolderCard({
 
       {/* ── Edit dialog ────────────────────────────────────────────────────────── */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="w-[95vw] sm:w-full max-w-md sm:max-w-[480px] max-h-[95dvh] overflow-y-auto custom-scrollbar rounded-2xl bg-background border-border/60 z-200 p-0 gap-0">
+        <DialogContent
+          aria-describedby={undefined}
+          className="w-[95vw] sm:w-full max-w-md sm:max-w-[480px] max-h-[95dvh] overflow-y-auto custom-scrollbar rounded-2xl bg-background border-border/60 z-200 p-0 gap-0"
+        >
           {/* Dialog accent */}
           <div className="h-[3px] bg-linear-to-r from-blue-500 to-blue-400 w-full" />
 
@@ -999,6 +1054,7 @@ export function TruckFolderCard({
                       {label}
                     </span>
                     <Input
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       value={(editForm as any)[key]}
                       onChange={(e) =>
                         setEditForm({ ...editForm, [key]: e.target.value })

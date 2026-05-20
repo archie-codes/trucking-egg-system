@@ -1,8 +1,12 @@
 // app/(modules)/trucking/layout.tsx
 import { TruckingSidebar } from "@/components/trucking/trucking-sidebar";
+
+export const metadata = {
+  title: "Trucking History",
+};
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ShieldAlert, Truck, User } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
@@ -32,7 +36,7 @@ async function getCurrentUser() {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   } catch (error) {
-    console.error("Failed to fetch user");
+    console.error("Failed to fetch user:", error);
     return null;
   }
 }
@@ -94,7 +98,7 @@ export default async function TruckingLayout({
                 asChild
               >
                 <Link href="/admin/users">
-                  <ShieldAlert className="w-4 h-4 sm:mr-2" />
+                  <ShieldAlert className="w-4 h-4 sm:mr-2 " />
                   <span className="hidden sm:inline">Admin Portal</span>
                 </Link>
               </Button>

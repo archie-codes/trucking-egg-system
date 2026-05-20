@@ -52,15 +52,16 @@ import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: any[];
   data: TData[];
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData>({
   columns,
   data,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
@@ -68,6 +69,7 @@ export function DataTable<TData, TValue>({
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -91,6 +93,7 @@ export function DataTable<TData, TValue>({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractReportMetadata = (rows: any[]) => {
     const truckSet = new Set(
       rows.map(
@@ -184,6 +187,7 @@ export function DataTable<TData, TValue>({
         "Total Expenses",
         "Net Income",
       ];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const csvData = rows.map((row: any) => {
         const d = row.original;
         const collectible = d.qtyHeads * d.rate;
@@ -279,6 +283,7 @@ export function DataTable<TData, TValue>({
       doc.setFont("helvetica", "bold");
       doc.text(`Net Income: ${meta.totalNet}`, 896, 120, { align: "right" });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tableRows = rows.map((row: any) => {
         const d = row.original;
         const gross = d.qtyHeads * d.rate;

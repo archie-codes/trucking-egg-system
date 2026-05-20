@@ -29,6 +29,7 @@ export function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
   const [time, setTime] = useState<Date>(new Date());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
@@ -67,7 +68,7 @@ export function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
             </span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-white/40 font-normal tracking-[0.01em]">
-            Here's what's happening with your trucking logistics today.
+            Here&apos;s what&apos;s happening with your trucking logistics today.
           </p>
         </div>
       </div>

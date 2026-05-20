@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -95,7 +94,6 @@ const inputClass =
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function AddUserPage() {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [adminDept, setAdminDept] = useState("trucking");

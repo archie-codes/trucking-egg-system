@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { getLtoAlerts } from "@/app/actions/truck-actions";
 
 export function LtoNotificationBell() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [alerts, setAlerts] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 

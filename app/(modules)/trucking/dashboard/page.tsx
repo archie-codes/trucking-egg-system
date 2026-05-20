@@ -164,6 +164,7 @@ async function getCurrentUser() {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   } catch (error) {
+    console.error("Error decoding JWT:", error);
     return null;
   }
 }

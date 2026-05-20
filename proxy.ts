@@ -100,7 +100,7 @@ export async function proxy(request: NextRequest) {
           new URL("/trucking/dashboard", request.url),
         );
       }
-    } catch (err) {
+    } catch {
       // If the token is fake or expired, delete it and kick them out
       const response = NextResponse.redirect(new URL("/login", request.url));
       response.cookies.delete("auth_token");

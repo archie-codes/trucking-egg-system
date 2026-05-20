@@ -96,6 +96,7 @@ export async function updateStaffAccount(userId: number, formData: FormData) {
         return { success: false, error: "This email is already taken." };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = { name, email, avatarUrl };
 
     // SELF-SABOTAGE LOCK: Only update role/department if you are editing someone ELSE
@@ -114,6 +115,7 @@ export async function updateStaffAccount(userId: number, formData: FormData) {
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
+    console.error(error);
     return { success: false, error: "Failed to update account." };
   }
 }
@@ -137,6 +139,7 @@ export async function deleteStaffAccount(userId: number) {
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
+    console.error(error);
     return { success: false, error: "Failed to disable account." };
   }
 }
@@ -158,6 +161,7 @@ export async function restoreStaffAccount(userId: number) {
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
+    console.error(error);
     return { success: false, error: "Failed to restore account." };
   }
 }

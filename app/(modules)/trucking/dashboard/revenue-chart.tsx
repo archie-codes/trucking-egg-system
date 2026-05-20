@@ -153,6 +153,7 @@ const formatPHP = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -198,6 +199,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -222,7 +224,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
       {/* Chart */}
       <div className="flex-1 relative z-10 min-h-[300px]">
         {mounted && (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <BarChart
               data={data}
               margin={{ top: 10, right: 10, left: 35, bottom: 30 }}

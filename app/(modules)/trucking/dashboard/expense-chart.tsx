@@ -21,6 +21,7 @@ const formatPHP = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -48,6 +49,7 @@ export function ExpenseChart({ data }: ExpenseChartProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -71,7 +73,7 @@ export function ExpenseChart({ data }: ExpenseChartProps) {
       {/* Chart Area */}
       <div className="flex-1 relative z-10 min-h-[220px] flex items-center justify-center">
         {mounted && total > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <PieChart>
               <Pie
                 data={data}

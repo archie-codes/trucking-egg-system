@@ -1,7 +1,7 @@
 // app/(modules)/egg-sales/layout.tsx
 import { EggSidebar } from "@/components/egg-sales/egg-sidebar";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, Egg, User } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
@@ -10,8 +10,18 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Egg Sales",
+};
 
 // Fetch the logged-in user's fresh data from the database
 async function getCurrentUser() {
@@ -25,7 +35,7 @@ async function getCurrentUser() {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return user;
   } catch (error) {
-    console.error("Failed to fetch user");
+    console.error("Failed to fetch user", error);
     return null;
   }
 }

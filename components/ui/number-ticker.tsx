@@ -49,6 +49,7 @@ export function NumberTicker({
         window.cancelAnimationFrame(animationFrameId);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration]);
 
   // Use Intl.NumberFormat to handle both thousands separators and decimal places dynamically

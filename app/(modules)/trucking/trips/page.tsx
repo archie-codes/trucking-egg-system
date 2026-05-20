@@ -5,7 +5,7 @@ import { desc, eq } from "drizzle-orm"; // ✨ ADDED: eq for the JOIN
 import { DataTable } from "./data-table";
 import { columns } from "./columns";
 import { Button } from "@/components/ui/button";
-import { Plus, Map, Truck } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";

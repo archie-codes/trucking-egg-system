@@ -7,6 +7,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 // ✨ THE FIX: Suppress the harmless React 19 script tag warning caused by next-themes
 if (typeof window !== "undefined") {
   const originalError = console.error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.error = (...args: any[]) => {
     if (
       typeof args[0] === "string" &&

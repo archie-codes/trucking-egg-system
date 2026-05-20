@@ -11,6 +11,7 @@ import {
 import { TruckFolderCard } from "./truck-folder-card";
 import { Button } from "@/components/ui/button";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function FleetClientContainer({ fleetData }: { fleetData: any[] }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -88,7 +89,7 @@ export function FleetClientContainer({ fleetData }: { fleetData: any[] }) {
             No folders created yet.
           </p>
           <p className="text-xs sm:text-sm font-medium mt-1">
-            Click 'Register Truck' to create your first asset folder.
+            Click &apos;Register Truck&apos; to create your first asset folder.
           </p>
         </div>
       ) : viewMode === "grid" ? (

@@ -89,7 +89,7 @@ import { desc, eq } from "drizzle-orm";
 import { DataTable } from "./data-table";
 import { columns } from "./columns";
 import { Button } from "@/components/ui/button";
-import { Plus, UserPlus, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
@@ -106,7 +106,7 @@ export default async function AdminUsersPage() {
       const payload = decodeJwt(token);
       adminDept = payload.department as string;
     } catch (e) {
-      console.error("Token error");
+      console.error("Token error", e);
     }
   }
 

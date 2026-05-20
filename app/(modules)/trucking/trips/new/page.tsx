@@ -13,7 +13,6 @@ import { NumberTicker } from "@/components/ui/number-ticker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Field,
   FieldError,
@@ -132,9 +131,9 @@ export default function NewTripPage() {
         const cityData = await cityRes.json();
 
         const provMap = new Map();
-        provData.forEach((p: any) => provMap.set(p.code, p.name));
+        provData.forEach((p: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => provMap.set(p.code, p.name));
 
-        const formattedLocations = cityData.map((city: any) => {
+        const formattedLocations = cityData.map((city: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => {
           const provName = provMap.get(city.provinceCode) || "Metro Manila";
           const label = `${city.name}, ${provName}`;
           return {
@@ -143,7 +142,7 @@ export default function NewTripPage() {
           };
         });
 
-        formattedLocations.sort((a: any, b: any) =>
+        formattedLocations.sort((a: { label: string }, b: { label: string }) =>
           a.label.localeCompare(b.label),
         );
         setPhLocations(formattedLocations);
@@ -160,7 +159,7 @@ export default function NewTripPage() {
 
   const form = useForm<
     z.input<typeof tripSchema>,
-    any,
+    any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
     z.infer<typeof tripSchema>
   >({
     resolver: zodResolver(tripSchema),
@@ -248,7 +247,8 @@ export default function NewTripPage() {
           description: result.error,
         });
       }
-    } catch (error) {
+    } catch (err) {
+      console.error(err);
       toast.error("Network Error", {
         id: "trip-save",
         description: "Failed to save trip.",
@@ -256,7 +256,7 @@ export default function NewTripPage() {
     }
   }
 
-  function onError(errors: any) {
+  function onError(errors: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     const errorKeys = Object.keys(errors);
     if (errorKeys.length > 0) {
       const firstKey = errorKeys[0];

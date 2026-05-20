@@ -54,11 +54,14 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
 
     revalidatePath("/trucking/trips");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Database Error:", error);
     return {
       success: false,
-      error: error.message || "Failed to save trip to the database.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to save trip to the database.",
     };
   }
 }
@@ -69,14 +72,17 @@ export async function deleteTripRecord(tripId: number) {
     await db.delete(truckingTrips).where(eq(truckingTrips.id, tripId));
     revalidatePath("/trucking/trips");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to delete trip:", error);
     return { success: false, error: "Failed to delete trip record." };
   }
 }
 
 // ✨ UPDATE TRIP ACTION
-export async function updateTripRecord(tripId: number, data: any) {
+export async function updateTripRecord(
+  tripId: number,
+  data: Partial<z.infer<typeof tripSchema>>,
+) {
   try {
     await db
       .update(truckingTrips)
@@ -100,8 +106,11 @@ export async function updateTripRecord(tripId: number, data: any) {
 
     revalidatePath("/trucking/trips");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to update trip:", error);
-    return { success: false, error: "Failed to update trip record." };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update trip.",
+    };
   }
 }

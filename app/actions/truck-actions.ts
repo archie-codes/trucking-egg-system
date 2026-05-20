@@ -154,7 +154,7 @@ export async function getTruckTrips(truckId: number) {
       .orderBy(desc(truckingTrips.createdAt));
 
     return { success: true, data };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to fetch truck trips:", error);
     return { success: false, error: "Failed to load truck history." };
   }
@@ -169,7 +169,7 @@ export async function deleteTruck(truckId: number) {
     await db.delete(truckingFleet).where(eq(truckingFleet.id, truckId));
     revalidatePath("/trucking/fleet");
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Delete error:", error);
     return { success: false, error: "Failed to delete truck." };
   }
@@ -204,7 +204,7 @@ export async function updateTruck(
 
     revalidatePath("/trucking/fleet"); // Refresh the page to show new details
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Update error:", error);
     return { success: false, error: "Failed to update truck." };
   }

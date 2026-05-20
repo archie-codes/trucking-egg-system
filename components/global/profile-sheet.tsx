@@ -35,6 +35,7 @@ import { uploadFiles } from "@/lib/uploadthing"; // ✨ Make sure it says @/lib/
 interface ProfileSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   currentUser: any;
 }
 
@@ -183,7 +184,7 @@ export function ProfileSheet({
       } else {
         toast.error("Update Failed", { description: result.error });
       }
-    } catch (error) {
+    } catch {
       toast.error("Network Error", {
         description: "Failed to connect to server.",
       });

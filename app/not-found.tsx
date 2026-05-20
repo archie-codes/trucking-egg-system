@@ -129,7 +129,7 @@ export default function NotFound() {
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed max-w-md">
           Looks like this little chick wandered too far from the coop. The page
-          you are looking for might have been moved or doesn't exist anymore.
+          you are looking for might have been moved or doesn&apos;t exist anymore.
         </p>
 
         {/* Action Buttons */}

@@ -562,6 +562,7 @@ function AnimatedNumber({
     };
     const rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   if (isCurrency) {
@@ -716,6 +717,7 @@ export function StatCards({ metrics }: StatCardsProps) {
     glow,
     icon: Icon,
     footer,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }: any) => (
     <div
       key={key}

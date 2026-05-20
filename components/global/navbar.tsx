@@ -26,6 +26,7 @@ export function NavBar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const links: any[] = [
     {
       href: "https://www.fhernieotso.com",
