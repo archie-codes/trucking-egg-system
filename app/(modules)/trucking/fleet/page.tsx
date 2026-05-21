@@ -20,7 +20,7 @@ export default async function FleetManagementPage() {
         <div className="space-y-1 relative">
           <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
           <div className="flex items-center gap-4 mb-1">
-            <h1 className="text-lg lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-lg lg:text-xl font-black tracking-tight text-slate-900 dark:text-white">
               <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
                 Fleet Folders
               </span>

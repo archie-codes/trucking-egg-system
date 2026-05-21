@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
@@ -15,6 +15,10 @@ import {
   Check,
   ChevronsUpDown,
   X,
+  MessageSquareText, // ✨ ADDED: Icon for the notes!
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -66,6 +70,7 @@ export type TripRecord = {
   origin: string;
   destination: string;
   qtyHeads: number;
+  qtyNote: string | null;
   rate: number;
   tollFees: number;
   dieselCash: number;
@@ -73,7 +78,9 @@ export type TripRecord = {
   meals: number;
   roroShip: number;
   salary: number;
+  salaryNote: string | null;
   others: number;
+  othersNote: string | null;
   createdAt: Date;
 };
 
@@ -88,7 +95,6 @@ const formatNum = (num: number) => {
   return new Intl.NumberFormat("en-US").format(num);
 };
 
-// ✨ Animated Number Component for Real-Time Summary
 function AnimatedNumber({
   value,
   isCurrency = false,
@@ -97,10 +103,11 @@ function AnimatedNumber({
   isCurrency?: boolean;
 }) {
   const [current, setCurrent] = useState(value);
+  const currentRef = useRef(current);
 
   useEffect(() => {
     let startTime: number;
-    const startValue = current;
+    const startValue = currentRef.current;
     const distance = value - startValue;
 
     if (distance === 0) return;
@@ -111,19 +118,21 @@ function AnimatedNumber({
       const percentage = Math.min(progress / 1000, 1);
       const easeOut = 1 - Math.pow(1 - percentage, 4);
 
-      setCurrent(startValue + distance * easeOut);
+      const nextValue = startValue + distance * easeOut;
+      setCurrent(nextValue);
+      currentRef.current = nextValue;
 
       if (percentage < 1) {
         requestAnimationFrame(animate);
       } else {
         setCurrent(value);
+        currentRef.current = value;
       }
     };
 
     const rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]); // intentionally leaving out current from deps
+  }, [value]);
 
   if (isCurrency) {
     return <>{formatPHP(current)}</>;
@@ -132,24 +141,85 @@ function AnimatedNumber({
   return <>{formatNum(current)}</>;
 }
 
+// ✨ NEW: Smart Note Cell Component (Excel Style)
+function NoteCell({
+  value,
+  note,
+  isCurrency = false,
+  textColor = "text-foreground",
+}: {
+  value: number;
+  note?: string | null;
+  isCurrency?: boolean;
+  textColor?: string;
+}) {
+  const displayValue = isCurrency ? formatPHP(value) : formatNum(value);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // If no note exists, just render the normal number
+  if (!note || note.trim() === "") {
+    return (
+      <div className={`text-right font-medium whitespace-nowrap ${textColor}`}>
+        {displayValue}
+      </div>
+    );
+  }
+
+  // If a note exists, render the icon + click-to-view popover
+  return (
+    <div
+      className={`flex items-center justify-end gap-1.5 whitespace-nowrap font-medium ${textColor}`}
+    >
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors focus:outline-none shrink-0 cursor-pointer"
+            title="View Note"
+          >
+            <MessageSquareText className="h-3.5 w-3.5 fill-amber-500/20" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="top"
+          align="center"
+          className="w-auto max-w-[280px] p-3 rounded-lg border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/95 shadow-lg z-200"
+        >
+          <div className="flex items-center justify-between mb-1.5 border-b border-amber-200 dark:border-amber-900/50 pb-1 gap-4">
+            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest">
+              Notes
+            </p>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-amber-700/50 hover:text-amber-700 dark:text-amber-500/50 dark:hover:text-amber-500 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
+            {note}
+          </p>
+        </PopoverContent>
+      </Popover>
+      <span>{displayValue}</span>
+    </div>
+  );
+}
+
 // STATEFUL COMPONENT FOR ROW ACTIONS
 const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
   const router = useRouter();
 
-  // Modal States
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-
-  // Loading States
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Advanced UI States (Copied from New Trip)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isOriginOpen, setIsOriginOpen] = useState(false);
   const [isDestinationOpen, setIsDestinationOpen] = useState(false);
 
-  // Set default diesel mode based on existing data
   const [dieselMode, setDieselMode] = useState<"cash" | "po">(
     trip.dieselPo > 0 ? "po" : "cash",
   );
@@ -166,6 +236,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
     origin: trip.origin,
     destination: trip.destination,
     qtyHeads: trip.qtyHeads,
+    qtyNote: trip.qtyNote || "",
     rate: trip.rate,
     tollFees: trip.tollFees,
     dieselCash: trip.dieselCash,
@@ -173,10 +244,11 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
     meals: trip.meals,
     roroShip: trip.roroShip,
     salary: trip.salary,
+    salaryNote: trip.salaryNote || "",
     others: trip.others,
+    othersNote: trip.othersNote || "",
   });
 
-  // ✨ DYNAMIC MATH FOR THE FOOTER (Updates as user types!)
   const grossCollectible = (formData.qtyHeads || 0) * (formData.rate || 0);
   const totalExpenses =
     (formData.tollFees || 0) +
@@ -201,16 +273,12 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
         const cityData = await cityRes.json();
 
         const provMap = new Map();
-        provData.forEach(
-          (
-            p: any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
-          ) => provMap.set(p.code, p.name),
+        provData.forEach((p: { code: string; name: string }) =>
+          provMap.set(p.code, p.name),
         );
 
         const formattedLocations = cityData.map(
-          (
-            city: any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
-          ) => {
+          (city: { name: string; provinceCode: string }) => {
             const provName = provMap.get(city.provinceCode) || "Metro Manila";
             const label = `${city.name}, ${provName}`;
             return { value: label.toUpperCase(), label };
@@ -301,7 +369,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          className="z-110 rounded-xl shadow-lg border-slate-200 dark:border-slate-800"
+          className="z-110 rounded-lg shadow-lg border-slate-200 dark:border-slate-800"
         >
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -322,9 +390,9 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* THE BEAUTIFUL DELETE CONFIRMATION MODAL */}
+      {/* Delete Dialog */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-[400px] rounded-2xl bg-background border-border/60 z-200 p-6">
+        <DialogContent className="sm:max-w-[400px] rounded-lg bg-background border-border/60 z-200 p-6">
           <DialogHeader className="p-0 border-0 mb-0 text-left">
             <div className="flex items-start gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50">
@@ -379,9 +447,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
         </DialogContent>
       </Dialog>
 
-      {/* THE UPGRADED EDIT DIALOG MODAL */}
+      {/* Edit dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        {/* ✨ FIX: Added [&>button]:hidden to hide the default unstyled Shadcn close button */}
         <DialogContent className="sm:max-w-[800px] w-[95vw] sm:w-[95vw] h-[90dvh] sm:h-auto max-h-[90dvh] sm:max-h-[90vh] flex flex-col bg-white dark:bg-[#0d1117] border-slate-200 dark:border-white/10 rounded-xl sm:rounded-lg p-0 overflow-hidden z-200 shadow-2xl [&>button]:hidden">
           <div className="p-5 sm:p-6 pb-4 border-b border-slate-100 dark:border-white/10 shrink-0 bg-white dark:bg-[#0d1117] relative z-10 flex justify-between items-start">
             <div>
@@ -398,7 +465,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
               </DialogDescription>
             </div>
 
-            {/* ✨ NEW CUSTOM CLOSE BUTTON */}
             <Button
               variant="ghost"
               size="icon"
@@ -415,7 +481,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
             className="flex flex-col flex-1 overflow-hidden min-h-0"
           >
             <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 custom-scrollbar">
-              {/* ROUTING DETAILS */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">
                   Routing Details
@@ -643,14 +708,13 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                 </div>
               </div>
 
-              {/* FINANCIAL DETAILS */}
               <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest border-b border-emerald-100 dark:border-emerald-900/30 pb-2">
                   Financial Matrix
                 </h4>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-slate-500 uppercase">
                       Qty (Heads)
                     </Label>
@@ -661,11 +725,20 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("qtyHeads", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-blue-600"
+                      className="h-11 shrink-0 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-blue-600 mb-2"
                       required
                     />
+                    <textarea
+                      value={formData.qtyNote}
+                      onChange={(e) =>
+                        setFormData({ ...formData, qtyNote: e.target.value })
+                      }
+                      placeholder="Notes (e.g. 5 DOA)"
+                      className="w-full flex-1 min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
+                    />
                   </div>
-                  <div className="space-y-1.5">
+
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-slate-500 uppercase">
                       Rate (₱)
                     </Label>
@@ -679,7 +752,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                       required
                     />
                   </div>
-                  <div className="space-y-1.5">
+
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-rose-500 uppercase">
                       Toll Fees
                     </Label>
@@ -694,7 +768,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                       className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-rose-500 uppercase">
                       Meals
                     </Label>
@@ -776,7 +850,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-rose-500 uppercase">
                       Salary
                     </Label>
@@ -788,10 +862,19 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("salary", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600"
+                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600 mb-2"
+                    />
+                    <textarea
+                      value={formData.salaryNote}
+                      onChange={(e) =>
+                        setFormData({ ...formData, salaryNote: e.target.value })
+                      }
+                      placeholder="Breakdown (e.g. BJ - 3000)"
+                      className="w-full flex-1 min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
                     />
                   </div>
-                  <div className="space-y-1.5">
+
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-rose-500 uppercase">
                       Other Expenses
                     </Label>
@@ -803,16 +886,22 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("others", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600"
+                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600 mb-2"
+                    />
+                    <textarea
+                      value={formData.othersNote}
+                      onChange={(e) =>
+                        setFormData({ ...formData, othersNote: e.target.value })
+                      }
+                      placeholder="Breakdown (e.g. RFID - 1250)"
+                      className="w-full flex-1 min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ✨ NEW: STICKY FOOTER WITH REAL-TIME FINANCIAL SUMMARY */}
             <DialogFooter className="flex-col border-t border-slate-100 dark:border-white/10 shrink-0 bg-slate-50 dark:bg-white/2 p-0 sm:p-0">
-              {/* REAL-TIME SUMMARY BAR */}
               <div className="grid grid-cols-3 gap-2 sm:gap-4 border-b border-slate-200 dark:border-white/10 p-3 sm:p-4">
                 <div className="text-left bg-slate-100/50 dark:bg-white/5 p-2 sm:p-3 rounded-xl border border-slate-200/50 dark:border-white/5 overflow-hidden flex flex-col justify-center w-full">
                   <p className="text-[9px] sm:text-xs font-bold text-slate-500 uppercase tracking-tight sm:tracking-widest mb-0.5 sm:mb-1 truncate">
@@ -854,7 +943,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                 </div>
               </div>
 
-              {/* ACTION BUTTONS */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 p-4 sm:p-5">
                 <Button
                   type="button"
@@ -870,7 +958,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                   className="relative rounded-xl h-11 w-full font-semibold sm:flex-1 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn border-none disabled:opacity-70 disabled:pointer-events-none"
                 >
                   <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-
                   {isSaving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
@@ -942,7 +1029,26 @@ export const columns: ColumnDef<TripRecord>[] = [
   },
   {
     accessorKey: "date",
-    header: "Date",
+    header: ({ column }) => {
+      return (
+        <div className="flex items-center">
+          <span>Date</span>
+          <Button
+            variant="ghost"
+            className="ml-1 h-6 w-6 p-0 data-[state=open]:bg-accent"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            {column.getIsSorted() === "desc" ? (
+              <ArrowDown className="h-3.5 w-3.5" />
+            ) : column.getIsSorted() === "asc" ? (
+              <ArrowUp className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+            )}
+          </Button>
+        </div>
+      );
+    },
     cell: ({ row }) => {
       const dateObj = new Date(row.getValue("date") as string);
       return (
@@ -960,9 +1066,8 @@ export const columns: ColumnDef<TripRecord>[] = [
     accessorKey: "qtyHeads",
     header: () => <div className="text-right">Qty Hds</div>,
     cell: ({ row }) => (
-      <div className="text-right font-medium">
-        {formatNum(row.getValue("qtyHeads"))}
-      </div>
+      // ✨ UPGRADED: Uses NoteCell
+      <NoteCell value={row.original.qtyHeads} note={row.original.qtyNote} />
     ),
   },
   {
@@ -1032,18 +1137,26 @@ export const columns: ColumnDef<TripRecord>[] = [
     accessorKey: "others",
     header: () => <div className="text-right">Others</div>,
     cell: ({ row }) => (
-      <div className="text-right text-destructive whitespace-nowrap">
-        {formatPHP(row.getValue("others"))}
-      </div>
+      // ✨ UPGRADED: Uses NoteCell
+      <NoteCell
+        value={row.original.others}
+        note={row.original.othersNote}
+        isCurrency={true}
+        textColor="text-destructive"
+      />
     ),
   },
   {
     accessorKey: "salary",
     header: () => <div className="text-right">Salary</div>,
     cell: ({ row }) => (
-      <div className="text-right text-destructive whitespace-nowrap">
-        {formatPHP(row.getValue("salary"))}
-      </div>
+      // ✨ UPGRADED: Uses NoteCell
+      <NoteCell
+        value={row.original.salary}
+        note={row.original.salaryNote}
+        isCurrency={true}
+        textColor="text-destructive"
+      />
     ),
   },
   {

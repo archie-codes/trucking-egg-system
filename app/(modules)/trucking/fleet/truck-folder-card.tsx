@@ -207,7 +207,12 @@ function StatCard({
   }[accent];
 
   return (
-    <div className={cn("rounded-xl border p-3.5 sm:p-4 overflow-hidden min-w-0 flex flex-col justify-center", colors)}>
+    <div
+      className={cn(
+        "rounded-xl border p-3.5 sm:p-4 overflow-hidden min-w-0 flex flex-col justify-center",
+        colors,
+      )}
+    >
       <p className="text-[10px] font-semibold uppercase tracking-widest opacity-70 mb-1.5 truncate">
         {label}
       </p>
@@ -370,7 +375,9 @@ export function TruckFolderCard({
         selectedDestination === "all" || t.destination === selectedDestination;
       return matchYear && matchCustomer && matchDest;
     });
-    return Array.from(new Set(relevantTrips.map((t) => t.farmName || "-"))).sort();
+    return Array.from(
+      new Set(relevantTrips.map((t) => t.farmName || "-")),
+    ).sort();
   }, [trips, selectedYear, selectedCustomer, selectedDestination]);
 
   const uniqueDestinations = useMemo(() => {
@@ -397,7 +404,8 @@ export function TruckFolderCard({
           const matchCustomer =
             selectedCustomer === "all" || t.customerId === selectedCustomer;
           const matchFarm =
-            selectedFarmName === "all" || (t.farmName || "-") === selectedFarmName;
+            selectedFarmName === "all" ||
+            (t.farmName || "-") === selectedFarmName;
           const matchDest =
             selectedDestination === "all" ||
             t.destination === selectedDestination;
@@ -486,7 +494,7 @@ export function TruckFolderCard({
         <div
           onClick={handleOpenProfile}
           className={cn(
-            "group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border border-border/60 rounded-xl cursor-pointer hover:shadow-sm transition-all",
+            "group flex flex-row items-center justify-between gap-3 p-4 border border-border/60 rounded-xl cursor-pointer hover:shadow-sm transition-all",
             statusCfg.listBg,
           )}
         >
@@ -522,7 +530,7 @@ export function TruckFolderCard({
     return (
       <div
         onClick={handleOpenProfile}
-        className="relative group flex flex-col items-center justify-center w-full max-w-[260px] sm:max-w-[270px] mx-auto h-[150px] sm:h-[160px] cursor-pointer transition-transform duration-300 hover:scale-105"
+        className="relative group flex flex-col items-center justify-center w-full max-w-full sm:max-w-[270px] mx-auto h-[160px] cursor-pointer transition-transform duration-300 hover:scale-105"
       >
         <div className="file relative w-full h-full origin-bottom perspective-[1500px] z-10">
           {/* Folder tab bg */}
@@ -633,7 +641,7 @@ export function TruckFolderCard({
       {/* ── Profile sheet ──────────────────────────────────────────────────────── */}
       <Sheet open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         {/* ✨ FIX: Added [&>button]:hidden to remove Shadcn's floating X button */}
-        <SheetContent className="flex flex-col p-0 gap-0 w-full sm:max-w-[400px] bg-background border-l border-border/60 z-200 [&>button]:hidden">
+        <SheetContent className="flex flex-col p-0 gap-0 w-full! sm:w-[400px]! max-w-[100vw]! sm:max-w-[400px]! bg-background border-l border-border/60 z-200 [&>button]:hidden">
           {/* Accent bar */}
           <div className="absolute top-0 inset-x-0 h-[3px] bg-linear-to-r from-blue-500 to-blue-400 z-10" />
 
@@ -852,7 +860,9 @@ export function TruckFolderCard({
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  onClick={() => router.push(`/trucking/trips/new?truckId=${truck.id}`)}
+                  onClick={() =>
+                    router.push(`/trucking/trips/new?truckId=${truck.id}`)
+                  }
                   className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5" />

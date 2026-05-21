@@ -71,7 +71,10 @@ export const truckingTrips = pgTable("trucking_trips", {
   farmName: varchar("farm_name", { length: 255 }).notNull().default(""),
   origin: varchar("origin", { length: 100 }).notNull(),
   destination: varchar("destination", { length: 100 }).notNull(),
+
+  // note
   qtyHeads: integer("qty_heads").notNull(),
+  qtyNote: text("qty_note"),
 
   // Financials (Using integer assuming whole Philippine Pesos)
   rate: real("rate").notNull(),
@@ -80,8 +83,12 @@ export const truckingTrips = pgTable("trucking_trips", {
   dieselPo: real("diesel_po").default(0).notNull(),
   meals: real("meals").default(0).notNull(),
   roroShip: real("roro_ship").default(0).notNull(),
+
+  // note section
   salary: real("salary").default(0).notNull(),
+  salaryNote: text("salary_note"),
   others: real("others").default(0).notNull(),
+  othersNote: text("others_note"),
 
   // Trip Lifecycle: 'pending', 'in-transit', 'completed', 'cancelled'
   status: varchar("status", { length: 50 }).default("pending").notNull(),

@@ -477,7 +477,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="flex flex-col p-0 gap-0 w-full sm:max-w-[420px] bg-background border-l border-border/60 z-200 h-full">
+      <SheetContent className="flex flex-col p-0 gap-0 w-full! sm:w-[420px]! max-w-[100vw]! sm:max-w-[420px]! bg-background border-l border-border/60 z-200 h-full">
         {/* Top accent bar */}
         <div className="absolute top-0 inset-x-0 h-[3px] bg-linear-to-r from-blue-500 to-blue-400 z-10" />
 
@@ -511,7 +511,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
             {/* ── Avatar section ── */}
             <div>
               <SectionLabel>Profile photo</SectionLabel>
-              <div className="mt-3 flex flex-col sm:flex-row gap-5 items-start">
+              <div className="mt-3 flex flex-col sm:flex-row gap-5 items-center sm:items-start text-center sm:text-left">
                 {/* Preview */}
                 <div className="shrink-0">
                   <div className="w-18 h-18 rounded-2xl overflow-hidden border border-border/60 bg-muted flex items-center justify-center">
@@ -560,7 +560,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                     </TabsList>
 
                     <TabsContent value="choose" className="mt-0">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                         {PRESET_AVATARS.map((url, idx) => (
                           <button
                             key={idx}
@@ -590,8 +590,8 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="upload" className="mt-0">
-                      <div className="flex items-center">
+                    <TabsContent value="upload" className="mt-0 flex flex-col items-center sm:items-start">
+                      <div className="w-full sm:w-auto flex justify-center sm:justify-start">
                         <UploadButton<OurFileRouter, "avatarUploader">
                           endpoint="avatarUploader"
                           onClientUploadComplete={(res) => {
@@ -603,7 +603,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                           }}
                           appearance={{
                             button:
-                              "bg-blue-600 hover:bg-blue-700 text-xs h-9 px-4 rounded-lg ut-uploading:cursor-not-allowed ut-uploading:opacity-60",
+                              "bg-blue-600 hover:bg-blue-700 text-xs h-9 px-4 rounded-lg w-full sm:w-auto ut-uploading:cursor-not-allowed ut-uploading:opacity-60",
                             allowedContent: "hidden",
                           }}
                         />
@@ -708,7 +708,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                   </span>
                   <div className="flex-1 min-w-0">
                     <Select name="department" defaultValue={user.department}>
-                      <SelectTrigger className="h-8 border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                      <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/60 shadow-md z-250">
@@ -743,7 +743,7 @@ export function EditUserSheet({ isOpen, onClose, user }: EditUserProps) {
                   </span>
                   <div className="flex-1 min-w-0">
                     <Select name="role" defaultValue={user.role}>
-                      <SelectTrigger className="h-8 border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                      <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/60 shadow-md z-250">

@@ -79,7 +79,7 @@ export function DataTable<TData>({
         </div>
 
         {/* Row count */}
-        <p className="text-[12px] text-muted-foreground sm:ml-auto shrink-0">
+        <p className="text-[12px] text-muted-foreground sm:ml-auto shrink-0 text-right sm:text-left">
           {hasFilter ? (
             <>
               <span className="font-medium text-foreground">

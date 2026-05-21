@@ -103,7 +103,10 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
           // </h2>
         )}
         {isMobile && (
-          <SheetClose className="p-2 -mr-2 text-slate-400 hover:text-white rounded-md transition-colors focus:outline-none">
+          <SheetClose
+            id="mobile-sheet-close"
+            className="p-2 -mr-2 text-slate-400 hover:text-white rounded-md transition-colors focus:outline-none"
+          >
             <X className="w-5 h-5" />
             <span className="sr-only">Close</span>
           </SheetClose>
@@ -138,6 +141,11 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
             <div key={route.href} className="flex flex-col">
               <Link
                 href={route.href}
+                onClick={() => {
+                  if (isMobile) {
+                    document.getElementById("mobile-sheet-close")?.click();
+                  }
+                }}
                 className={`flex items-center justify-between rounded-lg transition-all duration-200 text-[15px] ${
                   isCollapsed && !isMobile
                     ? "justify-center py-3"
@@ -177,6 +185,11 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
                         <Link
                           key={subRoute.href}
                           href={subRoute.href}
+                          onClick={() => {
+                            if (isMobile) {
+                              document.getElementById("mobile-sheet-close")?.click();
+                            }
+                          }}
                           className="relative flex items-center group py-2"
                         >
                           {/* Horizontal branch 'L' */}
@@ -201,15 +214,6 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
               )}
             </div>
           );
-
-          // If in mobile Sheet, close the Sheet when link is clicked
-          if (isMobile) {
-            return (
-              <SheetClose asChild key={route.href}>
-                {LinkContent}
-              </SheetClose>
-            );
-          }
 
           return LinkContent;
         })}

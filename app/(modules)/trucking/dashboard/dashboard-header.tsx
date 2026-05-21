@@ -42,7 +42,7 @@ export function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
   const displaySec = String(time.getSeconds()).padStart(2, "0");
 
   return (
-    <div className="bg-white dark:bg-[#0d1117] rounded-lg p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 border border-slate-200 dark:border-white/10 dark:shadow-none relative overflow-hidden mb-3">
+    <div className="bg-white dark:bg-[#0d1117] rounded-lg p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5 border border-slate-200 dark:border-white/10 dark:shadow-none relative overflow-hidden mb-3">
       {/* Background glows */}
       <div className="absolute -top-16 -left-10 w-[220px] h-[220px] rounded-full bg-emerald-500 dark:bg-[#3dff9a] opacity-5 pointer-events-none" />
       <div className="absolute -bottom-20 right-10 w-[180px] h-[180px] rounded-full bg-blue-500 dark:bg-[#5cabff] opacity-5 pointer-events-none" />
@@ -62,19 +62,20 @@ export function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
 
         <div>
           <h1 className="font-sans text-[clamp(17px,2.5vw,20px)] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight mb-1">
-            Welcome back,{" "}
+            Welcome ,{" "}
             <span className="text-emerald-600 dark:text-[#3dff9a]">
               {userName}
             </span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-white/40 font-normal tracking-[0.01em]">
-            Here&apos;s what&apos;s happening with your trucking logistics today.
+            Here&apos;s what&apos;s happening with your trucking logistics
+            today.
           </p>
         </div>
       </div>
 
-      {/* Right — Date + Clock */}
-      <div className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[14px] px-4 py-3 relative z-10 shrink-0 shadow-inner dark:shadow-none">
+      {/* Right — Date + Clock (Desktop) */}
+      <div className="hidden md:flex items-center justify-center md:justify-start gap-4 sm:gap-6 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[14px] px-4 sm:px-6 py-3 relative z-10 shrink-0 shadow-inner dark:shadow-none w-full md:w-auto">
         {/* Calendar tile */}
         <div className="flex flex-col items-center bg-emerald-50 dark:bg-[#0a2e1a] border border-emerald-200/60 dark:border-[#3dff9a]/15 rounded-[10px] overflow-hidden w-11 shrink-0">
           <div className="text-[9px] font-bold tracking-[0.12em] uppercase text-emerald-700 dark:text-[#3dff9a] bg-emerald-100/80 dark:bg-[#3dff9a]/10 w-full text-center py-[3px]">
@@ -104,6 +105,17 @@ export function DashboardHeader({ userName, avatarUrl }: DashboardHeaderProps) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Mobile/Tablet Simple Date + Clock (Bottom Right) */}
+      <div className="md:hidden w-full text-right relative z-10 -mt-2">
+        <span className="text-[11px] sm:text-[12px] font-bold text-emerald-600 dark:text-[#3dff9a]">
+          {mounted ? format(time, "MMM d, yyyy") : "---"}
+        </span>
+        <span className="mx-1.5 text-slate-300 dark:text-slate-700">|</span>
+        <span className="text-[11px] sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
+          {mounted ? format(time, "hh:mm a") : "---"}
+        </span>
       </div>
     </div>
   );

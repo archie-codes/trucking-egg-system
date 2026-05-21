@@ -169,7 +169,7 @@ export default function AddUserPage() {
             {/* ── Avatar section ── */}
             <div>
               <SectionLabel>Profile photo</SectionLabel>
-              <div className="mt-3 flex flex-col sm:flex-row gap-5 items-start">
+              <div className="mt-3 flex flex-col sm:flex-row gap-5 items-center sm:items-start text-center sm:text-left">
                 {/* Preview */}
                 <div className="shrink-0">
                   <div className="w-20 h-20 rounded-2xl overflow-hidden border border-border/60 bg-muted flex items-center justify-center">
@@ -216,7 +216,7 @@ export default function AddUserPage() {
                     </TabsList>
 
                     <TabsContent value="choose" className="mt-0">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                         {PRESET_AVATARS.map((url, idx) => (
                           <button
                             key={idx}
@@ -246,8 +246,11 @@ export default function AddUserPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="upload" className="mt-0">
-                      <div className="flex items-center">
+                    <TabsContent
+                      value="upload"
+                      className="mt-0 flex flex-col items-center sm:items-start"
+                    >
+                      <div className="w-full sm:w-auto flex justify-center sm:justify-start">
                         <UploadButton<OurFileRouter, "avatarUploader">
                           endpoint="avatarUploader"
                           onClientUploadComplete={(res) => {
@@ -259,7 +262,7 @@ export default function AddUserPage() {
                           }}
                           appearance={{
                             button:
-                              "bg-blue-600 hover:bg-blue-700 text-xs h-9 px-4 rounded-lg ut-uploading:cursor-not-allowed ut-uploading:opacity-60",
+                              "bg-blue-600 hover:bg-blue-700 text-xs h-9 px-4 rounded-lg w-full sm:w-auto ut-uploading:cursor-not-allowed ut-uploading:opacity-60",
                             allowedContent: "hidden",
                           }}
                         />
@@ -344,7 +347,7 @@ export default function AddUserPage() {
                         adminDept === "all" ? "trucking" : adminDept
                       }
                     >
-                      <SelectTrigger className="h-8 border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                      <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/60 shadow-md z-110">
@@ -388,7 +391,7 @@ export default function AddUserPage() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <Select name="role" defaultValue="encoder">
-                      <SelectTrigger className="h-8 border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                      <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/60 shadow-md z-110">
