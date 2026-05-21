@@ -336,7 +336,12 @@ export function TruckFolderCard({
       setIsProfileOpen(false);
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to delete.", { id });
+      // ✅ CORRECT: 2 arguments
+      toast.error(
+        (result.error || "Failed to delete.") +
+          " This truck might have existing data.",
+        { id },
+      );
     }
     setIsDeleting(false);
   };
