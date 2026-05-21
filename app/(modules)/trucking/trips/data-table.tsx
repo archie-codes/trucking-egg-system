@@ -737,9 +737,7 @@ interface DataTableProps<TData> {
 
 export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   "use no memo";
-  const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "date", desc: true },
-  ]);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );

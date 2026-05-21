@@ -936,10 +936,10 @@ export function TruckFolderCard({
                         {label}
                       </p>
                       <Select value={value} onValueChange={setter}>
-                        <SelectTrigger className="h-9 w-full text-sm rounded-lg bg-background border-border/60 focus:ring-1 focus:ring-blue-500/40">
+                        <SelectTrigger className="h-11 w-full text-sm rounded-lg bg-background border-border/60 focus:ring-1 focus:ring-blue-500/40">
                           <SelectValue placeholder={placeholder} />
                         </SelectTrigger>
-                        <SelectContent className="z-110 rounded-xl border-border/60 shadow-md">
+                        <SelectContent className="z-110 rounded-lg border-border/60 shadow-md">
                           <SelectItem value="all" className="font-medium">
                             {placeholder}
                           </SelectItem>
