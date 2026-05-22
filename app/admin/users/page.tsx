@@ -129,7 +129,7 @@ export default async function AdminUsersPage() {
         : "Otso Dragon personnel.";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div className="max-w-7xl mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pt-2 md:pt-0">
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">

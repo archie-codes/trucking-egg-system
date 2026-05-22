@@ -1,470 +1,3 @@
-// "use client";
-
-// import { useState, useMemo, useEffect } from "react";
-// import {
-//   Card,
-//   CardContent,
-//   CardHeader,
-//   CardTitle,
-//   CardDescription,
-// } from "@/components/ui/card";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// import { Button } from "@/components/ui/button";
-// import {
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableHead,
-//   TableHeader,
-//   TableRow,
-// } from "@/components/ui/table";
-// import { Download, PieChart, Truck, CalendarDays } from "lucide-react";
-// import jsPDF from "jspdf";
-// import autoTable from "jspdf-autotable";
-// import { toast } from "sonner";
-
-// type Trip = {
-//   id: number;
-//   truckId: number;
-//   date: string;
-//   qtyHeads: number;
-//   rate: number;
-//   tollFees: number;
-//   dieselCash: number;
-//   dieselPo: number;
-//   meals: number;
-//   roroShip: number;
-//   salary: number;
-//   others: number;
-// };
-
-// type TruckData = {
-//   id: number;
-//   fleetCode: string;
-//   plateNumber: string;
-// };
-
-// interface ReportClientProps {
-//   trips: Trip[];
-//   trucks: TruckData[];
-// }
-
-// const formatPHP = (amount: number) => {
-//   return new Intl.NumberFormat("en-PH", {
-//     minimumFractionDigits: 2,
-//     maximumFractionDigits: 2,
-//   }).format(amount);
-// };
-
-// const MONTH_NAMES = [
-//   "January",
-//   "February",
-//   "March",
-//   "April",
-//   "May",
-//   "June",
-//   "July",
-//   "August",
-//   "September",
-//   "October",
-//   "November",
-//   "December",
-// ];
-
-// function AnimatedNumber({ value }: { value: number }) {
-//   const [current, setCurrent] = useState(0);
-//   useEffect(() => {
-//     let startTime: number;
-//     const startValue = current;
-//     const distance = value - startValue;
-//     if (distance === 0) return;
-//     const animate = (ts: number) => {
-//       if (!startTime) startTime = ts;
-//       const pct = Math.min((ts - startTime) / 900, 1);
-//       const eased = 1 - Math.pow(1 - pct, 4);
-//       setCurrent(startValue + distance * eased);
-//       if (pct < 1) requestAnimationFrame(animate);
-//       else setCurrent(value);
-//     };
-//     const id = requestAnimationFrame(animate);
-//     return () => cancelAnimationFrame(id);
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [value]);
-
-//   return <>{formatPHP(current)}</>;
-// }
-
-// export function ReportClient({ trips, trucks }: ReportClientProps) {
-//   const [selectedTruckId, setSelectedTruckId] = useState<string>("all");
-//   const [selectedYear, setSelectedYear] = useState<string>("all");
-
-//   // ✨ DYNAMIC DATA AGGREGATION (Yearly OR Monthly)
-//   const { tableData, totals, availableYears } = useMemo(() => {
-//     // 1. Filter by Truck
-//     const filteredByTruck =
-//       selectedTruckId === "all"
-//         ? trips
-//         : trips.filter((t) => t.truckId.toString() === selectedTruckId);
-
-//     // 2. Extract available years for the secondary dropdown
-//     const yearsSet = new Set(
-//       filteredByTruck.map((t) => new Date(t.date).getFullYear().toString()),
-//     );
-//     const availableYears = Array.from(yearsSet).sort((a, b) =>
-//       b.localeCompare(a),
-//     ); // Newest first
-
-//     // 3. Filter by Year (if a specific year is selected)
-//     const isYearlyView = selectedYear === "all";
-//     const filteredByYear = isYearlyView
-//       ? filteredByTruck
-//       : filteredByTruck.filter(
-//           (t) => new Date(t.date).getFullYear().toString() === selectedYear,
-//         );
-
-//     // 4. Group Data
-//     const groupedData = filteredByYear.reduce(
-//       (acc, trip) => {
-//         const dateObj = new Date(trip.date);
-
-//         // If "All Years", group by Year. If specific year, group by Month.
-//         const groupKey = isYearlyView
-//           ? dateObj.getFullYear().toString()
-//           : dateObj.getMonth().toString();
-
-//         const displayLabel = isYearlyView
-//           ? groupKey
-//           : MONTH_NAMES[dateObj.getMonth()];
-
-//         const sortValue = isYearlyView
-//           ? dateObj.getFullYear()
-//           : dateObj.getMonth();
-
-//         const collectible = trip.qtyHeads * trip.rate;
-//         const expenses =
-//           trip.tollFees +
-//           trip.dieselCash +
-//           trip.dieselPo +
-//           trip.meals +
-//           trip.roroShip +
-//           trip.salary +
-//           trip.others;
-//         const net = collectible - expenses;
-
-//         if (!acc[groupKey]) {
-//           acc[groupKey] = {
-//             periodLabel: displayLabel,
-//             sortValue,
-//             collectible: 0,
-//             expenses: 0,
-//             netIncome: 0,
-//           };
-//         }
-//         acc[groupKey].collectible += collectible;
-//         acc[groupKey].expenses += expenses;
-//         acc[groupKey].netIncome += net;
-//         return acc;
-//       },
-//       {} as Record<
-//         string,
-//         {
-//           periodLabel: string;
-//           sortValue: number;
-//           collectible: number;
-//           expenses: number;
-//           netIncome: number;
-//         }
-//       >,
-//     );
-
-//     // Sort chronologically
-//     const sortedData = Object.values(groupedData).sort(
-//       (a, b) => a.sortValue - b.sortValue,
-//     );
-
-//     const calcTotals = sortedData.reduce(
-//       (sum, d) => ({
-//         collectible: sum.collectible + d.collectible,
-//         expenses: sum.expenses + d.expenses,
-//         netIncome: sum.netIncome + d.netIncome,
-//       }),
-//       { collectible: 0, expenses: 0, netIncome: 0 },
-//     );
-
-//     return { tableData: sortedData, totals: calcTotals, availableYears };
-//   }, [trips, selectedTruckId, selectedYear]);
-
-//   // Reset year to 'all' if the newly selected truck doesn't have data for that year
-//   // (We use state adjustment during render instead of useEffect to avoid cascading renders)
-//   const [prevAvailableYears, setPrevAvailableYears] = useState(availableYears);
-//   if (availableYears !== prevAvailableYears) {
-//     setPrevAvailableYears(availableYears);
-//     if (selectedYear !== "all" && !availableYears.includes(selectedYear)) {
-//       setSelectedYear("all");
-//     }
-//   }
-
-//   const selectedTruckName =
-//     selectedTruckId === "all"
-//       ? "ENTIRE FLEET"
-//       : trucks.find((t) => t.id.toString() === selectedTruckId)?.fleetCode +
-//         " (" +
-//         trucks.find((t) => t.id.toString() === selectedTruckId)?.plateNumber +
-//         ")";
-
-//   const exportSummaryToPDF = () => {
-//     try {
-//       const doc = new jsPDF("p", "pt", "letter");
-
-//       const titleText = `SUMMARY SALES - ${selectedTruckName}`;
-//       const subtitleText =
-//         selectedYear === "all"
-//           ? "Yearly Aggregated Summary"
-//           : `Monthly Breakdown for ${selectedYear}`;
-
-//       // Title & Header
-//       doc.setFontSize(16);
-//       doc.setFont("helvetica", "bold");
-//       doc.text(titleText, 40, 50);
-
-//       doc.setFontSize(11);
-//       doc.setFont("helvetica", "normal");
-//       doc.text(subtitleText, 40, 70);
-
-//       doc.setFontSize(9);
-//       doc.setTextColor(100);
-//       doc.text(
-//         `Generated on: ${new Date().toLocaleDateString("en-US")}`,
-//         40,
-//         85,
-//       );
-
-//       // Map data
-//       const pdfRows = tableData.map((row) => [
-//         row.periodLabel,
-//         formatPHP(row.collectible),
-//         formatPHP(row.expenses),
-//         formatPHP(row.netIncome),
-//       ]);
-
-//       pdfRows.push([
-//         "TOTAL",
-//         formatPHP(totals.collectible),
-//         formatPHP(totals.expenses),
-//         formatPHP(totals.netIncome),
-//       ]);
-
-//       autoTable(doc, {
-//         head: [
-//           [
-//             selectedYear === "all" ? "Year" : "Month",
-//             "Collectible",
-//             "Expenses",
-//             "Net Income",
-//           ],
-//         ],
-//         body: pdfRows,
-//         startY: 105,
-//         theme: "grid",
-//         headStyles: { fillColor: [15, 23, 42], halign: "center" },
-//         columnStyles: {
-//           0: { halign: "center", fontStyle: "bold" },
-//           1: { halign: "right" },
-//           2: { halign: "right" },
-//           3: { halign: "right" },
-//         },
-//         willDrawCell: (data) => {
-//           if (data.row.index === pdfRows.length - 1) {
-//             doc.setTextColor(220, 38, 38);
-//             doc.setFont("helvetica", "bold");
-//           }
-//         },
-//       });
-
-//       doc.save(
-//         `Fhernie_Summary_${selectedTruckName.replace(/ /g, "_")}_${selectedYear}.pdf`,
-//       );
-//       toast.success("Summary PDF generated successfully!");
-//     } catch (error) {
-//       console.error(error);
-//       toast.error("Failed to generate PDF.");
-//     }
-//   };
-
-//   return (
-//     <div className="space-y-6">
-//       {/* Controls Card */}
-//       <Card className="border-slate-200 dark:border-white/10 rounded-lg shadow-sm bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
-//         <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
-//           <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-4">
-//             {/* Truck Selector */}
-//             <div className="w-full sm:w-[260px] space-y-2">
-//               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-//                 Select Fleet Asset
-//               </label>
-//               <Select
-//                 value={selectedTruckId}
-//                 onValueChange={setSelectedTruckId}
-//               >
-//                 <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-emerald-500">
-//                   <SelectValue placeholder="Select a truck..." />
-//                 </SelectTrigger>
-//                 <SelectContent className="border-slate-200 dark:border-slate-800">
-//                   <SelectItem
-//                     value="all"
-//                     className="font-semibold text-emerald-600 dark:text-emerald-400"
-//                   >
-//                     <div className="flex items-center gap-2">
-//                       <PieChart className="w-4 h-4" />
-//                       Combine Entire Fleet
-//                     </div>
-//                   </SelectItem>
-//                   {trucks.map((truck) => (
-//                     <SelectItem key={truck.id} value={truck.id.toString()}>
-//                       <div className="flex items-center gap-2">
-//                         <Truck className="w-4 h-4 text-slate-400" />
-//                         {truck.fleetCode} - {truck.plateNumber}
-//                       </div>
-//                     </SelectItem>
-//                   ))}
-//                 </SelectContent>
-//               </Select>
-//             </div>
-
-//             {/* Year Selector */}
-//             <div className="w-full sm:w-[200px] space-y-2">
-//               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-//                 Select Period
-//               </label>
-//               <Select value={selectedYear} onValueChange={setSelectedYear}>
-//                 <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-blue-500">
-//                   <SelectValue placeholder="Select Year..." />
-//                 </SelectTrigger>
-//                 <SelectContent className="border-slate-200 dark:border-slate-800">
-//                   <SelectItem
-//                     value="all"
-//                     className="font-semibold text-blue-600 dark:text-blue-400"
-//                   >
-//                     <div className="flex items-center gap-2">
-//                       <CalendarDays className="w-4 h-4" />
-//                       All Years (Yearly View)
-//                     </div>
-//                   </SelectItem>
-//                   {availableYears.map((year) => (
-//                     <SelectItem key={year} value={year}>
-//                       {year} (Monthly View)
-//                     </SelectItem>
-//                   ))}
-//                 </SelectContent>
-//               </Select>
-//             </div>
-//           </div>
-
-//           <Button
-//             onClick={exportSummaryToPDF}
-//             disabled={tableData.length === 0}
-//             className="w-full sm:w-auto h-11 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 shadow-md font-semibold transition-all shrink-0"
-//           >
-//             <Download className="w-4 h-4 mr-2" />
-//             Print Summary PDF
-//           </Button>
-//         </CardContent>
-//       </Card>
-
-//       {/* Results Card */}
-//       <Card className="border-slate-200 dark:border-white/10 rounded-lg shadow-sm overflow-hidden">
-//         <CardHeader className="bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5 pb-4">
-//           <CardTitle className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
-//             Summary Sales - {selectedTruckName}
-//           </CardTitle>
-//           <CardDescription>
-//             {selectedYear === "all"
-//               ? "Aggregated yearly financial performance."
-//               : `Monthly financial breakdown for the year ${selectedYear}.`}
-//           </CardDescription>
-//         </CardHeader>
-//         <div className="overflow-x-auto">
-//           <Table className="min-w-[600px]">
-//             <TableHeader>
-//               <TableRow className="bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/50">
-//                 <TableHead className="w-[140px] font-bold text-slate-700 dark:text-slate-300 text-center py-4">
-//                   {selectedYear === "all" ? "Year" : "Month"}
-//                 </TableHead>
-//                 <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right py-4">
-//                   Collectible
-//                 </TableHead>
-//                 <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right py-4">
-//                   Expenses
-//                 </TableHead>
-//                 <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right py-4">
-//                   Net Income
-//                 </TableHead>
-//               </TableRow>
-//             </TableHeader>
-//             <TableBody>
-//               {tableData.length === 0 ? (
-//                 <TableRow>
-//                   <TableCell
-//                     colSpan={4}
-//                     className="h-32 text-center text-slate-500"
-//                   >
-//                     No data recorded for this selection.
-//                   </TableCell>
-//                 </TableRow>
-//               ) : (
-//                 tableData.map((row) => (
-//                   <TableRow
-//                     key={row.periodLabel}
-//                     className="border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/30"
-//                   >
-//                     <TableCell className="font-bold text-slate-600 dark:text-slate-400 text-center text-[15px]">
-//                       {row.periodLabel}
-//                     </TableCell>
-//                     <TableCell className="text-right font-mono text-[15px] font-medium text-slate-700 dark:text-slate-300">
-//                       <AnimatedNumber value={row.collectible} />
-//                     </TableCell>
-//                     <TableCell className="text-right font-mono text-[15px] font-medium text-slate-700 dark:text-slate-300">
-//                       <AnimatedNumber value={row.expenses} />
-//                     </TableCell>
-//                     <TableCell className="text-right font-mono text-[15px] font-bold text-emerald-600 dark:text-emerald-400">
-//                       <AnimatedNumber value={row.netIncome} />
-//                     </TableCell>
-//                   </TableRow>
-//                 ))
-//               )}
-//             </TableBody>
-//           </Table>
-//         </div>
-//         {/* FOOTER TOTALS */}
-//         {tableData.length > 0 && (
-//           <div className="bg-slate-50 dark:bg-[#0d1117] border-t-2 border-slate-200 dark:border-slate-700 rounded-lg p-4">
-//             <div className="grid grid-cols-4 gap-4 px-4 min-w-[600px]">
-//               <div className="text-center font-black text-slate-800 dark:text-white uppercase tracking-widest text-sm pt-2">
-//                 TOTAL
-//               </div>
-//               <div className="text-right font-mono font-black text-rose-600 dark:text-rose-500 text-lg border-b-2 border-rose-600/30 pb-1">
-//                 <AnimatedNumber value={totals.collectible} />
-//               </div>
-//               <div className="text-right font-mono font-black text-rose-600 dark:text-rose-500 text-lg border-b-2 border-rose-600/30 pb-1">
-//                 <AnimatedNumber value={totals.expenses} />
-//               </div>
-//               <div className="text-right font-mono font-black text-rose-600 dark:text-rose-500 text-lg border-b-2 border-rose-600/30 pb-1">
-//                 <AnimatedNumber value={totals.netIncome} />
-//               </div>
-//             </div>
-//           </div>
-//         )}
-//       </Card>
-//     </div>
-//   );
-// }
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -496,7 +29,7 @@ import {
   FileText,
   FileSpreadsheet,
   X,
-  ArrowDown,
+  MoreVertical,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -989,20 +522,20 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                             setSelectedTruckId("all");
                             setSelectedYear("all");
                           }}
-                          className="h-5 px-2 text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition-colors lg:hidden"
+                          className="h-5 px-2 text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition-colors sm:hidden"
                         >
-                          Clear
+                          Clear Filter
                         </Button>
                       )}
                   </div>
                   <Select value={value} onValueChange={setter}>
-                    <SelectTrigger className="h-10 w-full text-sm rounded-lg bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors [&>span]:flex-1 [&>span]:text-left">
+                    <SelectTrigger className="h-11! w-full text-sm rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors [&>span]:flex-1 [&>span]:text-left">
                       <SelectValue placeholder={placeholder} />
                     </SelectTrigger>
-                    <SelectContent className="z-110 rounded-lg border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
+                    <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
                       <SelectItem
                         value="all"
-                        className="rounded-md mb-1 cursor-pointer"
+                        className="rounded-xl h-11! mb-1 cursor-pointer"
                       >
                         {placeholderNode}
                       </SelectItem>
@@ -1010,7 +543,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                         <SelectItem
                           key={o.value}
                           value={o.value}
-                          className="rounded-md cursor-pointer"
+                          className="rounded-xl cursor-pointer"
                         >
                           {o.label}
                         </SelectItem>
@@ -1021,9 +554,9 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
               ),
             )}
 
-            {/* Clear Filter Button - Desktop */}
+            {/* Clear Filter Button - Tablet & Desktop */}
             {(selectedTruckId !== "all" || selectedYear !== "all") && (
-              <div className="hidden lg:flex w-full items-end justify-start pb-0.5">
+              <div className="hidden sm:flex w-full items-end sm:col-start-2 lg:col-start-auto justify-end pb-0.5">
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -1033,63 +566,10 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                   className="h-10 px-3 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors shrink-0 font-semibold"
                 >
                   <X className="w-3.5 h-3.5 mr-1.5" />
-                  Clear Filters
+                  Clear Filter
                 </Button>
               </div>
             )}
-          </div>
-
-          {/* Right side: Export Button */}
-          <div className="w-full sm:w-auto sm:self-end lg:self-end flex shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  disabled={tableData.length === 0}
-                  className="w-full sm:w-auto relative h-10 px-6 rounded-lg bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md transition-all duration-300 font-semibold overflow-hidden group/btn disabled:opacity-50 disabled:shadow-none"
-                >
-                  <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-                  <ArrowDown className="w-4 h-4 mr-2 transition-transform group-hover/btn:translate-y-1 duration-300" />
-                  <span>Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-56 p-2 rounded-xl border-slate-200 dark:border-slate-800 shadow-xl z-50"
-              >
-                <DropdownMenuItem
-                  onClick={exportSummaryToPDF}
-                  className="p-3 rounded-lg cursor-pointer focus:bg-rose-50 dark:focus:bg-rose-950/30 transition-colors"
-                >
-                  <div className="p-2 rounded-md bg-rose-100 dark:bg-rose-900/30 mr-3 shrink-0">
-                    <FileText className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      Export PDF
-                    </span>
-                    <span className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      Presentation format
-                    </span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={exportSummaryToCSV}
-                  className="p-3 rounded-lg cursor-pointer focus:bg-emerald-50 dark:focus:bg-emerald-950/30 transition-colors mt-1"
-                >
-                  <div className="p-2 rounded-md bg-emerald-100 dark:bg-emerald-900/30 mr-3 shrink-0">
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                      Export CSV
-                    </span>
-                    <span className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      Spreadsheet format
-                    </span>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </div>
@@ -1148,23 +628,76 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
               </div>
             </div>
 
-            {tableData.length > 0 && (
-              <div
-                className={cn(
-                  "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border",
-                  totals.netIncome >= 0
-                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-900/40"
-                    : "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200/50 dark:border-rose-900/40",
-                )}
-              >
-                {totals.netIncome >= 0 ? (
-                  <TrendingUp className="w-3.5 h-3.5" />
-                ) : (
-                  <TrendingDown className="w-3.5 h-3.5" />
-                )}
-                {marginPct}% margin
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {tableData.length > 0 && (
+                <div
+                  className={cn(
+                    "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border",
+                    totals.netIncome >= 0
+                      ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-900/40"
+                      : "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200/50 dark:border-rose-900/40",
+                  )}
+                >
+                  {totals.netIncome >= 0 ? (
+                    <TrendingUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <TrendingDown className="w-3.5 h-3.5" />
+                  )}
+                  {marginPct}% margin
+                </div>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={tableData.length === 0}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                    <span className="sr-only">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 p-2 rounded-xl border-slate-200 dark:border-slate-800 shadow-xl z-50"
+                >
+                  <DropdownMenuItem
+                    onClick={exportSummaryToPDF}
+                    className="p-3 rounded-lg cursor-pointer focus:bg-rose-50 dark:focus:bg-rose-950/30 transition-colors"
+                  >
+                    <div className="p-2 rounded-md bg-rose-100 dark:bg-rose-900/30 mr-3 shrink-0">
+                      <FileText className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                        Export PDF
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        Presentation format
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={exportSummaryToCSV}
+                    className="p-3 rounded-lg cursor-pointer focus:bg-emerald-50 dark:focus:bg-emerald-950/30 transition-colors mt-1"
+                  >
+                    <div className="p-2 rounded-md bg-emerald-100 dark:bg-emerald-900/30 mr-3 shrink-0">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                        Export CSV
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        Spreadsheet format
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardHeader>
 

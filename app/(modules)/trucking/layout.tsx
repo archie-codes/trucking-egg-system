@@ -88,24 +88,30 @@ export default async function TruckingLayout({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 md:gap-4">
             {/* The Magic Button: Only renders if isAdmin is true */}
             {isAdmin && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-300 h-10! hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 py-2"
-                asChild
-              >
-                <Link href="/admin/users">
-                  <ShieldAlert className="w-4 h-4 sm:mr-2 " />
-                  <span className="hidden sm:inline">Admin Portal</span>
-                </Link>
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-300 h-9 md:h-10 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 md:px-3 py-1 md:py-2"
+                  asChild
+                >
+                  <Link href="/admin/users">
+                    <ShieldAlert className="w-4 h-4 md:mr-2 " />
+                    <span className="hidden md:inline">Admin Portal</span>
+                  </Link>
+                </Button>
+                <div className="w-px h-4 md:h-6 bg-slate-700 mx-0.5 md:mx-1"></div>
+              </>
             )}
 
-            <div className="w-px h-6 bg-slate-700 hidden sm:block mx-1"></div>
             <LtoNotificationBell />
+            
+            {/* Divider before User Profile */}
+            <div className="w-px h-4 md:h-6 bg-slate-700 mx-0.5 md:mx-1"></div>
+            
             <UserProfileMenu currentUser={currentUser} />
           </div>
         </header>

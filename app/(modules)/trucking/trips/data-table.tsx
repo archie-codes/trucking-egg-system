@@ -1060,27 +1060,56 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 sm:max-w-xs ml-0.5">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        {/* Search Bar - Animated Expand (Laptop+ Only) */}
+        <div
+          className={cn(
+            "group relative transition-all duration-500 ease-out ml-0.5",
+            hasFilter
+              ? "w-full lg:w-[320px]"
+              : "w-full lg:w-11 lg:focus-within:w-[320px]",
+          )}
+        >
+          <Search
+            className={cn(
+              "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
+              hasFilter
+                ? "text-blue-500"
+                : "text-slate-500 dark:text-slate-400 lg:group-focus-within:text-blue-500",
+            )}
+          />
           <Input
             placeholder="Search trips, customers, routes…"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-9 pr-8 h-9 text-sm bg-background placeholder:text-muted-foreground/60 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-blue-500/40"
+            className={cn(
+              "h-11 w-full transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-blue-500/40",
+              hasFilter
+                ? "pl-10 pr-10 rounded-xl! bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
+                : "pl-10 pr-4 rounded-xl! bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm lg:pr-0 lg:rounded-full lg:text-transparent lg:placeholder:text-transparent lg:cursor-pointer lg:hover:bg-slate-200/50 lg:dark:hover:bg-slate-800/80 lg:group-focus-within:bg-white lg:group-focus-within:dark:bg-slate-900 lg:group-focus-within:pr-10 lg:group-focus-within:rounded-xl lg:group-focus-within:text-foreground lg:group-focus-within:placeholder:text-slate-400 lg:group-focus-within:dark:placeholder:text-slate-500 lg:group-focus-within:cursor-text",
+            )}
           />
-          {hasFilter && (
-            <button
-              onClick={() => setGlobalFilter("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
-              aria-label="Clear search"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div
+            className={cn(
+              "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
+              hasFilter
+                ? "opacity-100 scale-100"
+                : "opacity-0 scale-50 pointer-events-none",
+            )}
+          >
+            {hasFilter && (
+              <button
+                onClick={() => setGlobalFilter("")}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Font Size, Density Controller and Export PDF */}
-        <div className="flex items-center justify-center sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+        <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
           <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
             <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
             <div className="flex items-center gap-0.5">

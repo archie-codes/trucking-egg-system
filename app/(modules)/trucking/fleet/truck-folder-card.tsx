@@ -242,7 +242,7 @@ function EditField({
 }
 
 const fieldClass =
-  "h-10 rounded-lg text-sm bg-muted/40 border-border/50 focus-visible:ring-1 focus-visible:ring-blue-500/40 focus-visible:border-blue-500/40";
+  "h-11 rounded-xl text-sm bg-muted/40 border-border/50 focus-visible:ring-1 focus-visible:ring-blue-500/40 focus-visible:border-blue-500/40";
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export function TruckFolderCard({
@@ -1140,7 +1140,9 @@ export function TruckFolderCard({
                   value={editForm.status}
                   onValueChange={(v) => setEditForm({ ...editForm, status: v })}
                 >
-                  <SelectTrigger className={cn(fieldClass, "px-3 w-full")}>
+                  <SelectTrigger
+                    className={cn(fieldClass, "px-3 w-full h-11!")}
+                  >
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl z-250 border-border/60">

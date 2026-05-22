@@ -36,13 +36,13 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       {/* Admin Top Navigation */}
-      <header className="h-16 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-6 z-40 sticky top-0 shadow-lg">
+      <header className="h-16 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-3 md:px-6 z-40 sticky top-0 shadow-lg">
         {/* Left Side: Admin Branding */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shadow-inner flex items-center justify-center">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="p-1.5 md:p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shadow-inner flex items-center justify-center shrink-0">
             <ShieldAlert className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
           </div>
-          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-100 hidden sm:inline-block">
+          <span className="font-bold text-sm md:text-lg tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-100 hidden sm:inline-block truncate max-w-[120px] md:max-w-none">
             {adminDept === "all"
               ? "Master Admin Portal"
               : "Department Admin Portal"}
@@ -50,19 +50,24 @@ export default async function AdminLayout({
         </div>
 
         {/* Right Side: Quick Portals & Logout */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5 md:gap-4">
           {/* ONLY show Trucking button if they are 'all' or 'trucking' */}
           {(adminDept === "all" || adminDept === "trucking") && (
             <Link href="/trucking/dashboard">
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-slate-300 h-10! hover:bg-blue-600 hover:text-white transition-colors rounded-lg px-2 py-2"
+                className="text-slate-300 h-9 md:h-10 hover:bg-blue-600 hover:text-white transition-colors rounded-lg px-2 md:px-3 py-1 md:py-2"
               >
-                <Truck className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Trucking Portal</span>
+                <Truck className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Trucking Portal</span>
               </Button>
             </Link>
+          )}
+
+          {/* Divider between portals if both are visible */}
+          {adminDept === "all" && (
+            <div className="w-px h-4 md:h-6 bg-slate-700 mx-0.5 md:mx-1"></div>
           )}
 
           {/* ONLY show Egg button if they are 'all' or 'eggs' */}
@@ -71,24 +76,24 @@ export default async function AdminLayout({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-slate-300 h-10! hover:bg-amber-600 hover:text-white transition-colors rounded-lg px-2 py-2"
+                className="text-slate-300 h-9 md:h-10 hover:bg-amber-600 hover:text-white transition-colors rounded-lg px-2 md:px-3 py-1 md:py-2"
               >
-                <Egg className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Egg Sales Portal</span>
+                <Egg className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Egg Sales Portal</span>
               </Button>
             </Link>
           )}
 
-          <div className="w-px h-6 bg-slate-800 hidden sm:block mx-1"></div>
+          {/* Divider before User Profile */}
+          <div className="w-px h-4 md:h-6 bg-slate-700 mx-0.5 md:mx-1"></div>
 
           {/* User Profile & Interactive Logout Avatar */}
-
           <UserProfileMenu currentUser={currentUser} />
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8">{children}</main>
+      <main className="flex-1 p-2 sm:p-4 md:p-8 overflow-x-hidden">{children}</main>
     </div>
   );
 }

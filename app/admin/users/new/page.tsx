@@ -128,7 +128,7 @@ export default function AddUserPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div className="max-w-2xl mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-200 pt-2 md:pt-0">
       {/* ── Page header ── */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
