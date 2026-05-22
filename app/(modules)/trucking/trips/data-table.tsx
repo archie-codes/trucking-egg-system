@@ -1063,10 +1063,10 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         {/* Search Bar - Animated Expand (Laptop+ Only) */}
         <div
           className={cn(
-            "group relative transition-all duration-500 ease-out ml-0.5",
+            "group relative transition-all duration-500 ease-out ml-0.5 ",
             hasFilter
               ? "w-full sm:w-[320px]"
-              : "w-full sm:w-11 sm:focus-within:w-[320px]",
+              : "w-full sm:w-11 sm:focus-within:w-[320px] pr-1",
           )}
         >
           <Search
