@@ -868,7 +868,7 @@ export function TruckFolderCard({
                   onClick={() =>
                     router.push(`/trucking/trips/new?truckId=${truck.id}`)
                   }
-                  className="h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5"
+                  className="h-8 text-xs rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Record New Trip</span>
