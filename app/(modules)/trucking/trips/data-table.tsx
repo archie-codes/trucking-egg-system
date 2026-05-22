@@ -1066,7 +1066,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             "group relative transition-all duration-500 ease-out ml-0.5",
             hasFilter
               ? "w-full lg:w-[320px]"
-              : "w-full lg:w-11 lg:focus-within:w-[320px]",
+              : "w-[320px] lg:w-11 lg:focus-within:w-[320px]",
           )}
         >
           <Search
