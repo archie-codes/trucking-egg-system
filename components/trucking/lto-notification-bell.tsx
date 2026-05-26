@@ -55,7 +55,7 @@ export function LtoNotificationBell() {
 
       <PopoverContent
         align="end"
-        className="w-80 p-0 rounded-2xl border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-200"
+        className="w-72 sm:w-80 md:w-96 p-0 rounded-2xl border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-200"
       >
         <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
           <h4 className="font-bold text-sm flex items-center gap-2">

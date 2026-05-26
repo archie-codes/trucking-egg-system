@@ -251,3 +251,28 @@ export async function updateTripRecord(
     };
   }
 }
+
+// ✨ GET UNIQUE CUSTOMERS & FARMS FOR AUTOCOMPLETE
+export async function getTripHistorySuggestions() {
+  try {
+    const tripsData = await db
+      .select({
+        customerId: truckingTrips.customerId,
+        farmName: truckingTrips.farmName,
+      })
+      .from(truckingTrips);
+
+    // Extract unique, non-empty values
+    const uniqueCustomers = Array.from(
+      new Set(tripsData.map((t) => t.customerId).filter(Boolean)),
+    ).slice(0, 7);
+    const uniqueFarms = Array.from(
+      new Set(tripsData.map((t) => t.farmName).filter(Boolean)),
+    ).slice(0, 7);
+
+    return { success: true, customers: uniqueCustomers, farms: uniqueFarms };
+  } catch (error) {
+    console.error("Failed to fetch suggestions:", error);
+    return { success: false, customers: [], farms: [] };
+  }
+}

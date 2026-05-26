@@ -11,6 +11,7 @@
 //   ChevronRight,
 //   X,
 //   PlusCircle,
+//   PieChart, // ✨ ADDED: Icon for the new Reports menu
 // } from "lucide-react";
 // import { SheetClose } from "@/components/ui/sheet";
 
@@ -37,13 +38,19 @@
 //       },
 //     ],
 //   },
+//   // ✨ ADDED: The new Reports & Analytics route
+//   {
+//     label: "Reports",
+//     icon: PieChart,
+//     href: "/trucking/reports",
+//   },
 // ];
 
 // export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
 //   const pathname = usePathname();
 //   const [isCollapsed, setIsCollapsed] = useState(false);
 
-//   // ✨ FIX: Auto-collapse on Tablet screens (< 1024px)
+//   // Auto-collapse on Tablet screens (< 1024px)
 //   useEffect(() => {
 //     if (isMobile) return;
 
@@ -98,9 +105,6 @@
 //               </p>
 //             </div>
 //           </div>
-//           // <h2 className="text-[18px] font-bold text-white tracking-tight">
-//           //   Trucking<span className="text-blue-500"> History</span>
-//           // </h2>
 //         )}
 //         {isMobile && (
 //           <SheetClose
@@ -130,7 +134,12 @@
 //       {/* Navigation Links */}
 //       <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
 //         {routes.map((route) => {
-//           const isActive = pathname === route.href;
+//           // Check if current path starts with route href for parent highlighting (except dashboard to avoid matching everything)
+//           const isActive =
+//             route.href === "/trucking/dashboard"
+//               ? pathname === route.href
+//               : pathname.startsWith(route.href);
+
 //           const hasSubRoutes = !!route.subRoutes;
 //           // Only expand if the current pathname exactly matches one of the subRoutes
 //           const isExpanded =
@@ -157,13 +166,16 @@
 //                 }`}
 //                 title={isCollapsed && !isMobile ? route.label : undefined}
 //               >
-//                 <div className="flex items-center">
+//                 <div className="flex items-center ">
 //                   <route.icon
-//                     className={`w-5 h-5 ${isCollapsed && !isMobile ? "" : "mr-3"} ${isActive ? "text-blue-500" : "text-slate-400"}`}
+//                     className={`w-5 h-5 transition-transform duration-300 hover:scale-110 hover:text-blue-500 ${isCollapsed && !isMobile ? "" : "mr-3"} ${isActive ? "text-blue-500" : "text-slate-400"}`}
 //                   />
-//                   {(!isCollapsed || isMobile) && <span>{route.label}</span>}
+//                   {(!isCollapsed || isMobile) && (
+//                     <span className="transition-all duration-300 origin-left hover:scale-105 hover:translate-x-1 hover:text-blue-500 inline-block">
+//                       {route.label}
+//                     </span>
+//                   )}
 //                 </div>
-//                 {/* Optional caret for expansion removed */}
 //               </Link>
 
 //               {/* SubRoutes */}
@@ -187,7 +199,9 @@
 //                           href={subRoute.href}
 //                           onClick={() => {
 //                             if (isMobile) {
-//                               document.getElementById("mobile-sheet-close")?.click();
+//                               document
+//                                 .getElementById("mobile-sheet-close")
+//                                 ?.click();
 //                             }
 //                           }}
 //                           className="relative flex items-center group py-2"
@@ -198,13 +212,15 @@
 //                             className={`ml-[40px] flex-1 rounded-md px-3 py-1.5 text-[14px] flex items-center gap-2 transition-all duration-200 ${
 //                               isSubActive
 //                                 ? "bg-blue-500/10 text-blue-400 font-medium"
-//                                 : "text-slate-400 group-hover:bg-slate-800/50 group-hover:text-slate-200"
+//                                 : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
 //                             }`}
 //                           >
 //                             {subRoute.icon && (
-//                               <subRoute.icon className="w-3.5 h-3.5" />
+//                               <subRoute.icon className="w-3.5 h-3.5 transition-transform duration-300 hover:scale-110 hover:text-blue-500" />
 //                             )}
-//                             {subRoute.label}
+//                             <span className="transition-all duration-300 origin-left hover:scale-105 hover:translate-x-1 hover:text-blue-500 inline-block">
+//                               {subRoute.label}
+//                             </span>
 //                           </div>
 //                         </Link>
 //                       );
@@ -221,6 +237,7 @@
 //     </div>
 //   );
 // }
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -234,7 +251,7 @@ import {
   ChevronRight,
   X,
   PlusCircle,
-  PieChart, // ✨ ADDED: Icon for the new Reports menu
+  PieChart,
 } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
 
@@ -261,7 +278,6 @@ const routes = [
       },
     ],
   },
-  // ✨ ADDED: The new Reports & Analytics route
   {
     label: "Reports",
     icon: PieChart,
@@ -305,7 +321,7 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
   }, [isCollapsed, isMobile]);
 
   return (
-    <div className="flex flex-col h-full text-slate-300 relative group">
+    <div className="flex flex-col h-full text-slate-300 relative group/sidebar">
       {/* Sidebar Header / Branding */}
       <div
         className={`h-16 flex items-center border-b border-slate-800 ${isCollapsed && !isMobile ? "justify-center px-0" : "px-6 justify-between"}`}
@@ -357,14 +373,13 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
       {/* Navigation Links */}
       <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
         {routes.map((route) => {
-          // Check if current path starts with route href for parent highlighting (except dashboard to avoid matching everything)
+          // Check if current path starts with route href for parent highlighting
           const isActive =
             route.href === "/trucking/dashboard"
               ? pathname === route.href
               : pathname.startsWith(route.href);
 
           const hasSubRoutes = !!route.subRoutes;
-          // Only expand if the current pathname exactly matches one of the subRoutes
           const isExpanded =
             hasSubRoutes &&
             route.subRoutes!.some((sub) => pathname === sub.href);
@@ -378,22 +393,30 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
                     document.getElementById("mobile-sheet-close")?.click();
                   }
                 }}
-                className={`flex items-center justify-between rounded-lg transition-all duration-200 text-[15px] ${
+                // ✨ ADDED 'group' class here
+                className={`group flex items-center justify-between rounded-lg transition-all duration-200 text-[15px] ${
                   isCollapsed && !isMobile
                     ? "justify-center py-3"
                     : "px-3 py-2.5"
                 } ${
                   isActive
                     ? "bg-blue-500/10 text-blue-500 font-medium"
-                    : "hover:bg-slate-800 hover:text-white"
+                    : "text-slate-50 hover:bg-slate-800/60"
                 }`}
                 title={isCollapsed && !isMobile ? route.label : undefined}
               >
                 <div className="flex items-center">
                   <route.icon
-                    className={`w-5 h-5 ${isCollapsed && !isMobile ? "" : "mr-3"} ${isActive ? "text-blue-500" : "text-slate-400"}`}
+                    // ✨ UPDATED to group-hover
+                    className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 group-hover:text-blue-400 ${
+                      isCollapsed && !isMobile ? "" : "mr-3"
+                    } ${isActive ? "text-blue-500" : ""}`}
                   />
-                  {(!isCollapsed || isMobile) && <span>{route.label}</span>}
+                  {(!isCollapsed || isMobile) && (
+                    <span className="transition-all duration-300 origin-left group-hover:scale-[1.02] group-hover:translate-x-1 group-hover:text-blue-400 inline-block">
+                      {route.label}
+                    </span>
+                  )}
                 </div>
               </Link>
 
@@ -407,7 +430,6 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
                   }`}
                 >
                   <div className="overflow-hidden flex flex-col mt-1 relative">
-                    {/* Vertical line connecting to children */}
                     <div className="absolute left-[21px] top-0 bottom-[18px] w-px bg-slate-700" />
 
                     {route.subRoutes!.map((subRoute) => {
@@ -423,21 +445,23 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
                                 ?.click();
                             }
                           }}
-                          className="relative flex items-center group py-2"
+                          className="relative flex items-center group py-1.5"
                         >
-                          {/* Horizontal branch 'L' */}
-                          <div className="absolute left-[21px] top-1/2 w-3 h-px bg-slate-700 transition-colors group-hover:bg-slate-500" />
+                          <div className="absolute left-[21px] top-1/2 w-3 h-px bg-slate-700 transition-colors group-hover:bg-blue-500/50" />
                           <div
+                            // ✨ The inner div gets the background, letting the group-hover trigger the text/icon
                             className={`ml-[40px] flex-1 rounded-md px-3 py-1.5 text-[14px] flex items-center gap-2 transition-all duration-200 ${
                               isSubActive
                                 ? "bg-blue-500/10 text-blue-400 font-medium"
-                                : "text-slate-400 group-hover:bg-slate-800/50 group-hover:text-slate-200"
+                                : "text-slate-400 group-hover:bg-slate-800/50"
                             }`}
                           >
                             {subRoute.icon && (
-                              <subRoute.icon className="w-3.5 h-3.5" />
+                              <subRoute.icon className="w-3.5 h-3.5 transition-transform duration-300 group-hover:scale-110 group-hover:text-blue-400" />
                             )}
-                            {subRoute.label}
+                            <span className="transition-all duration-300 origin-left group-hover:translate-x-1 group-hover:text-blue-400 inline-block">
+                              {subRoute.label}
+                            </span>
                           </div>
                         </Link>
                       );

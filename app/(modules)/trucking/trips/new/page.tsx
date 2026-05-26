@@ -44,7 +44,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-import { createTripRecord } from "@/app/actions/trip-actions";
+import { createTripRecord, getTripHistorySuggestions } from "@/app/actions/trip-actions";
 import { getActiveTrucks } from "@/app/actions/truck-actions";
 import {
   Save,
@@ -104,6 +104,10 @@ export default function NewTripPage() {
   >([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(true);
 
+  // Autocomplete Suggestions
+  const [customerSuggestions, setCustomerSuggestions] = useState<string[]>([]);
+  const [farmSuggestions, setFarmSuggestions] = useState<string[]>([]);
+
   const [isOriginOpen, setIsOriginOpen] = useState(false);
   const [isDestinationOpen, setIsDestinationOpen] = useState(false);
 
@@ -131,6 +135,14 @@ export default function NewTripPage() {
         toast.error("Failed to load trucks");
       }
       setIsLoadingTrucks(false);
+
+      // Fetch history suggestions for autocomplete
+      getTripHistorySuggestions().then((res) => {
+        if (res.success) {
+          setCustomerSuggestions(res.customers || []);
+          setFarmSuggestions(res.farms || []);
+        }
+      });
 
       try {
         const [provRes, cityRes] = await Promise.all([
@@ -471,7 +483,13 @@ export default function NewTripPage() {
                             }
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase"
                             aria-invalid={fieldState.invalid}
+                            list="customer-suggestions"
                           />
+                          <datalist id="customer-suggestions">
+                            {customerSuggestions.map((c, i) => (
+                              <option key={i} value={c} />
+                            ))}
+                          </datalist>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                           )}
@@ -499,7 +517,13 @@ export default function NewTripPage() {
                             }
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase"
                             aria-invalid={fieldState.invalid}
+                            list="farm-suggestions"
                           />
+                          <datalist id="farm-suggestions">
+                            {farmSuggestions.map((f, i) => (
+                              <option key={i} value={f} />
+                            ))}
+                          </datalist>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                           )}

@@ -339,7 +339,7 @@ export default async function TruckingDashboardPage() {
   );
 
   return (
-    <div className="mx-auto space-y-3 animate-in fade-in duration-300">
+    <div className="mx-auto space-y-3 w-full animate-in fade-in duration-300">
       <DashboardHeader userName={userName} avatarUrl={avatarUrl} />
 
       <StatCards metrics={metrics} />

@@ -30,10 +30,7 @@ interface DataTableProps<TData> {
   data: TData[];
 }
 
-export function DataTable<TData>({
-  columns,
-  data,
-}: DataTableProps<TData>) {
+export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -60,22 +57,52 @@ export function DataTable<TData>({
     <div className="flex flex-col gap-3">
       {/* ── Toolbar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        {/* Search Bar - Animated Expand (Laptop+ Only) */}
+        <div
+          className={cn(
+            "group relative transition-all duration-500 ease-out ml-0.5 ",
+            hasFilter
+              ? "w-full sm:w-[320px]"
+              : "w-full sm:w-11 sm:focus-within:w-[320px] pr-1",
+          )}
+        >
+          <Search
+            className={cn(
+              "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
+              hasFilter
+                ? "text-blue-500"
+                : "text-slate-500 dark:text-slate-400 sm:group-focus-within:text-blue-500",
+            )}
+          />
           <Input
             placeholder="Search name, email, role…"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-9 pr-8 h-9 text-sm bg-background border-border/60 rounded-lg focus-visible:ring-1 focus-visible:ring-blue-500/40 placeholder:text-muted-foreground/50"
+            className={cn(
+              "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-blue-500/40",
+              hasFilter
+                ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 sm:pr-0 sm:rounded-full sm:text-transparent sm:placeholder:text-transparent sm:cursor-pointer sm:hover:bg-slate-200/50 sm:dark:hover:bg-slate-800/80 sm:group-focus-within:bg-white sm:group-focus-within:dark:bg-slate-900 sm:group-focus-within:pr-10 sm:group-focus-within:rounded-xl sm:group-focus-within:text-foreground sm:group-focus-within:placeholder:text-slate-400 sm:group-focus-within:dark:placeholder:text-slate-500 sm:group-focus-within:cursor-text",
+            )}
           />
-          {hasFilter && (
-            <button
-              onClick={() => setGlobalFilter("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div
+            className={cn(
+              "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
+              hasFilter
+                ? "opacity-100 scale-100"
+                : "opacity-0 scale-50 pointer-events-none",
+            )}
+          >
+            {hasFilter && (
+              <button
+                onClick={() => setGlobalFilter("")}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Row count */}
@@ -261,22 +288,37 @@ export function DataTable<TData>({
 // ── Mobile row ─────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function MobileRow({ row }: { row: any }) {
-    // Find specific cells
+  // Find specific cells
   const nameCell = row
     .getVisibleCells()
-    .find((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => c.column.id === "name");
+    .find(
+      (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
+        c.column.id === "name",
+    );
   const emailCell = row
     .getVisibleCells()
-    .find((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => c.column.id === "email");
+    .find(
+      (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
+        c.column.id === "email",
+    );
   const deptCell = row
     .getVisibleCells()
-    .find((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => c.column.id === "department");
+    .find(
+      (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
+        c.column.id === "department",
+    );
   const roleCell = row
     .getVisibleCells()
-    .find((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => c.column.id === "role");
+    .find(
+      (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
+        c.column.id === "role",
+    );
   const actionCell = row
     .getVisibleCells()
-    .find((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => c.column.id === "actions");
+    .find(
+      (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
+        c.column.id === "actions",
+    );
 
   return (
     <div className="flex items-start justify-between gap-3 px-4 py-4 bg-card hover:bg-muted/20 transition-colors">
