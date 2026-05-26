@@ -111,6 +111,25 @@ export default function NewTripPage() {
   const [isOriginOpen, setIsOriginOpen] = useState(false);
   const [isDestinationOpen, setIsDestinationOpen] = useState(false);
 
+  const [originSearch, setOriginSearch] = useState("");
+  const [destinationSearch, setDestinationSearch] = useState("");
+
+  const filteredOrigins = React.useMemo(() => {
+    if (!originSearch) return phLocations.slice(0, 50);
+    const search = originSearch.toLowerCase();
+    return phLocations
+      .filter((loc) => loc.label.toLowerCase().includes(search))
+      .slice(0, 50);
+  }, [phLocations, originSearch]);
+
+  const filteredDestinations = React.useMemo(() => {
+    if (!destinationSearch) return phLocations.slice(0, 50);
+    const search = destinationSearch.toLowerCase();
+    return phLocations
+      .filter((loc) => loc.label.toLowerCase().includes(search))
+      .slice(0, 50);
+  }, [phLocations, destinationSearch]);
+
   const [dieselMode, setDieselMode] = useState<"cash" | "po">("cash");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -575,17 +594,19 @@ export default function NewTripPage() {
                               className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
                               align="start"
                             >
-                              <Command>
+                              <Command shouldFilter={false}>
                                 <CommandInput
                                   placeholder="Search City or Province..."
                                   className="h-11"
+                                  value={originSearch}
+                                  onValueChange={setOriginSearch}
                                 />
                                 <CommandList className="max-h-[250px]">
                                   <CommandEmpty>
                                     No location found.
                                   </CommandEmpty>
                                   <CommandGroup>
-                                    {phLocations.map((loc) => (
+                                    {filteredOrigins.map((loc) => (
                                       <CommandItem
                                         key={loc.value}
                                         value={loc.label}
@@ -660,17 +681,19 @@ export default function NewTripPage() {
                               className="w-[350px] p-0 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
                               align="start"
                             >
-                              <Command>
+                              <Command shouldFilter={false}>
                                 <CommandInput
                                   placeholder="Search City or Province..."
                                   className="h-11"
+                                  value={destinationSearch}
+                                  onValueChange={setDestinationSearch}
                                 />
                                 <CommandList className="max-h-[250px]">
                                   <CommandEmpty>
                                     No location found.
                                   </CommandEmpty>
                                   <CommandGroup>
-                                    {phLocations.map((loc) => (
+                                    {filteredDestinations.map((loc) => (
                                       <CommandItem
                                         key={loc.value}
                                         value={loc.label}

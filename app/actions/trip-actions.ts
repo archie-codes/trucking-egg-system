@@ -1,4 +1,3 @@
-// // app/actions/trip-actions.ts
 // "use server";
 
 // import { db } from "@/db";
@@ -16,14 +15,20 @@
 //   destination: z.string().min(1, "Destination is required").toUpperCase(),
 
 //   qtyHeads: z.number().min(1),
+//   qtyNote: z.string().optional(), // ✨ ADDED
+
 //   rate: z.number().min(0),
 //   tollFees: z.number().min(0),
 //   dieselCash: z.number().min(0),
 //   dieselPo: z.number().min(0),
 //   meals: z.number().min(0),
 //   roroShip: z.number().min(0),
+
 //   salary: z.number().min(0),
+//   salaryNote: z.string().optional(), // ✨ ADDED
+
 //   others: z.number().min(0),
+//   othersNote: z.string().optional(), // ✨ ADDED
 // });
 
 // export async function createTripRecord(values: z.infer<typeof tripSchema>) {
@@ -41,15 +46,22 @@
 //       farmName: validatedData.data.farmName,
 //       origin: validatedData.data.origin,
 //       destination: validatedData.data.destination,
+
 //       qtyHeads: validatedData.data.qtyHeads,
+//       qtyNote: validatedData.data.qtyNote, // ✨ ADDED
+
 //       rate: validatedData.data.rate,
 //       tollFees: validatedData.data.tollFees,
 //       dieselCash: validatedData.data.dieselCash,
 //       dieselPo: validatedData.data.dieselPo,
 //       meals: validatedData.data.meals,
 //       roroShip: validatedData.data.roroShip,
+
 //       salary: validatedData.data.salary,
+//       salaryNote: validatedData.data.salaryNote, // ✨ ADDED
+
 //       others: validatedData.data.others,
+//       othersNote: validatedData.data.othersNote, // ✨ ADDED
 //     });
 
 //     revalidatePath("/trucking/trips");
@@ -92,15 +104,22 @@
 //         farmName: data.farmName,
 //         origin: data.origin,
 //         destination: data.destination,
+
 //         qtyHeads: data.qtyHeads,
+//         qtyNote: data.qtyNote, // ✨ ADDED
+
 //         rate: data.rate,
 //         tollFees: data.tollFees,
 //         dieselCash: data.dieselCash,
 //         dieselPo: data.dieselPo,
 //         meals: data.meals,
 //         roroShip: data.roroShip,
+
 //         salary: data.salary,
+//         salaryNote: data.salaryNote, // ✨ ADDED
+
 //         others: data.others,
+//         othersNote: data.othersNote, // ✨ ADDED
 //       })
 //       .where(eq(truckingTrips.id, tripId));
 
@@ -115,12 +134,37 @@
 //   }
 // }
 
-// app/actions/trip-actions.ts
+// // ✨ GET UNIQUE CUSTOMERS & FARMS FOR AUTOCOMPLETE
+// export async function getTripHistorySuggestions() {
+//   try {
+//     const tripsData = await db
+//       .select({
+//         customerId: truckingTrips.customerId,
+//         farmName: truckingTrips.farmName,
+//       })
+//       .from(truckingTrips);
+
+//     // Extract unique, non-empty values
+//     const uniqueCustomers = Array.from(
+//       new Set(tripsData.map((t) => t.customerId).filter(Boolean)),
+//     ).slice(0, 7);
+//     const uniqueFarms = Array.from(
+//       new Set(tripsData.map((t) => t.farmName).filter(Boolean)),
+//     ).slice(0, 7);
+
+//     return { success: true, customers: uniqueCustomers, farms: uniqueFarms };
+//   } catch (error) {
+//     console.error("Failed to fetch suggestions:", error);
+//     return { success: false, customers: [], farms: [] };
+//   }
+// }
+
 "use server";
 
 import { db } from "@/db";
 import { truckingTrips } from "@/db/schema";
-import { eq } from "drizzle-orm";
+// ✨ UPDATED: Imported 'and'
+import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
@@ -133,7 +177,7 @@ const tripSchema = z.object({
   destination: z.string().min(1, "Destination is required").toUpperCase(),
 
   qtyHeads: z.number().min(1),
-  qtyNote: z.string().optional(), // ✨ ADDED
+  qtyNote: z.string().optional(),
 
   rate: z.number().min(0),
   tollFees: z.number().min(0),
@@ -143,10 +187,10 @@ const tripSchema = z.object({
   roroShip: z.number().min(0),
 
   salary: z.number().min(0),
-  salaryNote: z.string().optional(), // ✨ ADDED
+  salaryNote: z.string().optional(),
 
   others: z.number().min(0),
-  othersNote: z.string().optional(), // ✨ ADDED
+  othersNote: z.string().optional(),
 });
 
 export async function createTripRecord(values: z.infer<typeof tripSchema>) {
@@ -157,6 +201,28 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
   }
 
   try {
+    // ✨ NEW: Duplicate Checker Logic
+    const existingTrip = await db
+      .select({ id: truckingTrips.id })
+      .from(truckingTrips)
+      .where(
+        and(
+          eq(truckingTrips.date, validatedData.data.date),
+          eq(truckingTrips.truckId, validatedData.data.truckId),
+          eq(truckingTrips.customerId, validatedData.data.customerId),
+          eq(truckingTrips.destination, validatedData.data.destination),
+        ),
+      )
+      .limit(1);
+
+    if (existingTrip.length > 0) {
+      return {
+        success: false,
+        error: `DUPLICATE DETECTED: This truck already has a recorded trip to ${validatedData.data.destination} for ${validatedData.data.customerId} on ${validatedData.data.date}.`,
+      };
+    }
+
+    // ✨ Proceed with Insert
     await db.insert(truckingTrips).values({
       date: validatedData.data.date,
       truckId: validatedData.data.truckId,
@@ -166,7 +232,7 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
       destination: validatedData.data.destination,
 
       qtyHeads: validatedData.data.qtyHeads,
-      qtyNote: validatedData.data.qtyNote, // ✨ ADDED
+      qtyNote: validatedData.data.qtyNote,
 
       rate: validatedData.data.rate,
       tollFees: validatedData.data.tollFees,
@@ -176,10 +242,10 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
       roroShip: validatedData.data.roroShip,
 
       salary: validatedData.data.salary,
-      salaryNote: validatedData.data.salaryNote, // ✨ ADDED
+      salaryNote: validatedData.data.salaryNote,
 
       others: validatedData.data.others,
-      othersNote: validatedData.data.othersNote, // ✨ ADDED
+      othersNote: validatedData.data.othersNote,
     });
 
     revalidatePath("/trucking/trips");
@@ -224,7 +290,7 @@ export async function updateTripRecord(
         destination: data.destination,
 
         qtyHeads: data.qtyHeads,
-        qtyNote: data.qtyNote, // ✨ ADDED
+        qtyNote: data.qtyNote,
 
         rate: data.rate,
         tollFees: data.tollFees,
@@ -234,10 +300,10 @@ export async function updateTripRecord(
         roroShip: data.roroShip,
 
         salary: data.salary,
-        salaryNote: data.salaryNote, // ✨ ADDED
+        salaryNote: data.salaryNote,
 
         others: data.others,
-        othersNote: data.othersNote, // ✨ ADDED
+        othersNote: data.othersNote,
       })
       .where(eq(truckingTrips.id, tripId));
 
@@ -262,13 +328,12 @@ export async function getTripHistorySuggestions() {
       })
       .from(truckingTrips);
 
-    // Extract unique, non-empty values
     const uniqueCustomers = Array.from(
       new Set(tripsData.map((t) => t.customerId).filter(Boolean)),
-    ).slice(0, 7);
+    ).slice(0, 15); // Increased slice slightly for better history
     const uniqueFarms = Array.from(
       new Set(tripsData.map((t) => t.farmName).filter(Boolean)),
-    ).slice(0, 7);
+    ).slice(0, 15);
 
     return { success: true, customers: uniqueCustomers, farms: uniqueFarms };
   } catch (error) {
