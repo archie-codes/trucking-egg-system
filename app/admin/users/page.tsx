@@ -100,11 +100,13 @@ export default async function AdminUsersPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
   let adminDept = "all";
+  let currentUserId: number | null = null;
 
   if (token) {
     try {
       const payload = decodeJwt(token);
       adminDept = payload.department as string;
+      currentUserId = payload.id as number;
     } catch (e) {
       console.error("Token error", e);
     }
@@ -156,7 +158,7 @@ export default async function AdminUsersPage() {
       </div>
 
       {/* ── Table ── */}
-      <DataTable columns={columns} data={data} />
+      <DataTable columns={columns} data={data} currentUserId={currentUserId} />
     </div>
   );
 }

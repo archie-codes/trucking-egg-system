@@ -28,9 +28,10 @@ interface DataTableProps<TData> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: any[];
   data: TData[];
+  currentUserId?: number | null;
 }
 
-export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
+export function DataTable<TData>({ columns, data, currentUserId }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -46,6 +47,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     onSortingChange: setSorting,
     state: { globalFilter, sorting },
     initialState: { pagination: { pageSize: 10 } },
+    meta: { currentUserId },
   });
 
   const filteredCount = table.getFilteredRowModel().rows.length;

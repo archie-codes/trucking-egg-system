@@ -185,15 +185,17 @@ export const columns: ColumnDef<StaffRecord>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const user = row.original;
-      return <ActionMenu user={user} />;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const currentUserId = (table.options.meta as any)?.currentUserId;
+      return <ActionMenu user={user} currentUserId={currentUserId} />;
     },
   },
 ];
 
 // ── Action menu ───────────────────────────────────────────────────────────────
-function ActionMenu({ user }: { user: StaffRecord }) {
+function ActionMenu({ user, currentUserId }: { user: StaffRecord; currentUserId?: number | null }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertAction, setAlertAction] = useState<"disable" | "restore" | null>(
@@ -370,11 +372,19 @@ function ActionMenu({ user }: { user: StaffRecord }) {
           {user.isActive ? (
             <DropdownMenuItem
               onClick={(e) => {
+                if (currentUserId === user.id) {
+                  e.preventDefault();
+                  toast.error("You cannot disable your own account while logged in.");
+                  return;
+                }
                 e.preventDefault();
                 setAlertAction("disable");
                 setIsAlertOpen(true);
               }}
-              className="cursor-pointer gap-2 py-2 text-sm font-medium rounded-lg text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30"
+              className={cn(
+                "cursor-pointer gap-2 py-2 text-sm font-medium rounded-lg text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30",
+                currentUserId === user.id && "opacity-50"
+              )}
             >
               <Trash className="h-3.5 w-3.5" />
               Disable account

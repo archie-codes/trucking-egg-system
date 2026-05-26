@@ -44,7 +44,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-import { createTripRecord, getTripHistorySuggestions } from "@/app/actions/trip-actions";
+import {
+  createTripRecord,
+  getTripHistorySuggestions,
+} from "@/app/actions/trip-actions";
 import { getActiveTrucks } from "@/app/actions/truck-actions";
 import {
   Save,
@@ -551,7 +554,7 @@ export default function NewTripPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-blue-50/50 dark:bg-slate-800/20 p-4 rounded-2xl border border-blue-100 dark:border-slate-800/60">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="origin"
                       control={form.control}
@@ -591,7 +594,7 @@ export default function NewTripPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent
-                              className="w-[350px] p-0 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
+                              className="w-[350px] p-0 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-200"
                               align="start"
                             >
                               <Command shouldFilter={false}>
@@ -1046,6 +1049,20 @@ export default function NewTripPage() {
                     />
                   </div>
                 </FieldGroup>
+
+                <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800/60 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      form.reset();
+                      setDieselMode("cash");
+                    }}
+                    className="h-10 px-6 rounded-xl text-sm font-semibold text-slate-500 hover:text-rose-600 border-slate-200 dark:border-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                  >
+                    Clear Form
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1093,7 +1110,7 @@ export default function NewTripPage() {
               type="submit"
               form="new-trip-form"
               disabled={form.formState.isSubmitting}
-              className="relative h-11 px-6 lg:px-8 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold shrink-0 w-full sm:w-auto mt-1 sm:mt-0"
+              className="relative h-11! px-6 lg:px-8 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold shrink-0 w-full sm:w-auto mt-1 sm:mt-0"
             >
               <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
 
