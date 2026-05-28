@@ -118,12 +118,12 @@ export default async function TripsHistoryPage() {
     .orderBy(desc(truckingTrips.createdAt));
 
   return (
-    <div className="mx-auto space-y-6 w-full min-w-0 overflow-hidden">
+    <div className="mx-auto flex flex-col h-[calc(100vh-112px)] w-full min-w-0 overflow-hidden gap-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1 relative">
           <div className="absolute -left-4 top-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl -z-10" />
           <div className="flex items-center gap-4 mb-1">
-            <h1 className="text-lg lg:text-xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-lg lg:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
               <span className="bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500">
                 Trips History
               </span>
@@ -143,7 +143,7 @@ export default async function TripsHistoryPage() {
         </Link>
       </div>
 
-      <div className="animate-in fade-in duration-300">
+      <div className="animate-in fade-in duration-300 flex-1 flex flex-col min-h-0">
         <DataTable columns={columns} data={data} />
       </div>
     </div>

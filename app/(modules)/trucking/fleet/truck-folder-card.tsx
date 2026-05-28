@@ -535,7 +535,7 @@ export function TruckFolderCard({
     return (
       <div
         onClick={handleOpenProfile}
-        className="relative group flex flex-col items-center justify-center w-full max-w-full sm:max-w-[270px] mx-auto h-[160px] cursor-pointer transition-transform duration-300 hover:scale-105"
+        className="relative group flex flex-col items-center justify-center w-full max-w-[320px] mx-auto aspect-[1.55] cursor-pointer transition-transform duration-300 hover:scale-105"
       >
         <div className="file relative w-full h-full origin-bottom perspective-[1500px] z-10">
           {/* Folder tab bg */}

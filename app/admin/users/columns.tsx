@@ -195,7 +195,13 @@ export const columns: ColumnDef<StaffRecord>[] = [
 ];
 
 // ── Action menu ───────────────────────────────────────────────────────────────
-function ActionMenu({ user, currentUserId }: { user: StaffRecord; currentUserId?: number | null }) {
+function ActionMenu({
+  user,
+  currentUserId,
+}: {
+  user: StaffRecord;
+  currentUserId?: number | null;
+}) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertAction, setAlertAction] = useState<"disable" | "restore" | null>(
@@ -374,7 +380,9 @@ function ActionMenu({ user, currentUserId }: { user: StaffRecord; currentUserId?
               onClick={(e) => {
                 if (currentUserId === user.id) {
                   e.preventDefault();
-                  toast.error("You cannot disable your own account while logged in.");
+                  toast.error(
+                    "You cannot disable your own account while logged in.",
+                  );
                   return;
                 }
                 e.preventDefault();
@@ -383,7 +391,7 @@ function ActionMenu({ user, currentUserId }: { user: StaffRecord; currentUserId?
               }}
               className={cn(
                 "cursor-pointer gap-2 py-2 text-sm font-medium rounded-lg text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30",
-                currentUserId === user.id && "opacity-50"
+                currentUserId === user.id && "opacity-50",
               )}
             >
               <Trash className="h-3.5 w-3.5" />

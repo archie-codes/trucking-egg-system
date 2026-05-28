@@ -108,10 +108,10 @@ export default async function TruckingLayout({
             )}
 
             <LtoNotificationBell />
-            
+
             {/* Divider before User Profile */}
             <div className="w-px h-4 md:h-6 bg-slate-700 mx-0.5 md:mx-1"></div>
-            
+
             <UserProfileMenu currentUser={currentUser} />
           </div>
         </header>

@@ -101,27 +101,87 @@ export const truckingTrips = pgTable("trucking_trips", {
 // ======================================================================
 
 // Tracks daily stock of different egg sizes (Small, Medium, Large, Jumbo, etc.)
+// export const eggInventory = pgTable("egg_inventory", {
+//   id: serial("id").primaryKey(),
+//   classification: varchar("classification", { length: 50 }).notNull().unique(), // e.g., "Large"
+//   currentStockTrays: integer("current_stock_trays").default(0).notNull(),
+//   pricePerTray: integer("price_per_tray").notNull(), // Assuming whole PHP
+
+//   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+// });
+
+// // Tracks individual transactions/sales
+// export const eggSales = pgTable("egg_sales", {
+//   id: serial("id").primaryKey(),
+//   customerId: varchar("customer_id", { length: 100 }).notNull(),
+
+//   // Relational link to the egg classification
+//   inventoryId: integer("inventory_id")
+//     .references(() => eggInventory.id)
+//     .notNull(),
+
+//   quantityTrays: integer("quantity_trays").notNull(),
+//   totalAmount: integer("total_amount").notNull(),
+
+//   // Payment status: 'paid', 'unpaid'
+//   paymentStatus: varchar("payment_status", { length: 20 })
+//     .default("unpaid")
+//     .notNull(),
+
+//   createdAt: timestamp("created_at").defaultNow().notNull(),
+// });
+
+// ======================================================================
+// 3. EGG INVENTORY & SALES MODULE (FIFO BATCH TRACKING)
+// ======================================================================
+
+// 1. INBOUND: Tracks the truck arrival and the sorted breakdown (QA)
+export const eggBatches = pgTable("egg_batches", {
+  id: serial("id").primaryKey(),
+  batchId: varchar("batch_id", { length: 50 }).notNull().unique(), // e.g., BATCH-20260528-01
+  arrivalDate: date("arrival_date").notNull(),
+  farmName: varchar("farm_name", { length: 255 }).notNull(),
+
+  // The truck's initial pickup count
+  rawTraysPickedUp: integer("raw_trays_picked_up").notNull(),
+
+  // The Bodega QA sorted counts (Good Inventory)
+  qtySmall: integer("qty_small").default(0).notNull(),
+  qtyMedium: integer("qty_medium").default(0).notNull(),
+  qtyLarge: integer("qty_large").default(0).notNull(),
+  qtyXl: integer("qty_xl").default(0).notNull(),
+  qtyXxl: integer("qty_xxl").default(0).notNull(),
+
+  // Spoilage / Losses
+  qtyCracked: integer("qty_cracked").default(0).notNull(),
+  qtyBroken: integer("qty_broken").default(0).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 2. LEDGER: Real-time stock summary for fast dashboard loading
 export const eggInventory = pgTable("egg_inventory", {
   id: serial("id").primaryKey(),
-  classification: varchar("classification", { length: 50 }).notNull().unique(), // e.g., "Large"
+  classification: varchar("classification", { length: 50 }).notNull().unique(), // SMALL, MEDIUM, LARGE, XL, XXL
   currentStockTrays: integer("current_stock_trays").default(0).notNull(),
-  pricePerTray: integer("price_per_tray").notNull(), // Assuming whole PHP
+  pricePerTray: real("price_per_tray").notNull(), // Changed to real for consistency with trucking
 
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
-// Tracks individual transactions/sales
+// 3. OUTBOUND: Tracks individual transactions/sales
 export const eggSales = pgTable("egg_sales", {
   id: serial("id").primaryKey(),
+  saleDate: date("sale_date").notNull(),
   customerId: varchar("customer_id", { length: 100 }).notNull(),
 
-  // Relational link to the egg classification
+  // Relational link to the egg classification ledger
   inventoryId: integer("inventory_id")
     .references(() => eggInventory.id)
     .notNull(),
 
   quantityTrays: integer("quantity_trays").notNull(),
-  totalAmount: integer("total_amount").notNull(),
+  totalAmount: real("total_amount").notNull(), // Changed to real for consistency
 
   // Payment status: 'paid', 'unpaid'
   paymentStatus: varchar("payment_status", { length: 20 })

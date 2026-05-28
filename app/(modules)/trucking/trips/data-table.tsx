@@ -1058,7 +1058,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const hasFilter = globalFilter.length > 0;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col flex-1 min-h-0 gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {/* Search Bar - Animated Expand (Laptop+ Only) */}
         <div
@@ -1217,11 +1217,10 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         </div>
       )}
 
-      <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table className={cn(textSizeClass, "w-full min-w-[640px]")}>
-            <TableHeader>
-              {table.getHeaderGroups().map((hg) => (
+      <div className="rounded-lg border border-border/60 bg-card flex flex-col flex-1 min-h-0 overflow-hidden [&>div]:flex-1 [&>div]:overflow-auto [&>div]:custom-scrollbar">
+        <Table className={cn(textSizeClass, "w-full min-w-[640px]")}>
+          <TableHeader className="sticky top-0 z-20 bg-card">
+            {table.getHeaderGroups().map((hg) => (
                 <TableRow
                   key={hg.id}
                   className="bg-muted/40 hover:bg-muted/40 border-b border-border/60"
@@ -1299,7 +1298,6 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               )}
             </TableBody>
           </Table>
-        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

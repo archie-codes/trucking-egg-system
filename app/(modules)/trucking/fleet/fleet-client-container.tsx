@@ -93,7 +93,7 @@ export function FleetClientContainer({ fleetData }: { fleetData: any[] }) {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-10 gap-x-4 sm:gap-y-12 sm:gap-x-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-y-10 gap-x-4 sm:gap-y-12 sm:gap-x-6">
           {sortedData.map((truck) => (
             <TruckFolderCard key={truck.id} truck={truck} viewMode="grid" />
           ))}
