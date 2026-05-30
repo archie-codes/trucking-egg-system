@@ -2021,7 +2021,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         setFormData({ ...formData, qtyNote: e.target.value })
                       }
                       placeholder="Notes (e.g. 5 DOA)"
-                      className="w-full h-full min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
+                      className="w-full h-11 min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
                     />
                   </div>
 
@@ -2036,7 +2036,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                       onChange={(e) => handleNumChange("rate", e.target.value)}
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-emerald-600"
-                      required
                     />
                   </div>
 
@@ -2070,7 +2069,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-[11px] font-bold text-slate-500 uppercase">
@@ -2080,14 +2079,14 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         <button
                           type="button"
                           onClick={() => handleDieselModeSwitch("cash")}
-                          className={`px-3 py-1 text-[10px] font-black uppercase rounded ${dieselMode === "cash" ? "bg-slate-100 dark:bg-slate-950 shadow-sm text-blue-600" : "text-slate-500"}`}
+                          className={`px-3 py-1 text-[10px] font-medium uppercase rounded ${dieselMode === "cash" ? "bg-slate-100 dark:bg-slate-950 shadow-sm text-blue-600" : "text-slate-500"}`}
                         >
                           CASH
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDieselModeSwitch("po")}
-                          className={`px-3 py-1 text-[10px] font-black uppercase rounded ${dieselMode === "po" ? "bg-slate-100 dark:bg-slate-950 shadow-sm text-emerald-600" : "text-slate-500"}`}
+                          className={`px-3 py-1 text-[10px] font-medium uppercase rounded ${dieselMode === "po" ? "bg-slate-100 dark:bg-slate-950 shadow-sm text-emerald-600" : "text-slate-500"}`}
                         >
                           P.O.
                         </button>
@@ -2149,7 +2148,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("salary", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600 mb-2"
+                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-xl font-mono text-rose-600 mb-2"
                     />
                     <textarea
                       value={formData.salaryNote}
@@ -2173,7 +2172,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("others", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600 mb-2"
+                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-xl font-mono text-rose-600 mb-2"
                     />
                     <textarea
                       value={formData.othersNote}

@@ -1174,29 +1174,29 @@ export function TruckFolderCard({
                 </Select>
               </EditField>
 
-              <DialogFooter className="pt-2 flex gap-2">
+              <DialogFooter className="pt-4 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}
-                  className="flex-1 h-10 rounded-xl text-sm font-medium border-border/60"
+                  className="w-full sm:w-auto sm:flex-1 h-11 rounded-xl text-sm font-semibold border-slate-200 dark:border-white/10 dark:text-white dark:bg-transparent dark:hover:bg-white/5 transition-colors"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isUpdating}
-                  className="flex-2 relative h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold"
+                  className="w-full sm:w-auto sm:flex-2 relative h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold border-none"
                 >
                   <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
 
                   {isUpdating ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
                     </>
                   ) : (
                     <>
-                      <Save className="w-5 h-5 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />{" "}
+                      <Save className="w-4 h-4 mr-2 transition-transform group-hover/btn:scale-110 duration-300" />{" "}
                       Save changes
                     </>
                   )}
