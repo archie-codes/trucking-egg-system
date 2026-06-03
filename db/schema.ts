@@ -138,12 +138,13 @@ export const truckingTrips = pgTable("trucking_trips", {
 // 1. INBOUND: Tracks the truck arrival and the sorted breakdown (QA)
 export const eggBatches = pgTable("egg_batches", {
   id: serial("id").primaryKey(),
-  batchId: varchar("batch_id", { length: 50 }).notNull().unique(), // e.g., BATCH-20260528-01
+  batchId: varchar("batch_id", { length: 50 }).notNull().unique(),
   arrivalDate: date("arrival_date").notNull(),
   farmName: varchar("farm_name", { length: 255 }).notNull(),
 
-  // The truck's initial pickup count
-  rawTraysPickedUp: integer("raw_trays_picked_up").notNull(),
+  // ✨ NEW: Explicitly store the driver's exact input
+  rawCasesPickedUp: integer("raw_cases_picked_up").default(0).notNull(),
+  rawTraysPickedUp: integer("raw_trays_picked_up").default(0).notNull(),
 
   // The Bodega QA sorted counts (Good Inventory)
   qtySmall: integer("qty_small").default(0).notNull(),
@@ -152,9 +153,10 @@ export const eggBatches = pgTable("egg_batches", {
   qtyXl: integer("qty_xl").default(0).notNull(),
   qtyXxl: integer("qty_xxl").default(0).notNull(),
 
-  // Spoilage / Losses
+  // Spoilage / Losses / Downgrades
   qtyCracked: integer("qty_cracked").default(0).notNull(),
   qtyBroken: integer("qty_broken").default(0).notNull(),
+  qtyDirty: integer("qty_dirty").default(0).notNull(), // ✨ NEW: Dirty Eggs
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -173,20 +175,28 @@ export const eggInventory = pgTable("egg_inventory", {
 export const eggSales = pgTable("egg_sales", {
   id: serial("id").primaryKey(),
   saleDate: date("sale_date").notNull(),
-  customerId: varchar("customer_id", { length: 100 }).notNull(),
+  customerId: varchar("customer_id", { length: 255 }).notNull(),
 
   // Relational link to the egg classification ledger
   inventoryId: integer("inventory_id")
     .references(() => eggInventory.id)
     .notNull(),
 
+  classification: varchar("classification", { length: 50 }).notNull(), // Small, Medium, XL
   quantityTrays: integer("quantity_trays").notNull(),
-  totalAmount: real("total_amount").notNull(), // Changed to real for consistency
 
-  // Payment status: 'paid', 'unpaid'
+  // Financials
+  pricePerTray: real("price_per_tray").notNull(),
+  totalAmount: real("total_amount").notNull(),
+  amountPaid: real("amount_paid").default(0).notNull(), // ✨ NEW: For tracking partial payments
+
+  // Accounts Receivable Tracking
   paymentStatus: varchar("payment_status", { length: 20 })
     .default("unpaid")
-    .notNull(),
+    .notNull(), // 'paid', 'unpaid', 'partial'
+  datePaid: date("date_paid"), // ✨ NEW: Matches her "DATE PAID" column
+
+  remarks: text("remarks"), // ✨ NEW: Matches her "REMARKS" column
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

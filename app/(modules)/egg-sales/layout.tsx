@@ -95,12 +95,16 @@ export default async function EggSalesLayout({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-slate-300 h-9 md:h-10 hover:bg-emerald-600 hover:text-white transition-colors rounded-lg px-2 md:px-3 py-1 md:py-2"
+                  className="relative h-9 md:h-10 px-2 md:px-3 rounded-lg text-slate-300 hover:text-white hover:bg-transparent transition-colors duration-300 overflow-hidden group/btn"
                   asChild
                 >
                   <Link href="/admin/users">
-                    <ShieldAlert className="w-4 h-4 md:mr-2" />
-                    <span className="hidden md:inline">Admin Portal</span>
+                    <div className="absolute inset-0 bg-linear-to-r from-emerald-600 to-teal-600 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+                    <ShieldAlert className="w-4 h-4 md:mr-2 transition-transform group-hover/btn:scale-110 duration-300 relative z-10" />
+                    <span className="hidden md:inline relative z-10">
+                      Admin Portal
+                    </span>
                   </Link>
                 </Button>
                 <div className="w-px h-4 md:h-6 bg-slate-700 mx-0.5 md:mx-1"></div>

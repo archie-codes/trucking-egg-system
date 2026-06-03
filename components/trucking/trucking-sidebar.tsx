@@ -355,7 +355,6 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
           </SheetClose>
         )}
       </div>
-
       {/* Collapse Toggle Button (Desktop Only) */}
       {!isMobile && (
         <button
@@ -369,9 +368,15 @@ export function TruckingSidebar({ isMobile = false }: { isMobile?: boolean }) {
           )}
         </button>
       )}
-
       {/* Navigation Links */}
       <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+        {(!isCollapsed || isMobile) && (
+          <div className="px-3 pb-2 mb-1 mt-1">
+            <h2 className="text-xs font-light text-slate-500 uppercase tracking-widest">
+              Menu
+            </h2>
+          </div>
+        )}
         {routes.map((route) => {
           // Check if current path starts with route href for parent highlighting
           const isActive =

@@ -8,6 +8,8 @@ import {
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   X,
 } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
@@ -33,12 +35,23 @@ const routes: Route[] = [
     label: "Receiving",
     icon: Egg,
     href: "/egg-sales/receiving",
+    subRoutes: [
+      {
+        label: "Receiving Egg",
+        href: "/egg-sales/receiving/receiving-egg",
+      },
+      {
+        label: "History",
+        href: "/egg-sales/receiving/history",
+      },
+    ],
   },
 ];
 
 export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   // Auto-collapse on Tablet screens (< 1024px)
   useEffect(() => {
@@ -123,6 +136,13 @@ export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
 
       {/* Navigation Links */}
       <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+        {(!isCollapsed || isMobile) && (
+          <div className="px-3 pb-2 mb-1 mt-1">
+            <h2 className="text-xs font-light text-slate-500 uppercase tracking-widest">
+              Menu
+            </h2>
+          </div>
+        )}
         {routes.map((route) => {
           // Check if current path starts with route href for parent highlighting
           const isActive =
@@ -131,19 +151,39 @@ export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
               : pathname?.startsWith(route.href);
 
           const hasSubRoutes = !!route.subRoutes;
-          const isExpanded =
+          const isChildActive =
             hasSubRoutes &&
             route.subRoutes!.some((sub) => pathname === sub.href);
+          const isExpanded =
+            hasSubRoutes &&
+            (expandedMenus.includes(route.label) ||
+              (isChildActive &&
+                !expandedMenus.includes(`closed_${route.label}`)));
+
+          const handleRouteClick = (e: React.MouseEvent) => {
+            if (hasSubRoutes) {
+              e.preventDefault(); // Prevent navigation
+              if (isExpanded) {
+                setExpandedMenus((prev) => [
+                  ...prev.filter((l) => l !== route.label),
+                  `closed_${route.label}`,
+                ]);
+              } else {
+                setExpandedMenus((prev) => [
+                  ...prev.filter((l) => l !== `closed_${route.label}`),
+                  route.label,
+                ]);
+              }
+            } else if (isMobile) {
+              document.getElementById("mobile-sheet-close")?.click();
+            }
+          };
 
           const LinkContent = (
             <div key={route.href} className="flex flex-col">
               <Link
-                href={route.href}
-                onClick={() => {
-                  if (isMobile) {
-                    document.getElementById("mobile-sheet-close")?.click();
-                  }
-                }}
+                href={hasSubRoutes ? "#" : route.href}
+                onClick={handleRouteClick}
                 className={`group flex items-center justify-between rounded-lg transition-all duration-200 text-[15px] ${
                   isCollapsed && !isMobile
                     ? "justify-center py-3"
@@ -167,6 +207,15 @@ export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
                     </span>
                   )}
                 </div>
+                {hasSubRoutes && (!isCollapsed || isMobile) && (
+                  <div className="text-slate-400 group-hover:text-amber-400 transition-colors">
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </div>
+                )}
               </Link>
 
               {/* SubRoutes */}

@@ -45,10 +45,11 @@ import {
   FileSpreadsheet,
   Type,
   X,
+  PackageOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type TripRecord } from "./columns";
+import { type EggBatchRecord } from "./columns";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -92,55 +93,37 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
-  const extractReportMetadata = (rows: { original: TripRecord }[]) => {
-    const truckSet = new Set(
-      rows.map(
-        (r) =>
-          `${r.original.fleetCode || "N/A"} - ${r.original.plateNumber || "NO PLATE"}`,
+  const extractReportMetadata = (rows: { original: EggBatchRecord }[]) => {
+    const farmSet = new Set(rows.map((r) => r.original.farmName));
+    const yearSet = new Set(
+      rows.map((r) =>
+        new Date(r.original.arrivalDate).getFullYear().toString(),
       ),
     );
-    const yearSet = new Set(
-      rows.map((r) => new Date(r.original.date).getFullYear().toString()),
-    );
-    const customerSet = new Set(rows.map((r) => r.original.customerId));
-    const routeSet = new Set(rows.map((r) => r.original.destination));
 
-    let totalGross = 0;
-    let totalExpenses = 0;
+    let totalGood = 0;
+    let totalLosses = 0;
+
     rows.forEach((r) => {
       const d = r.original;
-      totalGross += d.qtyHeads * d.rate;
-      totalExpenses +=
-        d.tollFees +
-        d.dieselCash +
-        d.dieselPo +
-        d.meals +
-        d.roroShip +
-        d.salary +
-        d.others;
+      totalGood += d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+      totalLosses += d.qtyCracked + d.qtyBroken + d.qtyDirty;
     });
 
-    const totalNet = totalGross - totalExpenses;
-    const fmt = (n: number) =>
-      `PHP ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
     return {
-      truckName: truckSet.size === 1 ? Array.from(truckSet)[0] : "All Trucks",
+      farmName: farmSet.size === 1 ? Array.from(farmSet)[0] : "All Farms",
       periodYear: yearSet.size === 1 ? Array.from(yearSet)[0] : "All Years",
-      customerName:
-        customerSet.size === 1 ? Array.from(customerSet)[0] : "All Customers",
-      routeName: routeSet.size === 1 ? Array.from(routeSet)[0] : "All Routes",
-      totalTrips: rows.length.toString(),
-      totalGross: fmt(totalGross),
-      totalExpenses: fmt(totalExpenses),
-      totalNet: fmt(totalNet),
+      totalDeliveries: rows.length.toString(),
+      totalGoodPieces: totalGood.toLocaleString(),
+      totalLosses: totalLosses.toLocaleString(),
+      grandTotal: (totalGood + totalLosses).toLocaleString(),
     };
   };
 
   const exportToCSV = () => {
     try {
       const rows = table.getFilteredRowModel().rows as unknown as {
-        original: TripRecord;
+        original: EggBatchRecord;
       }[];
       if (!rows.length) {
         toast.error("No data to export.");
@@ -149,82 +132,59 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       const meta = extractReportMetadata(rows);
 
       const metaHeader = [
-        `"Fhernie Logistics - Trip Ledger"`,
-        `"${meta.truckName}"`,
+        `"Otso Dragon - Receiving Ledger"`,
+        `"Farm Origin : ${meta.farmName}"`,
         `"Period / Year : ${meta.periodYear}"`,
-        `"Customer / Client : ${meta.customerName}"`,
-        `"Delivery Route: ${meta.routeName}"`,
         `"Generated on: ${new Date().toLocaleDateString("en-US")}"`,
         `""`,
-        `"FINANCIAL SUMMARY"`,
-        `"Total Trips: ${meta.totalTrips}"`,
-        `"Collectibles: ${meta.totalGross}"`,
-        `"Expenses: ${meta.totalExpenses}"`,
-        `"Net Income: ${meta.totalNet}"`,
+        `"QA SUMMARY"`,
+        `"Total Deliveries: ${meta.totalDeliveries}"`,
+        `"Good Inventory (Pcs): ${meta.totalGoodPieces}"`,
+        `"Total Losses (Pcs): ${meta.totalLosses}"`,
+        `"Grand Total Volume: ${meta.grandTotal}"`,
         `""`,
       ].join("\n");
 
-      // ✨ UPDATED HEADERS TO INCLUDE NOTES
       const headers = [
         "Date",
-        "Truck",
-        "Plate No.",
-        "Customer",
+        "Batch ID",
         "Farm Name",
-        "Origin",
-        "Destination",
-        "Qty (Heads)",
-        "Qty Note",
-        "Rate",
-        "Gross Collectible",
-        "Toll Fees",
-        "Diesel (Cash)",
-        "Diesel (PO)",
-        "Meals",
-        "Roro",
-        "Salary",
-        "Salary Note",
-        "Others",
-        "Others Note",
-        "Total Expenses",
-        "Net Income",
+        "Raw Cases",
+        "Raw Trays",
+        "Small",
+        "Medium",
+        "Large",
+        "XL",
+        "XXL",
+        "Cracked",
+        "Broken",
+        "Dirty",
+        "Total Good Pcs",
+        "Total Bad Egg",
       ];
 
-      const csvData = rows.map((row: { original: TripRecord }) => {
+      const csvData = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
-        const collectible = d.qtyHeads * d.rate;
-        const expenses =
-          d.tollFees +
-          d.dieselCash +
-          d.dieselPo +
-          d.meals +
-          d.roroShip +
-          d.salary +
-          d.others;
+        const totalGood =
+          d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+        const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
 
         return [
-          new Date(d.date).toLocaleDateString(),
-          d.fleetCode || "N/A",
-          d.plateNumber || "N/A",
-          `"${d.customerId}"`,
-          `"${d.farmName || ""}"`,
-          `"${d.origin}"`,
-          `"${d.destination}"`,
-          d.qtyHeads,
-          `"${d.qtyNote || ""}"`, // ✨ ADDED QTY NOTE
-          d.rate,
-          collectible,
-          d.tollFees,
-          d.dieselCash,
-          d.dieselPo,
-          d.meals,
-          d.roroShip,
-          d.salary,
-          `"${d.salaryNote || ""}"`, // ✨ ADDED SALARY NOTE
-          d.others,
-          `"${d.othersNote || ""}"`, // ✨ ADDED OTHERS NOTE
-          expenses,
-          collectible - expenses,
+          new Date(d.arrivalDate).toLocaleDateString(),
+          `"${d.batchId}"`,
+          `"${d.farmName}"`,
+          d.rawCasesPickedUp,
+          d.rawTraysPickedUp,
+          d.qtySmall,
+          d.qtyMedium,
+          d.qtyLarge,
+          d.qtyXl,
+          d.qtyXxl,
+          d.qtyCracked,
+          d.qtyBroken,
+          d.qtyDirty,
+          totalGood,
+          totalLoss,
         ].join(",");
       });
 
@@ -237,7 +197,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       link.setAttribute("href", url);
       link.setAttribute(
         "download",
-        `Fhernie_Trips_Export_${getFormattedDate()}.csv`,
+        `Bodega_Receiving_Export_${getFormattedDate()}.csv`,
       );
       document.body.appendChild(link);
       link.click();
@@ -252,75 +212,72 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const exportToPDF = () => {
     try {
       const rows = table.getFilteredRowModel().rows as unknown as {
-        original: TripRecord;
+        original: EggBatchRecord;
       }[];
       if (!rows.length) {
         toast.error("No data to export.");
         return;
       }
       const meta = extractReportMetadata(rows);
-      const doc = new jsPDF("l", "pt", [612, 936]);
-      const fmt = (n: number) =>
-        n.toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
+      const doc = new jsPDF("l", "pt", "a4");
 
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.text("Fhernie Logistics - Trip Ledger", 40, 40);
+      doc.setTextColor(245, 158, 11); // Amber 500
+      doc.text("Otso Dragon - Receiving Ledger", 40, 40);
+
+      doc.setTextColor(51, 65, 85); // Slate 700
       doc.setFontSize(14);
-      doc.text(meta.truckName, 40, 60);
+      doc.text(meta.farmName, 40, 60);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text(`Period / Year : ${meta.periodYear}`, 40, 80);
-      doc.text(`Customer / Client : ${meta.customerName}`, 40, 95);
-      doc.text(`Delivery Route: ${meta.routeName}`, 40, 110);
       doc.text(
         `Generated on: ${new Date().toLocaleDateString("en-US")}`,
         40,
-        125,
+        95,
       );
+
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.text("FINANCIAL SUMMARY", 896, 60, { align: "right" });
+      doc.text("QA SUMMARY", 800, 60, { align: "right" });
       doc.setFont("helvetica", "normal");
-      doc.text(`Total Trips: ${meta.totalTrips}`, 896, 75, { align: "right" });
-      doc.text(`Collectibles: ${meta.totalGross}`, 896, 90, { align: "right" });
-      doc.text(`Expenses: ${meta.totalExpenses}`, 896, 105, { align: "right" });
+      doc.text(`Total Deliveries: ${meta.totalDeliveries}`, 800, 75, {
+        align: "right",
+      });
+      doc.text(`Good Inventory (Pcs): ${meta.totalGoodPieces}`, 800, 90, {
+        align: "right",
+      });
+      doc.text(`Losses (Pcs): ${meta.totalLosses}`, 800, 105, {
+        align: "right",
+      });
       doc.setFont("helvetica", "bold");
-      doc.text(`Net Income: ${meta.totalNet}`, 896, 120, { align: "right" });
+      doc.text(`Grand Total (Pcs): ${meta.grandTotal}`, 800, 120, {
+        align: "right",
+      });
 
-      const tableRows = rows.map((row: { original: TripRecord }) => {
+      const tableRows = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
-        const gross = d.qtyHeads * d.rate;
-        const expenses =
-          d.tollFees +
-          d.dieselCash +
-          d.dieselPo +
-          d.meals +
-          d.roroShip +
-          d.salary +
-          d.others;
+        const totalGood =
+          d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+        const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
+
         return [
-          new Date(d.date).toLocaleDateString(),
-          `${d.fleetCode || "N/A"}\n${d.plateNumber || ""}`,
-          d.customerId,
-          d.farmName || "-",
-          d.origin,
-          d.destination,
-          d.qtyHeads.toString(),
-          fmt(d.rate),
-          fmt(gross),
-          fmt(d.tollFees),
-          fmt(d.dieselCash),
-          fmt(d.dieselPo),
-          fmt(d.meals),
-          fmt(d.roroShip),
-          fmt(d.salary),
-          fmt(d.others),
-          fmt(expenses),
-          fmt(gross - expenses),
+          new Date(d.arrivalDate).toLocaleDateString(),
+          d.batchId,
+          d.farmName,
+          d.rawCasesPickedUp.toString(),
+          d.rawTraysPickedUp.toString(),
+          d.qtySmall > 0 ? d.qtySmall.toString() : "-",
+          d.qtyMedium > 0 ? d.qtyMedium.toString() : "-",
+          d.qtyLarge > 0 ? d.qtyLarge.toString() : "-",
+          d.qtyXl > 0 ? d.qtyXl.toString() : "-",
+          d.qtyXxl > 0 ? d.qtyXxl.toString() : "-",
+          d.qtyCracked > 0 ? d.qtyCracked.toString() : "-",
+          d.qtyBroken > 0 ? d.qtyBroken.toString() : "-",
+          d.qtyDirty > 0 ? d.qtyDirty.toString() : "-",
+          totalGood.toLocaleString(),
+          totalLoss.toLocaleString(),
         ];
       });
 
@@ -328,47 +285,48 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         head: [
           [
             "Date",
-            "Truck",
-            "Customer",
+            "Batch ID",
             "Farm",
-            "Origin",
-            "Destination",
-            "Qty HDS",
-            "Rate",
-            "Collectible",
-            "Toll",
-            "Diesel(Cash)",
-            "Diesel(P.O)",
-            "Meals",
-            "Roro",
-            "Salary",
-            "Others",
-            "Total Exp",
-            "Net",
+            "Cases",
+            "Trays",
+            "S",
+            "M",
+            "L",
+            "XL",
+            "XXL",
+            "Cracked",
+            "Broken",
+            "Dirty",
+            "Total Good",
+            "Total Bad Egg",
           ],
         ],
         body: tableRows,
         startY: 145,
         theme: "grid",
-        styles: { fontSize: 6.5, cellPadding: 3, overflow: "linebreak" },
-        headStyles: { fillColor: [37, 99, 235], fontSize: 7, halign: "center" },
+        styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak" },
+        headStyles: {
+          fillColor: [245, 158, 11],
+          fontSize: 8,
+          halign: "center",
+        }, // Amber 500
         columnStyles: {
-          6: { halign: "center" },
-          7: { halign: "right" },
-          8: { halign: "right", fontStyle: "bold" },
-          9: { halign: "right" },
-          10: { halign: "right" },
-          11: { halign: "right" },
-          12: { halign: "right" },
-          13: { halign: "right" },
-          14: { halign: "right" },
-          15: { halign: "right" },
-          16: { halign: "right", textColor: [225, 29, 72], fontStyle: "bold" },
-          17: { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" },
+          3: { halign: "right", textColor: [217, 119, 6] },
+          4: { halign: "right", textColor: [217, 119, 6] },
+          5: { halign: "right", textColor: [37, 99, 235] },
+          6: { halign: "right", textColor: [37, 99, 235] },
+          7: { halign: "right", textColor: [37, 99, 235] },
+          8: { halign: "right", textColor: [37, 99, 235] },
+          9: { halign: "right", textColor: [37, 99, 235] },
+          10: { halign: "right", textColor: [225, 29, 72] },
+          11: { halign: "right", textColor: [225, 29, 72] },
+          12: { halign: "right", textColor: [234, 88, 12] },
+          13: { halign: "right", fontStyle: "bold", textColor: [37, 99, 235] },
+          14: { halign: "right", fontStyle: "bold", textColor: [225, 29, 72] },
         },
       });
 
-      doc.save(`Fhernie_Comprehensive_Ledger_${getFormattedDate()}.pdf`);
+      doc.save(`Bodega_Receiving_Ledger_${getFormattedDate()}.pdf`);
       toast.success("PDF downloaded successfully.");
     } catch (e) {
       console.error(e);
@@ -397,16 +355,16 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             className={cn(
               "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
               hasFilter
-                ? "text-blue-500"
-                : "text-slate-500 dark:text-slate-400 sm:group-focus-within:text-blue-500",
+                ? "text-amber-500"
+                : "text-slate-500 dark:text-slate-400 sm:group-focus-within:text-amber-500",
             )}
           />
           <Input
-            placeholder="Search trips, customers, routes…"
+            placeholder="Search batches, farms..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className={cn(
-              "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-blue-500/40",
+              "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-amber-500/40",
               hasFilter
                 ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 sm:pr-0 sm:rounded-full sm:text-transparent sm:placeholder:text-transparent sm:cursor-pointer sm:hover:bg-slate-200/50 sm:dark:hover:bg-slate-800/80 sm:group-focus-within:bg-white sm:group-focus-within:dark:bg-slate-900 sm:group-focus-within:pr-10 sm:group-focus-within:rounded-xl sm:group-focus-within:text-foreground sm:group-focus-within:placeholder:text-slate-400 sm:group-focus-within:dark:placeholder:text-slate-500 sm:group-focus-within:cursor-text",
@@ -444,7 +402,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   className={cn(
                     "px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors",
                     textSize === size
-                      ? "bg-blue-600 text-white"
+                      ? "bg-amber-600 text-white"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted",
                   )}
                 >
@@ -458,7 +416,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(v) => table.setPageSize(Number(v))}
           >
-            <SelectTrigger className="h-8 sm:h-9 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-blue-500/40">
+            <SelectTrigger className="h-8 sm:h-9 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-amber-500/40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-110">
@@ -474,7 +432,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
-                className="h-8 sm:h-9 gap-1 sm:gap-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[10px] sm:text-xs font-medium rounded-lg px-2 sm:px-3 shadow-none border-0"
+                className="h-8 sm:h-9 gap-1 sm:gap-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-[10px] sm:text-xs font-medium rounded-lg px-2 sm:px-3 shadow-none border-0"
               >
                 <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 <span>Export</span>
@@ -527,13 +485,13 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           <span className="text-xs text-muted-foreground">
             {filteredCount === 0
               ? "No results"
-              : `${filteredCount} trip${filteredCount !== 1 ? "s" : ""} matching`}
+              : `${filteredCount} record${filteredCount !== 1 ? "s" : ""} matching`}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/40">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/40">
             {globalFilter}
             <button
               onClick={() => setGlobalFilter("")}
-              className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100"
+              className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100"
             >
               <X className="h-3 w-3" />
             </button>
@@ -555,8 +513,6 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                     className={cn(
                       textSizeClass,
                       "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
-                      header.id === "actions" &&
-                        "sticky right-0 bg-muted/40 z-10 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
                     )}
                   >
                     {header.isPlaceholder
@@ -579,7 +535,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   className={cn(
                     "border-b border-border/40 transition-colors",
                     i % 2 === 0 ? "bg-card" : "bg-muted",
-                    "hover:bg-blue-50/50 dark:hover:bg-blue-950/20",
+                    "hover:bg-amber-50/50 dark:hover:bg-amber-950/20",
                     "animate-in fade-in slide-in-from-right-8 duration-500 fill-mode-both"
                   )}
                   style={{ animationDelay: `${i * 40}ms` }}
@@ -587,14 +543,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={cn(
-                        textSizeClass,
-                        "py-2.5",
-                        cell.column.id === "actions" &&
-                          "sticky right-0 z-10 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
-                        cell.column.id === "actions" &&
-                          (i % 2 === 0 ? "bg-card" : "bg-muted"),
-                      )}
+                      className={cn(textSizeClass, "py-2.5")}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -611,12 +560,12 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   className="h-40 text-center"
                 >
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <FileText className="h-8 w-8 opacity-20" />
-                    <p className="text-sm font-medium">No trips found</p>
+                    <PackageOpen className="h-8 w-8 opacity-20" />
+                    <p className="text-sm font-medium">No records found</p>
                     <p className="text-xs opacity-70">
                       {hasFilter
                         ? "Try adjusting your search."
-                        : "Start encoding to see your data."}
+                        : "Start receiving eggs to see your data."}
                     </p>
                   </div>
                 </TableCell>
@@ -634,7 +583,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           </span>{" "}
           of{" "}
           <span className="font-medium text-foreground">{filteredCount}</span>{" "}
-          trip{filteredCount !== 1 ? "s" : ""}
+          record{filteredCount !== 1 ? "s" : ""}
           {pageCount > 1 && (
             <span className="text-muted-foreground/60">
               {" "}
@@ -673,7 +622,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   className={cn(
                     "w-7 h-8 rounded-lg text-xs font-medium transition-colors",
                     isActive
-                      ? "bg-blue-600 text-white"
+                      ? "bg-amber-600 text-white"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
