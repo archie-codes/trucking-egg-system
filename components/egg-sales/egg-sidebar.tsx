@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  ShoppingBag,
 } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
 
@@ -43,6 +44,21 @@ const routes: Route[] = [
       {
         label: "History",
         href: "/egg-sales/receiving/history",
+      },
+    ],
+  },
+  {
+    label: "Sales",
+    icon: ShoppingBag,
+    href: "/egg-sales/sales",
+    subRoutes: [
+      {
+        label: "New Sale",
+        href: "/egg-sales/sales/new-sale",
+      },
+      {
+        label: "History",
+        href: "/egg-sales/sales/history",
       },
     ],
   },

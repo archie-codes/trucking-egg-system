@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bell, AlertTriangle, CalendarX2 } from "lucide-react";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format, isBefore, startOfDay, addDays } from "date-fns";
 import {
   Popover,
   PopoverContent,
@@ -60,13 +60,13 @@ export function LtoNotificationBell() {
         <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
           <h4 className="font-bold text-sm flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-500" />
-            LTO Expiry Alerts
+            Fleet Expiry Alerts
           </h4>
           <Badge
             variant="secondary"
             className="bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border-0"
           >
-            {alerts.length} Action Needed
+            {alerts.length > 0 ? "Action Needed" : "0 Alerts"}
           </Badge>
         </div>
 
@@ -78,18 +78,39 @@ export function LtoNotificationBell() {
                 All fleets are up to date.
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                No LTO renewals needed within 7 days.
+                No LTO or BAI renewals needed within 7 days.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {alerts.map((truck) => {
-                const expiryDate = new Date(truck.ltoExpiry);
-                const isExpired = isBefore(expiryDate, today);
+              {alerts.flatMap((truck) => {
+                const alertsList = [];
+                const today = startOfDay(new Date());
+                const targetDate = addDays(today, 7);
+
+                if (truck.ltoExpiry) {
+                  const ltoDate = new Date(truck.ltoExpiry);
+                  if (ltoDate <= targetDate) {
+                    alertsList.push({ ...truck, type: "LTO", date: ltoDate });
+                  }
+                }
+
+                if (truck.baiExpiry) {
+                  const baiDate = new Date(truck.baiExpiry);
+                  if (baiDate <= targetDate) {
+                    alertsList.push({ ...truck, type: "BAI", date: baiDate });
+                  }
+                }
+
+                return alertsList;
+              })
+              .sort((a, b) => a.date.getTime() - b.date.getTime())
+              .map((alert, index) => {
+                const isExpired = isBefore(alert.date, today);
 
                 return (
                   <div
-                    key={truck.id}
+                    key={`${alert.id}-${alert.type}-${index}`}
                     className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-start gap-3"
                   >
                     <div
@@ -97,15 +118,15 @@ export function LtoNotificationBell() {
                     />
                     <div>
                       <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                        {truck.fleetCode}{" "}
+                        {alert.fleetCode}{" "}
                         <span className="font-normal text-slate-500">-</span>{" "}
-                        <span className="font-mono">{truck.plateNumber}</span>
+                        <span className="font-mono">{alert.plateNumber}</span>
                       </p>
                       <p
                         className={`text-xs mt-0.5 font-medium ${isExpired ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}
                       >
-                        {isExpired ? "Expired on: " : "Expiring on: "}
-                        {format(expiryDate, "MMM dd, yyyy")}
+                        <span className="font-bold">{alert.type}</span> {isExpired ? "Expired on: " : "Expiring on: "}
+                        {format(alert.date, "MMM dd, yyyy")}
                       </p>
                     </div>
                   </div>

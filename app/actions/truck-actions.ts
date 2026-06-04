@@ -4,7 +4,7 @@
 import { db } from "@/db";
 import { truckingFleet, truckingTrips } from "@/db/schema";
 import { addDays, format } from "date-fns";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -21,6 +21,7 @@ const registerTruckSchema = z.object({
   engineNo: z.string().optional(),
   chassisNo: z.string().optional(),
   ltoExpiry: z.string().optional(),
+  baiExpiry: z.string().optional(),
 });
 
 export async function registerTruck(formData: FormData) {
@@ -33,6 +34,7 @@ export async function registerTruck(formData: FormData) {
       engineNo: formData.get("engineNo"),
       chassisNo: formData.get("chassisNo"),
       ltoExpiry: formData.get("ltoExpiry"),
+      baiExpiry: formData.get("baiExpiry"),
     });
 
     if (!validatedData.success) {
@@ -42,8 +44,15 @@ export async function registerTruck(formData: FormData) {
       };
     }
 
-    const { fleetCode, plateNumber, status, engineNo, chassisNo, ltoExpiry } =
-      validatedData.data;
+    const {
+      fleetCode,
+      plateNumber,
+      status,
+      engineNo,
+      chassisNo,
+      ltoExpiry,
+      baiExpiry,
+    } = validatedData.data;
 
     // 2. Check for duplicates! No two trucks can have the same Fleet Code or Plate.
     const [existingTruck] = await db
@@ -78,6 +87,7 @@ export async function registerTruck(formData: FormData) {
       engineNo: engineNo || null, // ✨ Save as null if left blank
       chassisNo: chassisNo || null, // ✨ Save as null if left blank
       ltoExpiry: ltoExpiry || null, // ✨ Save as null if left blank
+      baiExpiry: baiExpiry || null, // ✨ Save as null if left blank
     });
 
     // 4. Refresh the Fleet page so the new truck appears instantly
@@ -190,6 +200,7 @@ export async function updateTruck(
     engineNo?: string; // ✨ Added
     chassisNo?: string; // ✨ Added
     ltoExpiry?: string; // ✨ Added
+    baiExpiry?: string; // ✨ Added
   },
 ) {
   try {
@@ -202,6 +213,7 @@ export async function updateTruck(
         engineNo: data.engineNo || null, // ✨ Converts empty string to null to keep DB clean
         chassisNo: data.chassisNo || null,
         ltoExpiry: data.ltoExpiry || null,
+        baiExpiry: data.baiExpiry || null,
       })
       .where(eq(truckingFleet.id, truckId));
 
@@ -217,7 +229,7 @@ export async function updateTruck(
 // LTO Alerts Action
 // ============================================================================
 
-import { isNotNull, and, lte, asc } from "drizzle-orm";
+import { isNotNull, and, lte, or } from "drizzle-orm";
 
 export async function getLtoAlerts() {
   try {
@@ -225,27 +237,35 @@ export async function getLtoAlerts() {
     const targetDate = addDays(new Date(), 7);
     const formattedTargetDate = format(targetDate, "yyyy-MM-dd");
 
-    // 2. Fetch active trucks where LTO expiry is less than or equal to 7 days from now
+    // 2. Fetch active trucks where LTO expiry or BAI expiry is less than or equal to 7 days from now
     const expiringTrucks = await db
       .select({
         id: truckingFleet.id,
         fleetCode: truckingFleet.fleetCode,
         plateNumber: truckingFleet.plateNumber,
         ltoExpiry: truckingFleet.ltoExpiry,
+        baiExpiry: truckingFleet.baiExpiry,
       })
       .from(truckingFleet)
       .where(
         and(
           eq(truckingFleet.status, "active"), // Only alert for active trucks
-          isNotNull(truckingFleet.ltoExpiry),
-          lte(truckingFleet.ltoExpiry, formattedTargetDate),
+          or(
+            and(
+              isNotNull(truckingFleet.ltoExpiry),
+              lte(truckingFleet.ltoExpiry, formattedTargetDate),
+            ),
+            and(
+              isNotNull(truckingFleet.baiExpiry),
+              lte(truckingFleet.baiExpiry, formattedTargetDate),
+            ),
+          ),
         ),
-      )
-      .orderBy(asc(truckingFleet.ltoExpiry));
+      );
 
     return { success: true, data: expiringTrucks };
   } catch (error) {
-    console.error("Failed to fetch LTO alerts:", error);
+    console.error("Failed to fetch LTO/BAI alerts:", error);
     return { success: false, error: "Failed to load alerts." };
   }
 }

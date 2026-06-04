@@ -1,32 +1,35 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { getEggBatchHistory } from "@/app/actions/egg-actions";
-import { eggBatches } from "@/db/schema";
-import Loading from "@/app/(modules)/egg-sales/loading";
-import { DataTable } from "./data-table";
-import { columns } from "./columns";
+import { HistoryTable } from "./data-table";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { decodeJwt } from "jose";
 
-export default function ReceivedHistoryPage() {
-  const [batches, setBatches] = useState<(typeof eggBatches.$inferSelect)[]>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
+export const dynamic = "force-dynamic";
 
-  useEffect(() => {
-    async function loadHistory() {
-      const res = await getEggBatchHistory();
-      if (res.success) {
-        setBatches(res.data);
-      }
-      setLoading(false);
-    }
-    loadHistory();
-  }, []);
+async function getCurrentUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  if (!token) return null;
 
-  if (loading) {
-    return <Loading />;
+  try {
+    const payload = decodeJwt(token);
+    const userId = payload.id as number;
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    return user;
+  } catch (error) {
+    console.error("Error decoding JWT:", error);
+    return null;
   }
+}
+
+export default async function ReceivedHistoryPage() {
+  const res = await getEggBatchHistory();
+  const batches = res.success ? res.data : [];
+
+  const currentUser = await getCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
 
   return (
     <div className="mx-auto flex flex-col h-[calc(100vh-112px)] w-full min-w-0 overflow-hidden gap-6">
@@ -45,7 +48,7 @@ export default function ReceivedHistoryPage() {
       </div>
 
       <div className="animate-in fade-in duration-300 flex-1 flex flex-col min-h-0">
-        <DataTable columns={columns} data={batches} />
+        <HistoryTable data={batches} isAdmin={isAdmin} />
       </div>
     </div>
   );

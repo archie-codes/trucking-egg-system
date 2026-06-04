@@ -37,6 +37,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Search,
   ChevronLeft,
   ChevronRight,
@@ -49,10 +56,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type EggBatchRecord } from "./columns";
-
+import { type EggBatchRecord, getColumns } from "./columns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+export function HistoryTable({
+  data,
+  isAdmin,
+}: {
+  data: EggBatchRecord[];
+  isAdmin: boolean;
+}) {
+  return <DataTable columns={getColumns(isAdmin)} data={data} />;
+}
 
 interface DataTableProps<TData> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,6 +84,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   );
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
+  const [viewData, setViewData] = React.useState<EggBatchRecord | null>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -513,6 +530,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                     className={cn(
                       textSizeClass,
                       "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
+                      header.id === "actions" &&
+                        "sticky right-0 bg-muted/40 z-10 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
                     )}
                   >
                     {header.isPlaceholder
@@ -533,17 +552,30 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className={cn(
-                    "border-b border-border/40 transition-colors",
+                    "border-b border-border/40 transition-colors cursor-pointer",
                     i % 2 === 0 ? "bg-card" : "bg-muted",
                     "hover:bg-amber-50/50 dark:hover:bg-amber-950/20",
-                    "animate-in fade-in slide-in-from-right-8 duration-500 fill-mode-both"
+                    "animate-in fade-in slide-in-from-right-8 duration-500 fill-mode-both",
                   )}
                   style={{ animationDelay: `${i * 40}ms` }}
+                  onClick={() => setViewData(row.original as EggBatchRecord)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={cn(textSizeClass, "py-2.5")}
+                      className={cn(
+                        textSizeClass,
+                        "py-2.5",
+                        cell.column.id === "actions" &&
+                          "sticky right-0 z-10 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
+                        cell.column.id === "actions" &&
+                          (i % 2 === 0 ? "bg-card" : "bg-muted"),
+                      )}
+                      onClick={(e) => {
+                        if (cell.column.id === "actions") {
+                          e.stopPropagation();
+                        }
+                      }}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -644,6 +676,206 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           </Button>
         </div>
       </div>
+      {/* View Details Modal */}
+      <Dialog
+        open={!!viewData}
+        onOpenChange={(open) => {
+          if (!open) setViewData(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-xl border-0 shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-amber-500 to-orange-500" />
+
+          <DialogHeader className="px-6 pt-6 pb-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                <PackageOpen className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white">
+                  Batch Details
+                </DialogTitle>
+                <DialogDescription className="text-slate-500 dark:text-slate-400">
+                  Comprehensive breakdown of received inventory
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {viewData &&
+            (() => {
+              const expectedTotal =
+                viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp;
+              const goodTotal =
+                viewData.qtyXs +
+                viewData.qtySmall +
+                viewData.qtyMedium +
+                viewData.qtyLarge +
+                viewData.qtyXl +
+                viewData.qtyXxl;
+              const spoilageTotal =
+                viewData.qtyCracked + viewData.qtyBroken + viewData.qtyDirty;
+
+              return (
+                <div className="p-4 sm:p-5 space-y-3 bg-slate-50/50 dark:bg-slate-950/50 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                  {/* Info Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Batch ID
+                      </span>
+                      <div className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
+                        {viewData.batchId}
+                      </div>
+                    </div>
+                    <div className="space-y-1 sm:border-l sm:border-t-0 border-t border-slate-100 dark:border-slate-800 sm:pl-4 pt-3 sm:pt-0">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Arrival Date
+                      </span>
+                      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        {viewData.arrivalDate}
+                      </div>
+                    </div>
+                    <div className="space-y-1 sm:border-l sm:border-t-0 border-t border-slate-100 dark:border-slate-800 sm:pl-4 pt-3 sm:pt-0">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Farm Origin
+                      </span>
+                      <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase truncate">
+                        {viewData.farmName}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Manifest Summary Banner */}
+                  <div className="bg-indigo-50/50 dark:bg-indigo-950/20 p-4 rounded-lg border border-indigo-100 dark:border-indigo-900/30 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                    <div>
+                      <div className="text-xs font-bold text-indigo-800/60 dark:text-indigo-400/60 uppercase tracking-wider mb-2">
+                        EGG DELIVERY DETAILS
+                      </div>
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+                        <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300">
+                          {viewData.rawCasesPickedUp}
+                        </span>{" "}
+                        <span className="text-sm text-indigo-600/70 dark:text-indigo-400/70 mr-2">
+                          cases
+                        </span>
+                        <span className="text-indigo-300 dark:text-indigo-700 font-bold mr-2">
+                          +
+                        </span>
+                        <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300">
+                          {viewData.rawTraysPickedUp}
+                        </span>{" "}
+                        <span className="text-sm text-indigo-600/70 dark:text-indigo-400/70">
+                          trays
+                        </span>
+                      </div>
+                    </div>
+                    <div className="hidden sm:block w-px h-10 bg-indigo-200/60 dark:bg-indigo-800/60"></div>
+                    <div className="border-t border-indigo-200/60 dark:border-indigo-800/60 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto text-center sm:text-right">
+                      <div className="text-2xl font-bold font-mono text-indigo-700 dark:text-indigo-400 leading-none">
+                        {expectedTotal}{" "}
+                        <span className="text-sm font-sans font-medium opacity-70">
+                          trays
+                        </span>
+                      </div>
+                      <div className="text-[15px] font-bold text-indigo-600/70 dark:text-indigo-400/70 mt-1">
+                        {(expectedTotal * 30).toLocaleString()} total eggs
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detailed Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                    {/* Good Inventory */}
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+                      <div className="bg-slate-50 dark:bg-slate-900/50 px-4 h-11 border-b border-slate-200 dark:border-slate-800 flex items-center">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                          Good Eggs
+                        </span>
+                      </div>
+                      <div className="p-3 space-y-1 flex-1">
+                        {[
+                          { label: "Jumbo (XXL)", value: viewData.qtyXxl },
+                          { label: "Extra Large", value: viewData.qtyXl },
+                          { label: "Large", value: viewData.qtyLarge },
+                          { label: "Medium", value: viewData.qtyMedium },
+                          { label: "Small", value: viewData.qtySmall },
+                          { label: "Peewee (XS)", value: viewData.qtyXs },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center text-sm p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-md transition-colors"
+                          >
+                            <span className="text-slate-600 dark:text-slate-400">
+                              {item.label}
+                            </span>
+                            <span className="font-medium font-mono text-slate-700 dark:text-slate-200">
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center mt-auto">
+                        <span className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                          Total Good
+                        </span>
+                        <span className="text-sm font-bold font-mono text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                          {goodTotal}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Spoilage Details */}
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-rose-200 dark:border-rose-900/30 overflow-hidden flex flex-col">
+                      <div className="bg-rose-50/50 dark:bg-rose-950/20 px-4 h-11 border-b border-rose-100 dark:border-rose-900/30 flex items-center">
+                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                          Spoiled Eggs
+                        </span>
+                      </div>
+                      <div className="p-3 space-y-1 flex-1">
+                        {[
+                          { label: "Cracked", value: viewData.qtyCracked },
+                          { label: "Broken", value: viewData.qtyBroken },
+                          { label: "Dirty", value: viewData.qtyDirty },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center text-sm p-1.5 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 rounded-md transition-colors"
+                          >
+                            <span className="text-slate-600 dark:text-slate-400">
+                              {item.label}
+                            </span>
+                            <span className="font-medium font-mono text-rose-600 dark:text-rose-400">
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-rose-50/50 dark:bg-rose-950/20 px-4 py-2.5 border-t border-rose-100 dark:border-rose-900/30 flex justify-between items-center mt-auto">
+                        <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                          Total Spoiled
+                        </span>
+                        <span className="text-sm font-bold font-mono text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 px-2.5 py-0.5 rounded-full">
+                          {spoilageTotal}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+          <div className="px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setViewData(null)}
+              className="h-9 rounded-xl font-medium shadow-xs"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

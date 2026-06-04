@@ -397,6 +397,8 @@ export function TruckSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [ltoExpiry, setLtoExpiry] = useState<Date | undefined>(undefined);
+  const [isBaiCalendarOpen, setIsBaiCalendarOpen] = useState(false);
+  const [baiExpiry, setBaiExpiry] = useState<Date | undefined>(undefined);
   const [status, setStatus] = useState("active");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -410,6 +412,7 @@ export function TruckSheet({
         description: `${String(formData.get("fleetCode")).toUpperCase()} has been added to the fleet.`,
       });
       setLtoExpiry(undefined);
+      setBaiExpiry(undefined);
       setStatus("active");
       onClose();
     } else {
@@ -577,6 +580,64 @@ export function TruckSheet({
                           onSelect={(date) => {
                             setLtoExpiry(date);
                             setIsCalendarOpen(false);
+                          }}
+                          captionLayout="dropdown"
+                          fromYear={2000}
+                          toYear={new Date().getFullYear() + 10}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                {/* BAI Expiry */}
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-background border border-border/60">
+                    <CalendarIcon className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-1">
+                      BAI Expiry Date
+                    </p>
+                    <input
+                      type="hidden"
+                      name="baiExpiry"
+                      value={baiExpiry ? format(baiExpiry, "yyyy-MM-dd") : ""}
+                    />
+                    <Popover
+                      open={isBaiCalendarOpen}
+                      onOpenChange={setIsBaiCalendarOpen}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "flex w-full items-center justify-between text-sm transition-colors",
+                            baiExpiry
+                              ? "text-foreground font-medium"
+                              : "text-muted-foreground/50",
+                          )}
+                        >
+                          <span>
+                            {baiExpiry
+                              ? format(baiExpiry, "MMMM dd, yyyy")
+                              : "Pick a date"}
+                          </span>
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto p-0 z-250 rounded-xl border-border/60 shadow-lg"
+                        align="start"
+                        sideOffset={8}
+                      >
+                        <Calendar
+                          mode="single"
+                          selected={baiExpiry}
+                          onSelect={(date) => {
+                            setBaiExpiry(date);
+                            setIsBaiCalendarOpen(false);
                           }}
                           captionLayout="dropdown"
                           fromYear={2000}

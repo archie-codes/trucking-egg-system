@@ -47,6 +47,7 @@ export const truckingFleet = pgTable("trucking_fleet", {
   engineNo: varchar("engine_no"),
   chassisNo: varchar("chassis_no"),
   ltoExpiry: date("lto_expiry"),
+  baiExpiry: date("bai_expiry"),
 
   // ✨ FIX 1 & 2: Added isActive so you can filter active trucks
   isActive: boolean("is_active").default(true).notNull(),
@@ -147,6 +148,7 @@ export const eggBatches = pgTable("egg_batches", {
   rawTraysPickedUp: integer("raw_trays_picked_up").default(0).notNull(),
 
   // The Bodega QA sorted counts (Good Inventory)
+  qtyXs: integer("qty_xs").default(0).notNull(),
   qtySmall: integer("qty_small").default(0).notNull(),
   qtyMedium: integer("qty_medium").default(0).notNull(),
   qtyLarge: integer("qty_large").default(0).notNull(),

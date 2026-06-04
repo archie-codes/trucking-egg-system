@@ -98,9 +98,14 @@ export default function AddUserPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [adminDept, setAdminDept] = useState("trucking");
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("encoder");
+  const [selectedDept, setSelectedDept] = useState("trucking");
 
   useEffect(() => {
-    getAdminClearance().then((dept) => setAdminDept(dept));
+    getAdminClearance().then((dept) => {
+      setAdminDept(dept);
+      setSelectedDept(dept === "all" ? "trucking" : dept);
+    });
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -334,6 +339,46 @@ export default function AddUserPage() {
             <div>
               <SectionLabel>Access & permissions</SectionLabel>
               <div className="mt-3 rounded-xl border border-border/50 bg-muted/20 overflow-hidden divide-y divide-border/40">
+                {/* Role row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[13px] text-muted-foreground w-28 shrink-0">
+                    System role
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      name="role"
+                      value={selectedRole}
+                      onValueChange={(val) => {
+                        setSelectedRole(val);
+                        if (val === "encoder" && selectedDept === "all") {
+                          setSelectedDept("trucking");
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/60 shadow-md z-110">
+                        <SelectItem value="encoder" className="text-sm py-2.5">
+                          <div className="flex items-center gap-2">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            Data Encoder
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="admin" className="text-sm py-2.5">
+                          <div className="flex items-center gap-2">
+                            <ShieldAlert className="h-3.5 w-3.5 text-indigo-500" />
+                            <span className="text-indigo-700 dark:text-indigo-400 font-medium">
+                              Administrator
+                            </span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 {/* Department row */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -343,9 +388,8 @@ export default function AddUserPage() {
                   <div className="flex-1 min-w-0">
                     <Select
                       name="department"
-                      defaultValue={
-                        adminDept === "all" ? "trucking" : adminDept
-                      }
+                      value={selectedDept}
+                      onValueChange={setSelectedDept}
                     >
                       <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
                         <SelectValue placeholder="Select department" />
@@ -370,7 +414,7 @@ export default function AddUserPage() {
                             </div>
                           </SelectItem>
                         )}
-                        {adminDept === "all" && (
+                        {adminDept === "all" && selectedRole === "admin" && (
                           <SelectItem value="all" className="text-sm py-2.5">
                             <div className="flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
@@ -378,37 +422,6 @@ export default function AddUserPage() {
                             </div>
                           </SelectItem>
                         )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Role row */}
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-[13px] text-muted-foreground w-28 shrink-0">
-                    System role
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <Select name="role" defaultValue="encoder">
-                      <SelectTrigger className="h-8 w-full border-0 bg-transparent shadow-none text-sm font-medium p-0 focus:ring-0 [&>svg]:ml-auto">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/60 shadow-md z-110">
-                        <SelectItem value="encoder" className="text-sm py-2.5">
-                          <div className="flex items-center gap-2">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            Data Encoder
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="admin" className="text-sm py-2.5">
-                          <div className="flex items-center gap-2">
-                            <ShieldAlert className="h-3.5 w-3.5 text-indigo-500" />
-                            <span className="text-indigo-700 dark:text-indigo-400 font-medium">
-                              Administrator
-                            </span>
-                          </div>
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

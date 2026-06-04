@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   MoreHorizontal,
@@ -1038,9 +1038,22 @@ export const columns: ColumnDef<TripRecord>[] = [
     cell: ({ row }) => {
       const fleetCode = row.original.fleetCode;
       const plateNumber = row.original.plateNumber;
+      const isNew =
+        row.original.createdAt && isToday(new Date(row.original.createdAt));
       return (
-        <div className="font-medium whitespace-nowrap">
-          {fleetCode || "N/A"} - {plateNumber || "NO PLATE"}
+        <div className="font-medium whitespace-nowrap flex flex-col">
+          {isNew && (
+            <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest leading-none mb-0.5 flex items-center gap-1">
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500" />
+              </span>
+              New Encode
+            </span>
+          )}
+          <span>
+            {fleetCode || "N/A"} - {plateNumber || "NO PLATE"}
+          </span>
         </div>
       );
     },

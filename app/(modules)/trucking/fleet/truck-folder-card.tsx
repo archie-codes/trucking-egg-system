@@ -261,6 +261,7 @@ export function TruckFolderCard({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isBaiCalendarOpen, setIsBaiCalendarOpen] = useState(false);
 
   const [editForm, setEditForm] = useState({
     fleetCode: truck.fleetCode || "",
@@ -270,6 +271,9 @@ export function TruckFolderCard({
     chassisNo: truck.chassisNo || "",
     ltoExpiry: truck.ltoExpiry
       ? new Date(truck.ltoExpiry).toISOString().split("T")[0]
+      : "",
+    baiExpiry: truck.baiExpiry
+      ? new Date(truck.baiExpiry).toISOString().split("T")[0]
       : "",
   });
 
@@ -812,6 +816,24 @@ export function TruckFolderCard({
                           : "Unregistered"}
                       </span>
                     </div>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <CalendarIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <span className="text-[13px] text-muted-foreground flex-1">
+                        BAI expiry
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[13px] font-medium text-right",
+                          truck.baiExpiry
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-muted-foreground/40",
+                        )}
+                      >
+                        {truck.baiExpiry
+                          ? format(new Date(truck.baiExpiry), "MMM dd, yyyy")
+                          : "Unregistered"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </>
@@ -1123,6 +1145,59 @@ export function TruckFolderCard({
                             ltoExpiry: date ? format(date, "yyyy-MM-dd") : "",
                           });
                           setIsCalendarOpen(false);
+                        }}
+                        captionLayout="dropdown"
+                        fromYear={2000}
+                        toYear={new Date().getFullYear() + 10}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* BAI expiry row */}
+                <div className="flex items-center gap-3 px-4 py-2.5">
+                  <CalendarIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span className="text-[12px] text-muted-foreground w-24 shrink-0">
+                    BAI Expiry
+                  </span>
+                  <Popover
+                    open={isBaiCalendarOpen}
+                    onOpenChange={setIsBaiCalendarOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex flex-1 items-center text-sm transition-colors",
+                          editForm.baiExpiry
+                            ? "text-foreground font-medium"
+                            : "text-muted-foreground/50",
+                        )}
+                      >
+                        {editForm.baiExpiry
+                          ? format(new Date(editForm.baiExpiry), "MMM dd, yyyy")
+                          : "Pick a date"}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 z-250 rounded-xl border-border/60 shadow-lg"
+                      align="start"
+                      sideOffset={8}
+                    >
+                      <Calendar
+                        mode="single"
+                        selected={
+                          editForm.baiExpiry
+                            ? new Date(editForm.baiExpiry)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          setEditForm({
+                            ...editForm,
+                            baiExpiry: date ? format(date, "yyyy-MM-dd") : "",
+                          });
+                          setIsBaiCalendarOpen(false);
                         }}
                         captionLayout="dropdown"
                         fromYear={2000}

@@ -61,6 +61,7 @@ const batchSchema = z.object({
   rawCasesPickedUp: numField,
   rawTraysPickedUp: numField,
 
+  qtyXs: numField,
   qtySmall: numField,
   qtyMedium: numField,
   qtyLarge: numField,
@@ -83,6 +84,8 @@ export default function ReceivingPage() {
   const [farmSuggestions, setFarmSuggestions] = useState<string[]>([]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // ✨ NEW Modal State
   const [isBatchIdClicked, setIsBatchIdClicked] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
+  const [isFarmOriginShaking, setIsFarmOriginShaking] = useState(false);
 
   // Use a lazy state initializer to guarantee Math.random() only runs once on mount
   const [initialBatchId] = useState(generateBatchId);
@@ -107,6 +110,7 @@ export default function ReceivingPage() {
       farmName: "",
       rawCasesPickedUp: "",
       rawTraysPickedUp: "",
+      qtyXs: "",
       qtySmall: "",
       qtyMedium: "",
       qtyLarge: "",
@@ -126,6 +130,7 @@ export default function ReceivingPage() {
   const totalPickupTrays = rawCases * TRAYS_PER_CASE + rawTrays;
   const totalExpectedPieces = totalPickupTrays * EGGS_PER_TRAY;
 
+  const xs = Number(useWatch({ control, name: "qtyXs" })) || 0;
   const s = Number(useWatch({ control, name: "qtySmall" })) || 0;
   const m = Number(useWatch({ control, name: "qtyMedium" })) || 0;
   const l = Number(useWatch({ control, name: "qtyLarge" })) || 0;
@@ -136,11 +141,23 @@ export default function ReceivingPage() {
   const dirty = Number(useWatch({ control, name: "qtyDirty" })) || 0;
 
   // ✨ Added Dirty to total calculation
-  const totalSortedPieces = s + m + l + xl + xxl + cracked + broken + dirty;
+  const totalSortedPieces =
+    xs + s + m + l + xl + xxl + cracked + broken + dirty;
   const variancePieces = totalExpectedPieces - totalSortedPieces;
 
   // Handles the initial click on the bottom bar
   const handlePreSubmitCheck = () => {
+    const farmName = form.getValues("farmName");
+    if (!farmName || farmName.trim() === "") {
+      setIsFarmOriginShaking(true);
+      form.setFocus("farmName"); // ✨ Auto-focus the field
+      setTimeout(() => setIsFarmOriginShaking(false), 600);
+      toast.error("Missing Origin Farm", {
+        description: "Please select or type the farm origin before proceeding.",
+      });
+      return;
+    }
+
     if (totalExpectedPieces === 0) {
       toast.error("Invalid Entry", {
         description: "Please enter the Cases/Trays picked up.",
@@ -150,6 +167,8 @@ export default function ReceivingPage() {
 
     // ✨ STRICT GUARD: Prevent saving if eggs are missing or overcounted
     if (variancePieces !== 0) {
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 600); // Remove class after animation
       const isMissing = variancePieces > 0;
       toast.error(isMissing ? "Missing Eggs Detected" : "Overcount Detected", {
         description: `You are ${isMissing ? "missing" : "over by"} ${Math.abs(variancePieces)} pieces. Please correct the sorting breakdown.`,
@@ -183,6 +202,7 @@ export default function ReceivingPage() {
         farmName: "",
         rawCasesPickedUp: "",
         rawTraysPickedUp: "",
+        qtyXs: "",
         qtySmall: "",
         qtyMedium: "",
         qtyLarge: "",
@@ -209,6 +229,14 @@ export default function ReceivingPage() {
         }
         .animate-error-pulse {
           animation: error-pulse 0.3s ease-in-out 3;
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px); }
+          75% { transform: translateX(4px); }
+        }
+        .animate-shake {
+          animation: shake 0.2s ease-in-out 3;
         }
       `}</style>
       <div className="sm:h-[95vh] w-full mx-auto space-y-3 animate-in fade-in duration-300">
@@ -337,7 +365,12 @@ export default function ReceivingPage() {
                       <Input
                         {...field}
                         placeholder="e.g. SJK FARM"
-                        className="h-11 rounded-xl uppercase font-semibold bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-100"
+                        className={cn(
+                          "h-11 rounded-xl uppercase font-semibold transition-all duration-300",
+                          isFarmOriginShaking
+                            ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                            : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-100",
+                        )}
                         list="farm-suggestions"
                         onChange={(e) =>
                           field.onChange(e.target.value.toUpperCase())
@@ -411,8 +444,15 @@ export default function ReceivingPage() {
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
                   Classified Inventory (Pcs)
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                   {[
+                    {
+                      name: "qtyXs" as const,
+                      size: "Xs",
+                      color:
+                        "text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50",
+                      labelColor: "text-blue-600 dark:text-blue-400",
+                    },
                     {
                       name: "qtySmall" as const,
                       size: "Small",
@@ -596,6 +636,10 @@ export default function ReceivingPage() {
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
                 <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500">XS:</span>
+                  <span className="font-bold text-blue-600">{xs}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-500">Small:</span>
                   <span className="font-bold text-blue-600">{s}</span>
                 </div>
@@ -687,14 +731,33 @@ export default function ReceivingPage() {
                       <CheckCircle2 className="w-4 h-4 mr-1.5" /> Perfect Match
                     </span>
                   ) : variancePieces > 0 ? (
-                    <span className="flex items-center text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-md animate-pulse">
-                      <AlertCircle className="w-4 h-4 mr-1.5" /> Missing{" "}
-                      {variancePieces} Eggs
+                    <span
+                      className={cn(
+                        "flex items-center text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-md transition-all",
+                        isShaking
+                          ? "animate-shake border border-rose-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                          : "animate-pulse border border-transparent",
+                      )}
+                    >
+                      <AlertCircle className="w-4 h-4 mr-1.5" />
+                      <span>
+                        Missing <NumberTicker value={variancePieces} /> Eggs
+                      </span>
                     </span>
                   ) : variancePieces < 0 ? (
-                    <span className="flex items-center text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-md animate-pulse">
-                      <AlertCircle className="w-4 h-4 mr-1.5" /> Over count (
-                      {Math.abs(variancePieces)})
+                    <span
+                      className={cn(
+                        "flex items-center text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-md transition-all",
+                        isShaking
+                          ? "animate-shake border border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+                          : "animate-pulse border border-transparent",
+                      )}
+                    >
+                      <AlertCircle className="w-4 h-4 mr-1.5" />
+                      <span>
+                        Over count (
+                        <NumberTicker value={Math.abs(variancePieces)} />)
+                      </span>
                     </span>
                   ) : (
                     <span className="text-sm text-slate-400 font-medium">
@@ -709,15 +772,20 @@ export default function ReceivingPage() {
             <Button
               type="button"
               onClick={handlePreSubmitCheck}
-              disabled={totalExpectedPieces === 0 || variancePieces !== 0}
-              className="h-11 px-8 rounded-xl bg-linear-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 disabled:opacity-50 text-white shadow-lg font-semibold w-full sm:w-auto shrink-0 transition-all"
+              className={cn(
+                "relative overflow-hidden group/btn border-0 h-11 px-8 rounded-xl bg-linear-to-r from-amber-600 to-orange-500 text-white shadow-lg font-semibold w-full sm:w-auto shrink-0 transition-all duration-300",
+                totalExpectedPieces === 0 || variancePieces !== 0
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:from-amber-500 hover:to-orange-400",
+              )}
             >
+              <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out z-0" />
               {variancePieces !== 0 && totalExpectedPieces > 0 ? (
-                <span className="flex items-center">
+                <span className="relative z-10 flex items-center">
                   <AlertCircle className="w-4 h-4 mr-2" /> Resolve Variance
                 </span>
               ) : (
-                <span className="flex items-center">
+                <span className="relative z-10 flex items-center">
                   <Save className="w-4 h-4 mr-2" /> Receive Batch
                 </span>
               )}
