@@ -131,6 +131,34 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     },
   },
   {
+    accessorKey: "qtyPeewee",
+    header: () => (
+      <div className="text-right text-indigo-600 dark:text-indigo-400">PW</div>
+    ),
+    cell: ({ row }) => {
+      const val = row.getValue("qtyPeewee") as number;
+      return (
+        <div className="text-right font-mono text-indigo-600 dark:text-indigo-400">
+          {val > 0 ? val : "-"}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "qtyXs",
+    header: () => (
+      <div className="text-right text-blue-600 dark:text-blue-400">XS</div>
+    ),
+    cell: ({ row }) => {
+      const val = row.getValue("qtyXs") as number;
+      return (
+        <div className="text-right font-mono text-blue-600 dark:text-blue-400">
+          {val > 0 ? val : "-"}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "qtySmall",
     header: () => (
       <div className="text-right text-blue-600 dark:text-blue-400">Small</div>
@@ -247,6 +275,7 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     ),
     cell: ({ row }) => {
       const {
+        qtyPeewee,
         qtyXs,
         qtySmall,
         qtyMedium,
@@ -259,6 +288,7 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
       } = row.original;
 
       const total =
+        (qtyPeewee || 0) +
         (qtyXs || 0) +
         (qtySmall || 0) +
         (qtyMedium || 0) +
@@ -304,6 +334,7 @@ const ActionCell = ({
     farmName: batch.farmName,
     rawCasesPickedUp: batch.rawCasesPickedUp,
     rawTraysPickedUp: batch.rawTraysPickedUp,
+    qtyPeewee: batch.qtyPeewee,
     qtyXs: batch.qtyXs,
     qtySmall: batch.qtySmall,
     qtyMedium: batch.qtyMedium,
@@ -339,6 +370,7 @@ const ActionCell = ({
   const totalPickupTrays = rawCases * TRAYS_PER_CASE + rawTrays;
   const totalExpectedPieces = totalPickupTrays * EGGS_PER_TRAY;
 
+  const peewee = Number(formData.qtyPeewee) || 0;
   const xs = Number(formData.qtyXs) || 0;
   const s = Number(formData.qtySmall) || 0;
   const m = Number(formData.qtyMedium) || 0;
@@ -350,7 +382,7 @@ const ActionCell = ({
   const dirty = Number(formData.qtyDirty) || 0;
 
   const totalSortedPieces =
-    xs + s + m + l + xl + xxl + cracked + broken + dirty;
+    peewee + xs + s + m + l + xl + xxl + cracked + broken + dirty;
   const variancePieces = totalExpectedPieces - totalSortedPieces;
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -436,6 +468,7 @@ const ActionCell = ({
                 farmName: batch.farmName,
                 rawCasesPickedUp: batch.rawCasesPickedUp,
                 rawTraysPickedUp: batch.rawTraysPickedUp,
+                qtyPeewee: batch.qtyPeewee,
                 qtyXs: batch.qtyXs,
                 qtySmall: batch.qtySmall,
                 qtyMedium: batch.qtyMedium,
@@ -674,8 +707,9 @@ const ActionCell = ({
                   QA Breakdown (Pieces)
                 </h4>
 
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
                   {[
+                    { key: "qtyPeewee", label: "Peewee" },
                     { key: "qtyXs", label: "XS" },
                     { key: "qtySmall", label: "Small" },
                     { key: "qtyMedium", label: "Medium" },

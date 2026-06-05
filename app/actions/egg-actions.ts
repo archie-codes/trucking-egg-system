@@ -19,6 +19,7 @@ const batchSchema = z.object({
   rawCasesPickedUp: numField,
   rawTraysPickedUp: numField,
 
+  qtyPeewee: numField,
   qtyXs: numField,
   qtySmall: numField,
   qtyMedium: numField,
@@ -47,6 +48,7 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
       farmName: data.farmName,
       rawCasesPickedUp: data.rawCasesPickedUp, // ✨ Added
       rawTraysPickedUp: data.rawTraysPickedUp, // ✨ Added
+      qtyPeewee: data.qtyPeewee,
       qtyXs: data.qtyXs,
       qtySmall: data.qtySmall,
       qtyMedium: data.qtyMedium,
@@ -77,14 +79,16 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
     };
 
     // 3. Update the ledger
+    await updateStock("PEEWEE", data.qtyPeewee);
     await updateStock("XS", data.qtyXs);
     await updateStock("SMALL", data.qtySmall);
     await updateStock("MEDIUM", data.qtyMedium);
     await updateStock("LARGE", data.qtyLarge);
     await updateStock("XL", data.qtyXl);
     await updateStock("XXL", data.qtyXxl);
-    // Note: We typically do not add Cracked/Broken/Dirty to the main sellable inventory ledger,
-    // but they are safely recorded in the history table above!
+    await updateStock("CRACKED", data.qtyCracked);
+    await updateStock("BROKEN", data.qtyBroken);
+    await updateStock("DIRTY", data.qtyDirty);
 
     revalidatePath("/egg-sales");
     return { success: true };
@@ -126,7 +130,7 @@ export async function getEggBatchHistory() {
     const history = await db
       .select()
       .from(eggBatches)
-      .orderBy(desc(eggBatches.createdAt));
+      .orderBy(desc(eggBatches.createdAt), desc(eggBatches.batchId));
 
     return { success: true, data: history };
   } catch (error) {
@@ -152,12 +156,16 @@ export async function deleteEggBatch(batchId: string) {
 
     // Map the quantities we need to subtract from inventory
     const inventoryReversalMap = [
+      { class: "PEEWEE", qty: batch.qtyPeewee },
       { class: "XS", qty: batch.qtyXs },
       { class: "SMALL", qty: batch.qtySmall },
       { class: "MEDIUM", qty: batch.qtyMedium },
       { class: "LARGE", qty: batch.qtyLarge },
       { class: "XL", qty: batch.qtyXl },
       { class: "XXL", qty: batch.qtyXxl },
+      { class: "CRACKED", qty: batch.qtyCracked },
+      { class: "BROKEN", qty: batch.qtyBroken },
+      { class: "DIRTY", qty: batch.qtyDirty },
     ];
 
     // 1. Guard Check: Ensure deleting this won't cause negative inventory
@@ -235,12 +243,16 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
 
     // Calculate the Delta (New Value - Old Value)
     const deltas = [
+      { class: "PEEWEE", delta: data.qtyPeewee - old.qtyPeewee },
       { class: "XS", delta: data.qtyXs - old.qtyXs },
       { class: "SMALL", delta: data.qtySmall - old.qtySmall },
       { class: "MEDIUM", delta: data.qtyMedium - old.qtyMedium },
       { class: "LARGE", delta: data.qtyLarge - old.qtyLarge },
       { class: "XL", delta: data.qtyXl - old.qtyXl },
       { class: "XXL", delta: data.qtyXxl - old.qtyXxl },
+      { class: "CRACKED", delta: data.qtyCracked - old.qtyCracked },
+      { class: "BROKEN", delta: data.qtyBroken - old.qtyBroken },
+      { class: "DIRTY", delta: data.qtyDirty - old.qtyDirty },
     ];
 
     // 1. Guard Check: Ensure negative deltas (removing eggs) don't drop stock below zero
@@ -284,6 +296,7 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
         farmName: data.farmName,
         rawCasesPickedUp: data.rawCasesPickedUp,
         rawTraysPickedUp: data.rawTraysPickedUp,
+        qtyPeewee: data.qtyPeewee,
         qtyXs: data.qtyXs,
         qtySmall: data.qtySmall,
         qtyMedium: data.qtyMedium,
@@ -318,33 +331,180 @@ export async function getLiveEggInventory() {
   }
 }
 
-// ✨ GET UNIQUE CUSTOMERS FOR SALES AUTOCOMPLETE
+// ✨ GET CUSTOMER SUGGESTIONS
 export async function getEggCustomerSuggestions() {
   try {
-    const sales = await db
+    const customers = await db
       .select({ customerId: eggSales.customerId })
-      .from(eggSales);
+      .from(eggSales)
+      .groupBy(eggSales.customerId);
 
-    const uniqueCustomers = Array.from(
-      new Set(sales.map((s) => s.customerId).filter(Boolean)),
-    ).slice(0, 20);
-
-    return { success: true, customers: uniqueCustomers };
+    return {
+      success: true,
+      customers: customers.map((c) => c.customerId).filter(Boolean),
+    };
   } catch (error) {
     console.error("Failed to fetch customer suggestions:", error);
     return { success: false, customers: [] };
   }
 }
 
-// ✨ RECORD AN EGG SALE (Outbound Fulfillment)
+// ✨ DELETE EGG SALE
+export async function deleteEggSale(id: number) {
+  try {
+    const saleResult = await db
+      .select()
+      .from(eggSales)
+      .where(eq(eggSales.id, id))
+      .limit(1);
+
+    if (saleResult.length === 0) {
+      return { success: false, error: "Sale record not found." };
+    }
+
+    const sale = saleResult[0];
+
+    await db.transaction(async (tx) => {
+      // 1. Add the sold trays back into the inventory
+      await tx
+        .update(eggInventory)
+        .set({
+          currentStockTrays: sql`${eggInventory.currentStockTrays} + ${sale.quantityTrays * 30}`,
+          lastUpdated: new Date(),
+        })
+        .where(eq(eggInventory.classification, sale.classification));
+
+      // 2. Delete the sale record
+      await tx.delete(eggSales).where(eq(eggSales.id, id));
+    });
+
+    revalidatePath("/egg-sales/sales/history");
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Delete Sale Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete sale.",
+    };
+  }
+}
+
+const editSaleSchema = z.object({
+  id: z.number(),
+  saleDate: z.string().min(1, "Date is required"),
+  customerId: z.string().min(1, "Customer name is required").toUpperCase(),
+  quantityTrays: z.number(),
+  pricePerTray: z.number(),
+  amountPaid: z.number(),
+  datePaid: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(),
+});
+
+// ✨ UPDATE EGG SALE
+export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
+  const validatedData = editSaleSchema.safeParse(values);
+
+  if (!validatedData.success) {
+    return { success: false, error: "Invalid form data provided." };
+  }
+
+  const data = validatedData.data;
+
+  try {
+    const oldSaleResult = await db
+      .select()
+      .from(eggSales)
+      .where(eq(eggSales.id, data.id))
+      .limit(1);
+
+    if (oldSaleResult.length === 0) {
+      return { success: false, error: "Original sale record not found." };
+    }
+
+    const old = oldSaleResult[0];
+    const totalAmount = data.quantityTrays * data.pricePerTray;
+    let paymentStatus = "unpaid";
+    
+    if (data.amountPaid >= totalAmount && totalAmount > 0) {
+        paymentStatus = "paid";
+    } else if (data.amountPaid > 0 && data.amountPaid < totalAmount) {
+        paymentStatus = "partial";
+    }
+
+    await db.transaction(async (tx) => {
+      // Delta = new quantity - old quantity (in pieces)
+      // Positive delta means we sold MORE, so we must deduct MORE from stock.
+      // Negative delta means we sold LESS, so we must ADD back to stock.
+      const deltaTrays = data.quantityTrays - old.quantityTrays;
+      const deltaPieces = deltaTrays * 30;
+
+      if (deltaPieces > 0) {
+        // Check if we have enough stock for the additional pieces
+        const stockResult = await tx
+          .select({ currentStockTrays: eggInventory.currentStockTrays })
+          .from(eggInventory)
+          .where(eq(eggInventory.classification, old.classification))
+          .limit(1);
+
+        const currentStock = stockResult[0]?.currentStockTrays || 0;
+        if (currentStock < deltaPieces) {
+          throw new Error(
+            `Insufficient stock for update. Need ${deltaTrays} more trays of ${old.classification}, but only ${Math.floor(currentStock / 30)} available.`,
+          );
+        }
+      }
+
+      // 1. Adjust inventory
+      if (deltaPieces !== 0) {
+        await tx
+          .update(eggInventory)
+          .set({
+            currentStockTrays: sql`${eggInventory.currentStockTrays} - ${deltaPieces}`,
+            lastUpdated: new Date(),
+          })
+          .where(eq(eggInventory.classification, old.classification));
+      }
+
+      // 2. Update sale record
+      await tx
+        .update(eggSales)
+        .set({
+          saleDate: data.saleDate,
+          customerId: data.customerId,
+          quantityTrays: data.quantityTrays,
+          pricePerTray: data.pricePerTray,
+          totalAmount: totalAmount,
+          amountPaid: data.amountPaid,
+          datePaid: data.datePaid,
+          paymentStatus: paymentStatus,
+          remarks: data.remarks || null,
+        })
+        .where(eq(eggSales.id, data.id));
+    });
+
+    revalidatePath("/egg-sales/sales/history");
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Update Sale Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update sale.",
+    };
+  }
+}
+
+// ✨ RECORD A MULTI-ITEM EGG SALE (Outbound Fulfillment)
+const saleItemSchema = z.object({
+  classification: z.string().min(1),
+  quantityTrays: z.number().min(1),
+  pricePerTray: z.number().min(0),
+});
+
 const saleSchema = z.object({
   saleDate: z.string().min(1, "Sale date is required"),
   customerId: z.string().min(1, "Customer is required").toUpperCase(),
-  classification: z.string().min(1, "Egg size is required"),
-  quantityTrays: z.number().min(1, "Quantity must be at least 1"),
-  pricePerTray: z.number().min(0, "Invalid price"),
+  items: z.array(saleItemSchema).min(1, "Need at least 1 item"),
   amountPaid: z.number().min(0, "Invalid amount"),
-  paymentStatus: z.string(),
   datePaid: z.string().optional().nullable(),
   remarks: z.string().optional(),
 });
@@ -354,63 +514,107 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
   if (!validated.success) return { success: false, error: "Invalid form data" };
 
   const data = validated.data;
-  const totalAmount = data.quantityTrays * data.pricePerTray;
-
-  // ✨ MATH ENGINE: Convert Sold Trays into Pieces for the database deduction
   const PIECES_PER_TRAY = 30;
-  const totalPiecesSold = data.quantityTrays * PIECES_PER_TRAY;
 
   try {
-    // 1. Check Live Inventory (in Pieces)
-    const stock = await db
-      .select({
-        currentStockTrays: eggInventory.currentStockTrays,
-        id: eggInventory.id,
-      })
-      .from(eggInventory)
-      .where(eq(eggInventory.classification, data.classification))
-      .limit(1);
+    const timestamp = data.saleDate.replace(/-/g, "");
+    const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const generatedInvoiceId = `INV-${timestamp}-${randomChars}`;
 
-    const availablePieces = stock[0]?.currentStockTrays || 0;
+    await db.transaction(async (tx) => {
+      // 1. Guard: Check Live Inventory for ALL items first
+      for (const item of data.items) {
+        const stock = await tx
+          .select({
+            currentStockTrays: eggInventory.currentStockTrays,
+            id: eggInventory.id,
+          })
+          .from(eggInventory)
+          .where(eq(eggInventory.classification, item.classification))
+          .limit(1);
 
-    // 2. Strict Real-Time Guard
-    if (stock.length === 0 || availablePieces < totalPiecesSold) {
-      throw new Error(
-        `Insufficient stock. You need ${totalPiecesSold} pieces (${data.quantityTrays} trays), but only have ${availablePieces} pieces left.`,
-      );
-    }
+        const availablePieces = stock[0]?.currentStockTrays || 0;
+        const totalPiecesSold = item.quantityTrays * PIECES_PER_TRAY;
 
-    // 3. Log the Sale in the Ledger
-    await db.insert(eggSales).values({
-      saleDate: data.saleDate,
-      customerId: data.customerId,
-      inventoryId: stock[0].id,
-      classification: data.classification,
-      quantityTrays: data.quantityTrays,
-      pricePerTray: data.pricePerTray,
-      totalAmount: totalAmount,
-      amountPaid: data.amountPaid,
-      paymentStatus: data.paymentStatus,
-      datePaid: data.datePaid || null,
-      remarks: data.remarks,
+        if (stock.length === 0 || availablePieces < totalPiecesSold) {
+          throw new Error(
+            `Insufficient stock for ${item.classification}. Need ${item.quantityTrays} trays, but only have ${Math.floor(availablePieces / 30)} left.`,
+          );
+        }
+      }
+
+      // 2. Distribute the payment across the items to keep the flat ledger accurate
+      let remainingPayment = data.amountPaid;
+
+      for (const item of data.items) {
+        const totalPiecesSold = item.quantityTrays * PIECES_PER_TRAY;
+        const itemTotalAmount = item.quantityTrays * item.pricePerTray;
+
+        // Calculate how much of the payment applies to this specific row
+        const appliedPayment = Math.min(remainingPayment, itemTotalAmount);
+        remainingPayment -= appliedPayment;
+
+        const balance = itemTotalAmount - appliedPayment;
+        let status = "unpaid";
+        if (balance <= 0) status = "paid";
+        else if (appliedPayment > 0 && balance > 0) status = "partial";
+
+        // Fetch the inventory ID again for the foreign key
+        const stock = await tx
+          .select({ id: eggInventory.id })
+          .from(eggInventory)
+          .where(eq(eggInventory.classification, item.classification))
+          .limit(1);
+
+        // Insert individual ledger row
+        await tx.insert(eggSales).values({
+          saleDate: data.saleDate,
+          customerId: data.customerId,
+          invoiceId: generatedInvoiceId,
+          inventoryId: stock[0].id,
+          classification: item.classification,
+          quantityTrays: item.quantityTrays,
+          pricePerTray: item.pricePerTray,
+          totalAmount: itemTotalAmount,
+          amountPaid: appliedPayment,
+          paymentStatus: status,
+          datePaid: data.datePaid || null,
+          remarks: data.remarks,
+        });
+
+        // Deduct from inventory
+        await tx
+          .update(eggInventory)
+          .set({
+            currentStockTrays: sql`${eggInventory.currentStockTrays} - ${totalPiecesSold}`,
+            lastUpdated: new Date(),
+          })
+          .where(eq(eggInventory.classification, item.classification));
+      }
     });
 
-    // 4. Real-Time Deduction! (Subtracting the pieces)
-    await db
-      .update(eggInventory)
-      .set({
-        currentStockTrays: sql`${eggInventory.currentStockTrays} - ${totalPiecesSold}`,
-        lastUpdated: new Date(),
-      })
-      .where(eq(eggInventory.classification, data.classification));
-
     revalidatePath("/egg-sales");
-    return { success: true };
+    return { success: true, invoiceId: generatedInvoiceId };
   } catch (error: unknown) {
     console.error("Sale Transaction Error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to process sale.",
     };
+  }
+}
+
+// ✨ GET EGG SALES HISTORY (ACCOUNTS RECEIVABLE)
+export async function getEggSalesHistory() {
+  try {
+    const history = await db
+      .select()
+      .from(eggSales)
+      .orderBy(desc(eggSales.saleDate), desc(eggSales.createdAt), desc(eggSales.id));
+
+    return { success: true, data: history };
+  } catch (error) {
+    console.error("Failed to fetch sales history:", error);
+    return { success: false, data: [] };
   }
 }

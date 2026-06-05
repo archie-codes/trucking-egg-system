@@ -98,41 +98,6 @@ export const truckingTrips = pgTable("trucking_trips", {
 });
 
 // ======================================================================
-// 3. EGG SALES MODULE TABLES (Foundation)
-// ======================================================================
-
-// Tracks daily stock of different egg sizes (Small, Medium, Large, Jumbo, etc.)
-// export const eggInventory = pgTable("egg_inventory", {
-//   id: serial("id").primaryKey(),
-//   classification: varchar("classification", { length: 50 }).notNull().unique(), // e.g., "Large"
-//   currentStockTrays: integer("current_stock_trays").default(0).notNull(),
-//   pricePerTray: integer("price_per_tray").notNull(), // Assuming whole PHP
-
-//   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
-// });
-
-// // Tracks individual transactions/sales
-// export const eggSales = pgTable("egg_sales", {
-//   id: serial("id").primaryKey(),
-//   customerId: varchar("customer_id", { length: 100 }).notNull(),
-
-//   // Relational link to the egg classification
-//   inventoryId: integer("inventory_id")
-//     .references(() => eggInventory.id)
-//     .notNull(),
-
-//   quantityTrays: integer("quantity_trays").notNull(),
-//   totalAmount: integer("total_amount").notNull(),
-
-//   // Payment status: 'paid', 'unpaid'
-//   paymentStatus: varchar("payment_status", { length: 20 })
-//     .default("unpaid")
-//     .notNull(),
-
-//   createdAt: timestamp("created_at").defaultNow().notNull(),
-// });
-
-// ======================================================================
 // 3. EGG INVENTORY & SALES MODULE (FIFO BATCH TRACKING)
 // ======================================================================
 
@@ -148,6 +113,7 @@ export const eggBatches = pgTable("egg_batches", {
   rawTraysPickedUp: integer("raw_trays_picked_up").default(0).notNull(),
 
   // The Bodega QA sorted counts (Good Inventory)
+  qtyPeewee: integer("qty_peewee").default(0).notNull(),
   qtyXs: integer("qty_xs").default(0).notNull(),
   qtySmall: integer("qty_small").default(0).notNull(),
   qtyMedium: integer("qty_medium").default(0).notNull(),
@@ -176,6 +142,7 @@ export const eggInventory = pgTable("egg_inventory", {
 // 3. OUTBOUND: Tracks individual transactions/sales
 export const eggSales = pgTable("egg_sales", {
   id: serial("id").primaryKey(),
+  invoiceId: varchar("invoice_id", { length: 50 }),
   saleDate: date("sale_date").notNull(),
   customerId: varchar("customer_id", { length: 255 }).notNull(),
 

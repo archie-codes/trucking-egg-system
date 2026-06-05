@@ -123,7 +123,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
     rows.forEach((r) => {
       const d = r.original;
-      totalGood += d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+      totalGood += d.qtyPeewee + d.qtyXs + d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
       totalLosses += d.qtyCracked + d.qtyBroken + d.qtyDirty;
     });
 
@@ -168,6 +168,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         "Farm Name",
         "Raw Cases",
         "Raw Trays",
+        "Peewee",
+        "XS",
         "Small",
         "Medium",
         "Large",
@@ -183,7 +185,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       const csvData = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
         const totalGood =
-          d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+          d.qtyPeewee + d.qtyXs + d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
         const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
 
         return [
@@ -192,6 +194,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           `"${d.farmName}"`,
           d.rawCasesPickedUp,
           d.rawTraysPickedUp,
+          d.qtyPeewee,
+          d.qtyXs,
           d.qtySmall,
           d.qtyMedium,
           d.qtyLarge,
@@ -276,7 +280,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       const tableRows = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
         const totalGood =
-          d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+          d.qtyPeewee + d.qtyXs + d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
         const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
 
         return [
@@ -285,6 +289,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           d.farmName,
           d.rawCasesPickedUp.toString(),
           d.rawTraysPickedUp.toString(),
+          d.qtyPeewee > 0 ? d.qtyPeewee.toString() : "-",
+          d.qtyXs > 0 ? d.qtyXs.toString() : "-",
           d.qtySmall > 0 ? d.qtySmall.toString() : "-",
           d.qtyMedium > 0 ? d.qtyMedium.toString() : "-",
           d.qtyLarge > 0 ? d.qtyLarge.toString() : "-",
@@ -306,6 +312,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             "Farm",
             "Cases",
             "Trays",
+            "PW",
+            "XS",
             "S",
             "M",
             "L",
@@ -531,7 +539,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                       textSizeClass,
                       "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
                       header.id === "actions" &&
-                        "sticky right-0 bg-muted/40 z-10 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
+                        "sticky right-0 bg-card dark:bg-slate-900 z-30 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
                     )}
                   >
                     {header.isPlaceholder
@@ -545,31 +553,33 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className="group/tbody">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row, i) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={cn(
-                    "border-b border-border/40 transition-colors cursor-pointer",
-                    i % 2 === 0 ? "bg-card" : "bg-muted",
-                    "hover:bg-amber-50/50 dark:hover:bg-amber-950/20",
-                    "animate-in fade-in slide-in-from-right-8 duration-500 fill-mode-both",
-                  )}
-                  style={{ animationDelay: `${i * 40}ms` }}
-                  onClick={() => setViewData(row.original as EggBatchRecord)}
-                >
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={cn(
+                      "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
+                      "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-amber-400 dark:hover:ring-amber-600",
+                      i % 2 === 0
+                        ? "bg-card hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
+                        : "bg-muted hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
+                    )}
+                    onClick={() => setViewData(row.original as EggBatchRecord)}
+                  >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
                       className={cn(
                         textSizeClass,
-                        "py-2.5",
+                        "py-2.5 transition-colors duration-300",
                         cell.column.id === "actions" &&
-                          "sticky right-0 z-10 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
+                          "sticky right-0 z-20 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
                         cell.column.id === "actions" &&
-                          (i % 2 === 0 ? "bg-card" : "bg-muted"),
+                          (i % 2 === 0
+                            ? "bg-card group-hover/row:bg-amber-50/80 dark:group-hover/row:bg-amber-900/30"
+                            : "bg-muted dark:bg-slate-900/50 group-hover/row:bg-amber-50/80 dark:group-hover/row:bg-amber-900/30"),
                       )}
                       onClick={(e) => {
                         if (cell.column.id === "actions") {
@@ -707,6 +717,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               const expectedTotal =
                 viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp;
               const goodTotal =
+                viewData.qtyPeewee +
                 viewData.qtyXs +
                 viewData.qtySmall +
                 viewData.qtyMedium +
@@ -800,7 +811,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                           { label: "Large", value: viewData.qtyLarge },
                           { label: "Medium", value: viewData.qtyMedium },
                           { label: "Small", value: viewData.qtySmall },
-                          { label: "Peewee (XS)", value: viewData.qtyXs },
+                          { label: "XS", value: viewData.qtyXs },
+                          { label: "Peewee", value: viewData.qtyPeewee },
                         ].map((item, idx) => (
                           <div
                             key={idx}

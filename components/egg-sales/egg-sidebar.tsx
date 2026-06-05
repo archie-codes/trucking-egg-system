@@ -12,6 +12,7 @@ import {
   ChevronUp,
   X,
   ShoppingBag,
+  PackageOpen,
 } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
 
@@ -31,6 +32,11 @@ const routes: Route[] = [
     label: "Dashboard",
     icon: LayoutDashboard,
     href: "/egg-sales/dashboard",
+  },
+  {
+    label: "Inventory",
+    icon: PackageOpen,
+    href: "/egg-sales/inventory",
   },
   {
     label: "Receiving",

@@ -11,7 +11,7 @@ export function NumberTicker({
   duration?: number;
   decimalPlaces?: number;
 }) {
-  const [displayValue, setDisplayValue] = useState(value);
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
     let startTimestamp: number | null = null;

@@ -61,6 +61,7 @@ const batchSchema = z.object({
   rawCasesPickedUp: numField,
   rawTraysPickedUp: numField,
 
+  qtyPeewee: numField,
   qtyXs: numField,
   qtySmall: numField,
   qtyMedium: numField,
@@ -110,6 +111,7 @@ export default function ReceivingPage() {
       farmName: "",
       rawCasesPickedUp: "",
       rawTraysPickedUp: "",
+      qtyPeewee: "",
       qtyXs: "",
       qtySmall: "",
       qtyMedium: "",
@@ -130,6 +132,7 @@ export default function ReceivingPage() {
   const totalPickupTrays = rawCases * TRAYS_PER_CASE + rawTrays;
   const totalExpectedPieces = totalPickupTrays * EGGS_PER_TRAY;
 
+  const peewee = Number(useWatch({ control, name: "qtyPeewee" })) || 0;
   const xs = Number(useWatch({ control, name: "qtyXs" })) || 0;
   const s = Number(useWatch({ control, name: "qtySmall" })) || 0;
   const m = Number(useWatch({ control, name: "qtyMedium" })) || 0;
@@ -142,7 +145,7 @@ export default function ReceivingPage() {
 
   // ✨ Added Dirty to total calculation
   const totalSortedPieces =
-    xs + s + m + l + xl + xxl + cracked + broken + dirty;
+    peewee + xs + s + m + l + xl + xxl + cracked + broken + dirty;
   const variancePieces = totalExpectedPieces - totalSortedPieces;
 
   // Handles the initial click on the bottom bar
@@ -202,6 +205,7 @@ export default function ReceivingPage() {
         farmName: "",
         rawCasesPickedUp: "",
         rawTraysPickedUp: "",
+        qtyPeewee: "",
         qtyXs: "",
         qtySmall: "",
         qtyMedium: "",
@@ -444,8 +448,15 @@ export default function ReceivingPage() {
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
                   Classified Inventory (Pcs)
                 </h4>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
                   {[
+                    {
+                      name: "qtyPeewee" as const,
+                      size: "Peewee",
+                      color:
+                        "text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900/50",
+                      labelColor: "text-indigo-600 dark:text-indigo-400",
+                    },
                     {
                       name: "qtyXs" as const,
                       size: "Xs",
@@ -635,6 +646,10 @@ export default function ReceivingPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500">Peewee:</span>
+                  <span className="font-bold text-indigo-600">{peewee}</span>
+                </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-500">XS:</span>
                   <span className="font-bold text-blue-600">{xs}</span>

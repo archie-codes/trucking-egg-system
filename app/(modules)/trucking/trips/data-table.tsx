@@ -37,6 +37,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Search,
   ChevronLeft,
   ChevronRight,
@@ -45,6 +52,12 @@ import {
   FileSpreadsheet,
   Type,
   X,
+  Truck,
+  MapPin,
+  Package,
+  Banknote,
+  Wallet,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -67,6 +80,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   );
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
+  const [viewData, setViewData] = React.useState<TripRecord | null>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -577,24 +591,32 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className={cn(
-                    "border-b border-border/40 transition-colors",
-                    i % 2 === 0 ? "bg-card" : "bg-muted",
-                    "hover:bg-blue-50/50 dark:hover:bg-blue-950/20",
-                    "animate-in fade-in slide-in-from-right-8 duration-500 fill-mode-both"
+                    "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
+                    "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-blue-400 dark:hover:ring-blue-600",
+                    i % 2 === 0
+                      ? "bg-card hover:bg-blue-50/80 dark:hover:bg-blue-900/30"
+                      : "bg-muted hover:bg-blue-50/80 dark:hover:bg-blue-900/30",
                   )}
-                  style={{ animationDelay: `${i * 40}ms` }}
+                  onClick={() => setViewData(row.original as TripRecord)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
                       className={cn(
                         textSizeClass,
-                        "py-2.5",
+                        "py-2.5 transition-colors duration-300",
                         cell.column.id === "actions" &&
                           "sticky right-0 z-10 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
                         cell.column.id === "actions" &&
-                          (i % 2 === 0 ? "bg-card" : "bg-muted"),
+                          (i % 2 === 0
+                            ? "bg-card group-hover/row:bg-blue-50/80 dark:group-hover/row:bg-blue-900/30"
+                            : "bg-muted group-hover/row:bg-blue-50/80 dark:group-hover/row:bg-blue-900/30"),
                       )}
+                      onClick={(e) => {
+                        if (cell.column.id === "actions") {
+                          e.stopPropagation();
+                        }
+                      }}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -695,6 +717,218 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={!!viewData}
+        onOpenChange={(open) => !open && setViewData(null)}
+      >
+        <DialogContent className="max-w-xl p-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-2xl">
+          {viewData &&
+            (() => {
+              const collectible = viewData.qtyHeads * viewData.rate;
+              const expenses =
+                viewData.tollFees +
+                viewData.dieselCash +
+                viewData.dieselPo +
+                viewData.meals +
+                viewData.roroShip +
+                viewData.salary +
+                viewData.others;
+              const net = collectible - expenses;
+
+              const ExpenseItem = ({
+                label,
+                value,
+                note,
+              }: {
+                label: string;
+                value: number;
+                note?: string | null;
+              }) => (
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500">{label}</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                      ₱{value.toLocaleString()}
+                    </span>
+                  </div>
+                  {note && (
+                    <div className="text-[10px] text-slate-400 italic mt-0.5">
+                      {note}
+                    </div>
+                  )}
+                </div>
+              );
+
+              return (
+                <>
+                  <DialogHeader className="p-6 pb-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <DialogTitle className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <Truck className="w-5 h-5 text-blue-500" />
+                          Trip Details
+                        </DialogTitle>
+                        <DialogDescription className="mt-1 text-slate-500 font-medium">
+                          View comprehensive logistics and financial breakdown.
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                    {/* General Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                          <CalendarDays className="w-3.5 h-3.5" /> Date
+                        </div>
+                        <div className="font-bold text-slate-700 dark:text-slate-300">
+                          {new Date(viewData.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "2-digit",
+                            year: "numeric",
+                          })}
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                          <Truck className="w-3.5 h-3.5" /> Assigned Truck
+                        </div>
+                        <div className="font-bold text-slate-700 dark:text-slate-300">
+                          {viewData.fleetCode}{" "}
+                          <span className="text-slate-400 text-xs ml-1">
+                            ({viewData.plateNumber})
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Customer & Route */}
+                    <div className="p-5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-950 space-y-4">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5" /> Customer Name
+                        </div>
+                        <div className="font-black text-blue-600 dark:text-blue-400 uppercase text-lg">
+                          {viewData.customerId}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> Origin
+                          </div>
+                          <div className="font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            {viewData.origin}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> Destination
+                          </div>
+                          <div className="font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            {viewData.destination}
+                          </div>
+                        </div>
+                      </div>
+                      {viewData.farmName && (
+                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                          <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <Package className="w-3 h-3" /> Farm / Branch
+                          </div>
+                          <div className="font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            {viewData.farmName}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Financial Overview */}
+                    <div className="p-5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-950">
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-emerald-500" />{" "}
+                        Financial Summary
+                      </h4>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-500">
+                            Gross Collectible ({viewData.qtyHeads} hds × ₱
+                            {viewData.rate})
+                          </span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">
+                            ₱{collectible.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-500">Total Expenses</span>
+                          <span className="font-bold text-rose-500">
+                            - ₱{expenses.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 uppercase text-xs">
+                          Net Income
+                        </span>
+                        <span
+                          className={cn(
+                            "font-black text-xl",
+                            net >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400",
+                          )}
+                        >
+                          ₱{net.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Detailed Expenses */}
+                    <div className="p-5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-rose-500" /> Expenses
+                        Breakdown
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-y-3 gap-x-6">
+                        <ExpenseItem
+                          label="Toll Fees"
+                          value={viewData.tollFees}
+                        />
+                        <ExpenseItem
+                          label="Diesel (Cash)"
+                          value={viewData.dieselCash}
+                        />
+                        <ExpenseItem
+                          label="Diesel (PO)"
+                          value={viewData.dieselPo}
+                        />
+                        <ExpenseItem label="Meals" value={viewData.meals} />
+                        <ExpenseItem
+                          label="Roro Ship"
+                          value={viewData.roroShip}
+                        />
+                        <ExpenseItem
+                          label="Salary"
+                          value={viewData.salary}
+                          note={viewData.salaryNote}
+                        />
+                        <ExpenseItem
+                          label="Others"
+                          value={viewData.others}
+                          note={viewData.othersNote}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
