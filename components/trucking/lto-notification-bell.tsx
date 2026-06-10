@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Bell, AlertTriangle, CalendarX2 } from "lucide-react";
 import { format, isBefore, startOfDay, addDays } from "date-fns";
 import {
@@ -31,7 +31,26 @@ export function LtoNotificationBell() {
     return () => clearInterval(interval);
   }, []);
 
-  const today = startOfDay(new Date());
+  const actualAlerts = useMemo(() => {
+    const today = startOfDay(new Date());
+    const targetDate = addDays(today, 7);
+    return alerts.flatMap((truck) => {
+      const alertsList = [];
+      if (truck.ltoExpiry) {
+        const ltoDate = new Date(truck.ltoExpiry);
+        if (ltoDate <= targetDate) {
+          alertsList.push({ ...truck, type: "LTO", date: ltoDate });
+        }
+      }
+      if (truck.baiExpiry) {
+        const baiDate = new Date(truck.baiExpiry);
+        if (baiDate <= targetDate) {
+          alertsList.push({ ...truck, type: "BAI", date: baiDate });
+        }
+      }
+      return alertsList;
+    }).sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [alerts]);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -44,7 +63,7 @@ export function LtoNotificationBell() {
           <Bell className="h-5 w-5" />
 
           {/* Red Ping Dot if there are alerts */}
-          {alerts.length > 0 && (
+          {actualAlerts.length > 0 && (
             <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-slate-900"></span>
@@ -66,12 +85,12 @@ export function LtoNotificationBell() {
             variant="secondary"
             className="bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border-0"
           >
-            {alerts.length > 0 ? "Action Needed" : "0 Alerts"}
+            {actualAlerts.length > 0 ? "Action Needed" : "0 Alerts"}
           </Badge>
         </div>
 
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-          {alerts.length === 0 ? (
+          {actualAlerts.length === 0 ? (
             <div className="py-8 text-center px-4">
               <CalendarX2 className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
               <p className="text-sm font-medium text-slate-500">
@@ -83,29 +102,8 @@ export function LtoNotificationBell() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {alerts.flatMap((truck) => {
-                const alertsList = [];
+              {actualAlerts.map((alert, index) => {
                 const today = startOfDay(new Date());
-                const targetDate = addDays(today, 7);
-
-                if (truck.ltoExpiry) {
-                  const ltoDate = new Date(truck.ltoExpiry);
-                  if (ltoDate <= targetDate) {
-                    alertsList.push({ ...truck, type: "LTO", date: ltoDate });
-                  }
-                }
-
-                if (truck.baiExpiry) {
-                  const baiDate = new Date(truck.baiExpiry);
-                  if (baiDate <= targetDate) {
-                    alertsList.push({ ...truck, type: "BAI", date: baiDate });
-                  }
-                }
-
-                return alertsList;
-              })
-              .sort((a, b) => a.date.getTime() - b.date.getTime())
-              .map((alert, index) => {
                 const isExpired = isBefore(alert.date, today);
 
                 return (

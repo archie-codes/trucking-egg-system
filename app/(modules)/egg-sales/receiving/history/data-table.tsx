@@ -559,7 +559,12 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
+                    style={{
+                      animationFillMode: "both",
+                      animationDelay: `${i * 40}ms`,
+                    }}
                     className={cn(
+                      "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
                       "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
                       "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-amber-400 dark:hover:ring-amber-600",
                       i % 2 === 0

@@ -177,6 +177,7 @@ function NoteCell({
             type="button"
             className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors focus:outline-none shrink-0 cursor-pointer"
             title="View Note"
+            onClick={(e) => e.stopPropagation()}
           >
             <MessageSquareText className="h-3.5 w-3.5 fill-amber-500/20" />
           </button>
@@ -185,6 +186,7 @@ function NoteCell({
           side="top"
           align="center"
           className="w-auto max-w-[280px] p-3 rounded-lg border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/95 shadow-lg z-200"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-1.5 border-b border-amber-200 dark:border-amber-900/50 pb-1 gap-4">
             <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest">
