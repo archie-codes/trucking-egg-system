@@ -58,6 +58,7 @@ import {
   Banknote,
   Wallet,
   CalendarDays,
+  MessageSquareText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -727,7 +728,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         open={!!viewData}
         onOpenChange={(open) => !open && setViewData(null)}
       >
-        <DialogContent className="max-w-xl p-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-2xl">
+        <DialogContent className="max-w-xl p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-2xl">
           {viewData &&
             (() => {
               const collectible = viewData.qtyHeads * viewData.rate;
@@ -758,8 +759,11 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                     </span>
                   </div>
                   {note && (
-                    <div className="text-[10px] text-slate-400 italic mt-0.5">
-                      {note}
+                    <div className="flex items-start gap-1.5 mt-2 p-2.5 rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20">
+                      <MessageSquareText className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
+                        {note}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -856,15 +860,25 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                         Financial Summary
                       </h4>
 
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-500">
-                            Gross Collectible ({viewData.qtyHeads} hds × ₱
-                            {viewData.rate})
-                          </span>
-                          <span className="font-bold text-slate-700 dark:text-slate-300">
-                            ₱{collectible.toLocaleString()}
-                          </span>
+                      <div className="space-y-3 mb-4">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-500">
+                              Gross Collectible ({viewData.qtyHeads} hds × ₱
+                              {viewData.rate})
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">
+                              ₱{collectible.toLocaleString()}
+                            </span>
+                          </div>
+                          {viewData.qtyNote && (
+                            <div className="flex items-start gap-1.5 p-2.5 rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20">
+                              <MessageSquareText className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
+                                {viewData.qtyNote}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-500">Total Expenses</span>
