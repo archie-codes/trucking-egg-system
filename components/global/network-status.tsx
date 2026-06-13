@@ -37,7 +37,7 @@ export function NetworkStatus() {
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-card border border-border/60 shadow-2xl rounded-2xl p-8 max-w-md w-full mx-4 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 delay-100">
+      <div className="bg-card border border-border/60 shadow-2xl rounded-xl p-8 max-w-md w-full mx-4 flex flex-col items-center text-center animate-in zoom-in-95 duration-500 delay-100">
         <div className="h-20 w-20 bg-rose-100 dark:bg-rose-950/30 text-rose-600 dark:text-rose-500 rounded-full flex items-center justify-center mb-6 relative">
           <WifiOff className="h-10 w-10" />
           <span className="absolute top-1 right-1 flex h-4 w-4">

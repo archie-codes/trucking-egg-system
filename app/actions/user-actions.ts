@@ -6,8 +6,8 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers"; // ADDED
-import { decodeJwt } from "jose"; // ADDED
+import { cookies } from "next/headers";
+import { decodeJwt } from "jose";
 
 export async function getAdminClearance() {
   const cookieStore = await cookies();
@@ -17,6 +17,20 @@ export async function getAdminClearance() {
   const payload = decodeJwt(token);
   return payload.department as string;
 }
+
+export async function getAdminRoleAndDept() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  if (!token) return { id: null, role: "encoder", department: "trucking" };
+
+  const payload = decodeJwt(token);
+  return {
+    id: payload.id as number,
+    role: payload.role as string,
+    department: payload.department as string,
+  };
+}
+
 export async function createStaffAccount(formData: FormData) {
   try {
     const name = formData.get("name") as string;
@@ -97,12 +111,14 @@ export async function updateStaffAccount(userId: number, formData: FormData) {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: any = { name, email, avatarUrl };
+    const updateData: any = { name, email, avatarUrl, role, department };
 
-    // SELF-SABOTAGE LOCK: Only update role/department if you are editing someone ELSE
-    if (currentAdminId !== userId) {
-      updateData.role = role;
-      updateData.department = department;
+    // If the admin demoted themselves to encoder, log them out to enforce the new role
+    let demotedSelf = false;
+    if (currentAdminId === userId && currentUser.role === "admin" && role === "encoder") {
+      const cookieStore = await cookies();
+      cookieStore.delete("auth_token");
+      demotedSelf = true;
     }
 
     // Update password if typed
@@ -113,7 +129,7 @@ export async function updateStaffAccount(userId: number, formData: FormData) {
 
     await db.update(users).set(updateData).where(eq(users.id, userId));
     revalidatePath("/admin/users");
-    return { success: true };
+    return { success: true, demotedSelf };
   } catch (error) {
     console.error(error);
     return { success: false, error: "Failed to update account." };

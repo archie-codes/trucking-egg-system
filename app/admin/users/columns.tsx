@@ -107,26 +107,40 @@ export const columns: ColumnDef<StaffRecord>[] = [
   {
     accessorKey: "name",
     header: "Staff member",
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const user = row.original;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const currentUserId = (table.options.meta as any)?.currentUserId;
+      const isCurrentUser = currentUserId === user.id;
+
       return (
         <div className="flex items-center gap-3 min-w-0">
           <Avatar user={user} />
-          <div className="min-w-0">
-            <p
-              className={cn(
-                "text-sm font-semibold leading-tight truncate",
-                !user.isActive
-                  ? "text-muted-foreground/50 line-through"
-                  : "text-foreground",
+          <div className="min-w-0 flex items-center gap-2">
+            <div className="min-w-0">
+              <p
+                className={cn(
+                  "text-sm font-semibold leading-tight truncate",
+                  !user.isActive
+                    ? "text-muted-foreground/50 line-through"
+                    : "text-foreground",
+                )}
+              >
+                {user.name}
+              </p>
+              {!user.isActive && (
+                <span className="block items-center text-[10px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md mt-0.5">
+                  Disabled
+                </span>
               )}
-            >
-              {user.name}
-            </p>
-            {!user.isActive && (
-              <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md mt-0.5">
-                Disabled
-              </span>
+            </div>
+            {isCurrentUser && (
+              <Badge
+                variant="secondary"
+                className="shrink-0 text-[10px] uppercase tracking-wider h-5 px-1.5 bg-blue-100/50 text-blue-700 border border-blue-200/60 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 font-bold"
+              >
+                Your account
+              </Badge>
             )}
           </div>
         </div>

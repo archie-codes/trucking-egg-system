@@ -15,6 +15,7 @@ import {
 // 1. GLOBAL / SYSTEM TABLES
 // ======================================================================
 
+// users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
@@ -33,6 +34,15 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").default(true).notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// system settings table
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  isLocked: boolean("is_locked").default(false).notNull(),
+  lockReason: text("lock_reason"),
+  masterPin: varchar("master_pin", { length: 255 }).default("123456").notNull(), // ✨ ADDED THIS
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
 // ======================================================================
