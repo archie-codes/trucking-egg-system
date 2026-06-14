@@ -29,9 +29,10 @@ interface DataTableProps<TData> {
   columns: any[];
   data: TData[];
   currentUserId?: number | null;
+  onlineCount?: number;
 }
 
-export function DataTable<TData>({ columns, data, currentUserId }: DataTableProps<TData>) {
+export function DataTable<TData>({ columns, data, currentUserId, onlineCount }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -108,23 +109,36 @@ export function DataTable<TData>({ columns, data, currentUserId }: DataTableProp
         </div>
 
         {/* Row count */}
-        <p className="text-[12px] text-muted-foreground sm:ml-auto shrink-0 text-right sm:text-left">
+        <div className="flex items-center flex-wrap gap-1.5 text-[12px] text-muted-foreground sm:ml-auto shrink-0 justify-end sm:justify-start">
           {hasFilter ? (
-            <>
+            <span>
               <span className="font-medium text-foreground">
                 {filteredCount}
               </span>{" "}
               of{" "}
               <span className="font-medium text-foreground">{data.length}</span>{" "}
               staff
-            </>
+            </span>
           ) : (
-            <>
+            <span>
               <span className="font-medium text-foreground">{data.length}</span>{" "}
               staff member{data.length !== 1 ? "s" : ""}
+            </span>
+          )}
+
+          {onlineCount !== undefined && (
+            <>
+              <span className="text-border/60 mx-1">|</span>
+              <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+                {onlineCount} online
+              </span>
             </>
           )}
-        </p>
+        </div>
       </div>
 
       {/* ── Table card ── */}

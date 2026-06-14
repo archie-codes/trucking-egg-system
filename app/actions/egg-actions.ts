@@ -29,6 +29,18 @@ const batchSchema = z.object({
   qtyCracked: numField,
   qtyBroken: numField,
   qtyDirty: numField, // ✨ ADDED
+
+  brownQtyPeewee: numField,
+  brownQtyXs: numField,
+  brownQtySmall: numField,
+  brownQtyMedium: numField,
+  brownQtyLarge: numField,
+  brownQtyXl: numField,
+  brownQtyXxl: numField,
+  brownQtyAssorted: numField,
+  brownQtyCracked: numField,
+  brownQtyBroken: numField,
+  brownQtyDirty: numField,
 });
 
 export async function createEggBatch(values: z.infer<typeof batchSchema>) {
@@ -58,6 +70,17 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
       qtyCracked: data.qtyCracked,
       qtyBroken: data.qtyBroken,
       qtyDirty: data.qtyDirty, // ✨ Added
+      brownQtyPeewee: data.brownQtyPeewee,
+      brownQtyXs: data.brownQtyXs,
+      brownQtySmall: data.brownQtySmall,
+      brownQtyMedium: data.brownQtyMedium,
+      brownQtyLarge: data.brownQtyLarge,
+      brownQtyXl: data.brownQtyXl,
+      brownQtyXxl: data.brownQtyXxl,
+      brownQtyAssorted: data.brownQtyAssorted,
+      brownQtyCracked: data.brownQtyCracked,
+      brownQtyBroken: data.brownQtyBroken,
+      brownQtyDirty: data.brownQtyDirty,
     });
 
     const updateStock = async (classification: string, qtyPieces: number) => {
@@ -89,6 +112,18 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
     await updateStock("CRACKED", data.qtyCracked);
     await updateStock("BROKEN", data.qtyBroken);
     await updateStock("DIRTY", data.qtyDirty);
+
+    await updateStock("BROWN_PEEWEE", data.brownQtyPeewee);
+    await updateStock("BROWN_XS", data.brownQtyXs);
+    await updateStock("BROWN_SMALL", data.brownQtySmall);
+    await updateStock("BROWN_MEDIUM", data.brownQtyMedium);
+    await updateStock("BROWN_LARGE", data.brownQtyLarge);
+    await updateStock("BROWN_XL", data.brownQtyXl);
+    await updateStock("BROWN_XXL", data.brownQtyXxl);
+    await updateStock("BROWN_ASSORTED", data.brownQtyAssorted);
+    await updateStock("BROWN_CRACKED", data.brownQtyCracked);
+    await updateStock("BROWN_BROKEN", data.brownQtyBroken);
+    await updateStock("BROWN_DIRTY", data.brownQtyDirty);
 
     revalidatePath("/egg-sales");
     return { success: true };
@@ -166,6 +201,17 @@ export async function deleteEggBatch(batchId: string) {
       { class: "CRACKED", qty: batch.qtyCracked },
       { class: "BROKEN", qty: batch.qtyBroken },
       { class: "DIRTY", qty: batch.qtyDirty },
+      { class: "BROWN_PEEWEE", qty: batch.brownQtyPeewee },
+      { class: "BROWN_XS", qty: batch.brownQtyXs },
+      { class: "BROWN_SMALL", qty: batch.brownQtySmall },
+      { class: "BROWN_MEDIUM", qty: batch.brownQtyMedium },
+      { class: "BROWN_LARGE", qty: batch.brownQtyLarge },
+      { class: "BROWN_XL", qty: batch.brownQtyXl },
+      { class: "BROWN_XXL", qty: batch.brownQtyXxl },
+      { class: "BROWN_ASSORTED", qty: batch.brownQtyAssorted },
+      { class: "BROWN_CRACKED", qty: batch.brownQtyCracked },
+      { class: "BROWN_BROKEN", qty: batch.brownQtyBroken },
+      { class: "BROWN_DIRTY", qty: batch.brownQtyDirty },
     ];
 
     // 1. Guard Check: Ensure deleting this won't cause negative inventory
@@ -253,6 +299,17 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
       { class: "CRACKED", delta: data.qtyCracked - old.qtyCracked },
       { class: "BROKEN", delta: data.qtyBroken - old.qtyBroken },
       { class: "DIRTY", delta: data.qtyDirty - old.qtyDirty },
+      { class: "BROWN_PEEWEE", delta: data.brownQtyPeewee - old.brownQtyPeewee },
+      { class: "BROWN_XS", delta: data.brownQtyXs - old.brownQtyXs },
+      { class: "BROWN_SMALL", delta: data.brownQtySmall - old.brownQtySmall },
+      { class: "BROWN_MEDIUM", delta: data.brownQtyMedium - old.brownQtyMedium },
+      { class: "BROWN_LARGE", delta: data.brownQtyLarge - old.brownQtyLarge },
+      { class: "BROWN_XL", delta: data.brownQtyXl - old.brownQtyXl },
+      { class: "BROWN_XXL", delta: data.brownQtyXxl - old.brownQtyXxl },
+      { class: "BROWN_ASSORTED", delta: data.brownQtyAssorted - old.brownQtyAssorted },
+      { class: "BROWN_CRACKED", delta: data.brownQtyCracked - old.brownQtyCracked },
+      { class: "BROWN_BROKEN", delta: data.brownQtyBroken - old.brownQtyBroken },
+      { class: "BROWN_DIRTY", delta: data.brownQtyDirty - old.brownQtyDirty },
     ];
 
     // 1. Guard Check: Ensure negative deltas (removing eggs) don't drop stock below zero
@@ -306,6 +363,17 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
         qtyCracked: data.qtyCracked,
         qtyBroken: data.qtyBroken,
         qtyDirty: data.qtyDirty,
+        brownQtyPeewee: data.brownQtyPeewee,
+        brownQtyXs: data.brownQtyXs,
+        brownQtySmall: data.brownQtySmall,
+        brownQtyMedium: data.brownQtyMedium,
+        brownQtyLarge: data.brownQtyLarge,
+        brownQtyXl: data.brownQtyXl,
+        brownQtyXxl: data.brownQtyXxl,
+        brownQtyAssorted: data.brownQtyAssorted,
+        brownQtyCracked: data.brownQtyCracked,
+        brownQtyBroken: data.brownQtyBroken,
+        brownQtyDirty: data.brownQtyDirty,
       })
       .where(eq(eggBatches.id, data.id));
 

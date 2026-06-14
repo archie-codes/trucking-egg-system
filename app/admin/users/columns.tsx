@@ -37,6 +37,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export type StaffRecord = {
@@ -47,6 +53,7 @@ export type StaffRecord = {
   department: string;
   avatarUrl: string | null;
   isActive: boolean;
+  lastActiveAt: Date | null;
   createdAt: Date;
 };
 
@@ -120,13 +127,28 @@ export const columns: ColumnDef<StaffRecord>[] = [
             <div className="min-w-0">
               <p
                 className={cn(
-                  "text-sm font-semibold leading-tight truncate",
+                  "text-sm font-semibold leading-tight truncate flex items-center gap-2",
                   !user.isActive
                     ? "text-muted-foreground/50 line-through"
                     : "text-foreground",
                 )}
               >
                 {user.name}
+                {user.isActive && user.lastActiveAt && (new Date().getTime() - new Date(user.lastActiveAt).getTime()) < 5 * 60 * 1000 && (
+                  <TooltipProvider>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <span className="relative flex h-2 w-2 cursor-help">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="px-2 py-1">
+                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Online</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </p>
               {!user.isActive && (
                 <span className="block items-center text-[10px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md mt-0.5">

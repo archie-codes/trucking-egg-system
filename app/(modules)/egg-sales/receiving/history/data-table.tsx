@@ -721,7 +721,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             (() => {
               const expectedTotal =
                 viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp;
-              const goodTotal =
+              const whiteGoodTotal =
                 viewData.qtyPeewee +
                 viewData.qtyXs +
                 viewData.qtySmall +
@@ -729,8 +729,24 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                 viewData.qtyLarge +
                 viewData.qtyXl +
                 viewData.qtyXxl;
-              const spoilageTotal =
+              const whiteSpoilageTotal =
                 viewData.qtyCracked + viewData.qtyBroken + viewData.qtyDirty;
+              const whiteTotal = whiteGoodTotal + whiteSpoilageTotal;
+
+              const brownGoodTotal =
+                viewData.brownQtyPeewee +
+                viewData.brownQtyXs +
+                viewData.brownQtySmall +
+                viewData.brownQtyMedium +
+                viewData.brownQtyLarge +
+                viewData.brownQtyXl +
+                viewData.brownQtyXxl +
+                viewData.brownQtyAssorted;
+              const brownSpoilageTotal =
+                viewData.brownQtyCracked +
+                viewData.brownQtyBroken +
+                viewData.brownQtyDirty;
+              const brownTotal = brownGoodTotal + brownSpoilageTotal;
 
               return (
                 <div className="p-4 sm:p-5 space-y-3 bg-slate-50/50 dark:bg-slate-950/50 overflow-y-auto custom-scrollbar flex-1 min-h-0">
@@ -802,14 +818,17 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
                   {/* Detailed Breakdown */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                    {/* Good Inventory */}
+                    {/* White Eggs */}
                     <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
                       <div className="bg-slate-50 dark:bg-slate-900/50 px-4 h-11 border-b border-slate-200 dark:border-slate-800 flex items-center">
                         <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                          Good Eggs
+                          White Eggs Breakdown
                         </span>
                       </div>
                       <div className="p-3 space-y-1 flex-1">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 pl-1.5">
+                          Good Eggs
+                        </div>
                         {[
                           { label: "Jumbo (XXL)", value: viewData.qtyXxl },
                           { label: "Extra Large", value: viewData.qtyXl },
@@ -821,7 +840,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                         ].map((item, idx) => (
                           <div
                             key={idx}
-                            className="flex justify-between items-center text-sm p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-md transition-colors"
+                            className="flex justify-between items-center text-[13px] p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-md transition-colors"
                           >
                             <span className="text-slate-600 dark:text-slate-400">
                               {item.label}
@@ -831,33 +850,18 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                             </span>
                           </div>
                         ))}
-                      </div>
-                      <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center mt-auto">
-                        <span className="text-sm font-bold text-slate-600 dark:text-slate-400">
-                          Total Good
-                        </span>
-                        <span className="text-sm font-bold font-mono text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
-                          {goodTotal}
-                        </span>
-                      </div>
-                    </div>
 
-                    {/* Spoilage Details */}
-                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-rose-200 dark:border-rose-900/30 overflow-hidden flex flex-col">
-                      <div className="bg-rose-50/50 dark:bg-rose-950/20 px-4 h-11 border-b border-rose-100 dark:border-rose-900/30 flex items-center">
-                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                        <div className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mt-4 mb-2 pl-1.5 border-t border-slate-100 dark:border-slate-800 pt-3">
                           Spoiled Eggs
-                        </span>
-                      </div>
-                      <div className="p-3 space-y-1 flex-1">
+                        </div>
                         {[
                           { label: "Cracked", value: viewData.qtyCracked },
                           { label: "Broken", value: viewData.qtyBroken },
                           { label: "Dirty", value: viewData.qtyDirty },
                         ].map((item, idx) => (
                           <div
-                            key={idx}
-                            className="flex justify-between items-center text-sm p-1.5 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 rounded-md transition-colors"
+                            key={`spoil-white-${idx}`}
+                            className="flex justify-between items-center text-[13px] p-1.5 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 rounded-md transition-colors"
                           >
                             <span className="text-slate-600 dark:text-slate-400">
                               {item.label}
@@ -868,12 +872,77 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                           </div>
                         ))}
                       </div>
-                      <div className="bg-rose-50/50 dark:bg-rose-950/20 px-4 py-2.5 border-t border-rose-100 dark:border-rose-900/30 flex justify-between items-center mt-auto">
-                        <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                          Total Spoiled
+                      <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center mt-auto">
+                        <span className="text-[13px] font-bold text-slate-600 dark:text-slate-400">
+                          Total White
                         </span>
-                        <span className="text-sm font-bold font-mono text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/40 px-2.5 py-0.5 rounded-full">
-                          {spoilageTotal}
+                        <span className="text-sm font-bold font-mono text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                          {whiteTotal}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Brown Eggs */}
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-amber-200/50 dark:border-amber-900/30 overflow-hidden flex flex-col">
+                      <div className="bg-amber-50/50 dark:bg-amber-900/10 px-4 h-11 border-b border-amber-100 dark:border-amber-900/30 flex items-center">
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">
+                          Brown Eggs Breakdown
+                        </span>
+                      </div>
+                      <div className="p-3 space-y-1 flex-1">
+                        <div className="text-[10px] font-bold text-amber-700/60 dark:text-amber-500/60 uppercase tracking-widest mb-2 pl-1.5">
+                          Good Eggs
+                        </div>
+                        {[
+                          { label: "Jumbo (XXL)", value: viewData.brownQtyXxl },
+                          { label: "Extra Large", value: viewData.brownQtyXl },
+                          { label: "Large", value: viewData.brownQtyLarge },
+                          { label: "Medium", value: viewData.brownQtyMedium },
+                          { label: "Small", value: viewData.brownQtySmall },
+                          { label: "XS", value: viewData.brownQtyXs },
+                          { label: "Peewee", value: viewData.brownQtyPeewee },
+                          { label: "Assorted", value: viewData.brownQtyAssorted },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center text-[13px] p-1.5 hover:bg-amber-50/50 dark:hover:bg-amber-900/20 rounded-md transition-colors"
+                          >
+                            <span className="text-amber-700/80 dark:text-amber-500/80">
+                              {item.label}
+                            </span>
+                            <span className="font-medium font-mono text-amber-600 dark:text-amber-500">
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+
+                        <div className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mt-4 mb-2 pl-1.5 border-t border-amber-100 dark:border-amber-900/30 pt-3">
+                          Spoiled Eggs
+                        </div>
+                        {[
+                          { label: "Cracked", value: viewData.brownQtyCracked },
+                          { label: "Broken", value: viewData.brownQtyBroken },
+                          { label: "Dirty", value: viewData.brownQtyDirty },
+                        ].map((item, idx) => (
+                          <div
+                            key={`spoil-brown-${idx}`}
+                            className="flex justify-between items-center text-[13px] p-1.5 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 rounded-md transition-colors"
+                          >
+                            <span className="text-amber-700/80 dark:text-amber-500/80">
+                              {item.label}
+                            </span>
+                            <span className="font-medium font-mono text-rose-600 dark:text-rose-400">
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-amber-50/50 dark:bg-amber-900/10 px-4 py-2.5 border-t border-amber-100 dark:border-amber-900/30 flex justify-between items-center mt-auto">
+                        <span className="text-[13px] font-bold text-amber-700 dark:text-amber-500">
+                          Total Brown
+                        </span>
+                        <span className="text-sm font-bold font-mono text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/40 px-2.5 py-0.5 rounded-full">
+                          {brownTotal}
                         </span>
                       </div>
                     </div>

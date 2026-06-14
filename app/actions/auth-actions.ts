@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { SignJWT } from "jose";
+import { SignJWT, decodeJwt } from "jose";
 import { cookies } from "next/headers";
 
 // Encode the secret key we just put in your .env.local
@@ -88,6 +88,21 @@ import { redirect } from "next/navigation";
 
 export async function logoutUser() {
   const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+
+  if (token) {
+    try {
+      const payload = decodeJwt(token);
+      const userId = payload.id as number;
+      if (userId) {
+        // Clear the online status immediately when logging out
+        await db.update(users).set({ lastActiveAt: null }).where(eq(users.id, userId));
+      }
+    } catch (e) {
+      console.error("Failed to clear online status on logout:", e);
+    }
+  }
+
   cookieStore.delete("auth_token");
 
   // Route them to the main portal selector instead of a specific login page

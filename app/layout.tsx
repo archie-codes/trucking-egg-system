@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/global/theme-provider";
 import { NetworkStatus } from "@/components/global/network-status";
+import { PresenceTracker } from "@/components/global/presence-tracker";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -79,6 +80,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <NetworkStatus />
+          <PresenceTracker />
           {children}
           <Toaster position="top-right" richColors />
         </ThemeProvider>

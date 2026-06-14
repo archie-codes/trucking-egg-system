@@ -177,11 +177,14 @@ export const getColumns = (
       const cls = (row.getValue("classification") as string).toUpperCase();
       let colorClass = "text-blue-600 dark:text-blue-400";
 
-      if (cls === "CRACKED") colorClass = "text-red-600 dark:text-red-400";
-      else if (cls === "BROKEN")
+      if (cls === "CRACKED" || cls === "BROWN_CRACKED")
+        colorClass = "text-red-600 dark:text-red-400";
+      else if (cls === "BROKEN" || cls === "BROWN_BROKEN")
         colorClass = "text-rose-600 dark:text-rose-400";
-      else if (cls === "DIRTY")
+      else if (cls === "DIRTY" || cls === "BROWN_DIRTY")
         colorClass = "text-stone-600 dark:text-stone-400";
+      else if (cls.startsWith("BROWN_"))
+        colorClass = "text-amber-700 dark:text-amber-500";
 
       return <div className={`font-black uppercase ${colorClass}`}>{cls}</div>;
     },

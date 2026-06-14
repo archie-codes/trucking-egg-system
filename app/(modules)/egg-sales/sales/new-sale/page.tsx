@@ -72,6 +72,17 @@ const saleSchema = z.object({
     CRACKED: sizeItemSchema,
     BROKEN: sizeItemSchema,
     DIRTY: sizeItemSchema,
+    BROWN_PEEWEE: sizeItemSchema,
+    BROWN_XS: sizeItemSchema,
+    BROWN_SMALL: sizeItemSchema,
+    BROWN_MEDIUM: sizeItemSchema,
+    BROWN_LARGE: sizeItemSchema,
+    BROWN_XL: sizeItemSchema,
+    BROWN_XXL: sizeItemSchema,
+    BROWN_ASSORTED: sizeItemSchema,
+    BROWN_CRACKED: sizeItemSchema,
+    BROWN_BROKEN: sizeItemSchema,
+    BROWN_DIRTY: sizeItemSchema,
   }),
 });
 
@@ -146,6 +157,83 @@ const EGG_SIZES = [
     bg: "bg-stone-50/40 dark:bg-stone-950/10",
     border: "border-stone-100 dark:border-stone-900/30",
   },
+  {
+    id: "BROWN_PEEWEE",
+    label: "Brown Peewee",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_XS",
+    label: "Brown XS",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_SMALL",
+    label: "Brown Small",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_MEDIUM",
+    label: "Brown Medium",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_LARGE",
+    label: "Brown Large",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_XL",
+    label: "Brown XL",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_XXL",
+    label: "Brown XXL",
+    color: "text-amber-700 dark:text-amber-500",
+    bg: "bg-amber-50/40 dark:bg-amber-950/10",
+    border: "border-amber-200 dark:border-amber-900/40",
+  },
+  {
+    id: "BROWN_ASSORTED",
+    label: "Brown Assorted",
+    color: "text-teal-700 dark:text-teal-500",
+    bg: "bg-teal-50/40 dark:bg-teal-950/10",
+    border: "border-teal-200 dark:border-teal-900/40",
+  },
+  {
+    id: "BROWN_CRACKED",
+    label: "Brown Cracked",
+    color: "text-rose-700 dark:text-rose-500",
+    bg: "bg-rose-50/40 dark:bg-rose-950/10",
+    border: "border-rose-200 dark:border-rose-900/40",
+  },
+  {
+    id: "BROWN_BROKEN",
+    label: "Brown Broken",
+    color: "text-red-700 dark:text-red-500",
+    bg: "bg-red-50/40 dark:bg-red-950/10",
+    border: "border-red-200 dark:border-red-900/40",
+  },
+  {
+    id: "BROWN_DIRTY",
+    label: "Brown Dirty",
+    color: "text-orange-800 dark:text-orange-600",
+    bg: "bg-orange-50/40 dark:bg-orange-950/10",
+    border: "border-orange-200 dark:border-orange-900/40",
+  },
 ] as const;
 
 export default function NewSalePage() {
@@ -189,6 +277,17 @@ export default function NewSalePage() {
         CRACKED: { checked: false, quantityTrays: "", pricePerTray: "" },
         BROKEN: { checked: false, quantityTrays: "", pricePerTray: "" },
         DIRTY: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_PEEWEE: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_XS: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_SMALL: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_MEDIUM: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_LARGE: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_XL: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_XXL: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_ASSORTED: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_CRACKED: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_BROKEN: { checked: false, quantityTrays: "", pricePerTray: "" },
+        BROWN_DIRTY: { checked: false, quantityTrays: "", pricePerTray: "" },
       },
     },
   });
@@ -306,8 +405,132 @@ export default function NewSalePage() {
     }
   }
 
+  const renderEggRow = (size: (typeof EGG_SIZES)[number]) => {
+    const isChecked = !!watchedSizes[size.id]?.checked;
+    const stockPieces =
+      inventory.find((i) => i.classification === size.id)?.currentStockTrays ||
+      0;
+    const availableTrays = Math.floor(stockPieces / 30);
+    const looseEggs = stockPieces % 30;
+
+    const rowQty = Number(watchedSizes[size.id]?.quantityTrays) || 0;
+    const rowPrice = Number(watchedSizes[size.id]?.pricePerTray) || 0;
+    const rowSubtotal = isChecked ? rowQty * rowPrice : 0;
+
+    const rowIsOverselling = isChecked && rowQty > availableTrays;
+
+    return (
+      <div
+        key={size.id}
+        className={cn(
+          "grid grid-cols-12 items-center p-4 transition-colors duration-150",
+          isChecked
+            ? "bg-white dark:bg-slate-900/60"
+            : "bg-slate-50/20 dark:bg-transparent opacity-70",
+        )}
+      >
+        {/* Checkbox Column */}
+        <div className="col-span-1 flex justify-center">
+          <Controller
+            name={`sizes.${size.id}.checked`}
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                id={`check-${size.id}`}
+                checked={field.value}
+                disabled={availableTrays <= 0}
+                onCheckedChange={field.onChange}
+                className="h-5 w-5 rounded-md border-slate-300 dark:border-slate-700 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            )}
+          />
+        </div>
+
+        {/* Classification Badge Name */}
+        <div className="col-span-2">
+          <label
+            htmlFor={`check-${size.id}`}
+            className={cn(
+              "text-sm font-black tracking-wide uppercase cursor-pointer select-none",
+              size.color,
+            )}
+          >
+            {size.label}
+          </label>
+        </div>
+
+        {/* Available Bodega Stock Level */}
+        <div className="col-span-3 text-center text-xs">
+          <span
+            className={cn(
+              "font-bold px-2.5 py-1 rounded-full text-[11px]",
+              availableTrays === 0
+                ? "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
+            )}
+          >
+            {availableTrays} Trays {looseEggs > 0 ? `(+${looseEggs} pcs)` : ""}
+          </span>
+        </div>
+
+        {/* Quantity Input Form Field */}
+        <div className="col-span-2 px-1">
+          <Controller
+            name={`sizes.${size.id}.quantityTrays`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                disabled={!isChecked}
+                placeholder="0"
+                onClick={(e) => e.currentTarget.select()}
+                className={cn(
+                  "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
+                  rowIsOverselling
+                    ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                    : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                )}
+              />
+            )}
+          />
+        </div>
+
+        {/* Price Per Tray Input Form Field */}
+        <div className="col-span-2 px-1">
+          <Controller
+            name={`sizes.${size.id}.pricePerTray`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                disabled={!isChecked}
+                placeholder="₱0"
+                onClick={(e) => e.currentTarget.select()}
+                className="h-9 font-black rounded-lg text-sm text-center bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500 text-emerald-600"
+              />
+            )}
+          />
+        </div>
+
+        {/* Interactive Live Subtotal Cell */}
+        <div
+          className={cn(
+            "col-span-2 text-right font-mono font-bold text-sm pr-2",
+            isChecked
+              ? "text-slate-900 dark:text-white"
+              : "text-slate-300 dark:text-slate-700",
+          )}
+        >
+          ₱{rowSubtotal.toLocaleString()}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-4 animate-in fade-in duration-300 pb-24">
+    <div className="w-full mx-auto space-y-4 animate-in fade-in duration-300 pb-16">
       <div className="space-y-1 relative">
         <div className="absolute -left-4 top-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl -z-10" />
         <h1 className="text-lg lg:text-xl font-black tracking-tight text-slate-900 dark:text-white">
@@ -434,132 +657,21 @@ export default function NewSalePage() {
                   <div className="col-span-2 text-right">Subtotal</div>
                 </div>
 
-                {/* Checklist Matrix Rows */}
-                {EGG_SIZES.map((size) => {
-                  const isChecked = !!watchedSizes[size.id]?.checked;
-                  const stockPieces =
-                    inventory.find((i) => i.classification === size.id)
-                      ?.currentStockTrays || 0;
-                  const availableTrays = Math.floor(stockPieces / 30);
-                  const looseEggs = stockPieces % 30;
+                {/* WHITE EGGS CATEGORY */}
+                <div className="bg-slate-100/60 dark:bg-slate-800/40 p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest border-y border-slate-200 dark:border-slate-800/60 pl-6">
+                  White Eggs Category
+                </div>
+                {EGG_SIZES.filter((s) => !s.id.startsWith("BROWN_")).map(
+                  renderEggRow,
+                )}
 
-                  const rowQty =
-                    Number(watchedSizes[size.id]?.quantityTrays) || 0;
-                  const rowPrice =
-                    Number(watchedSizes[size.id]?.pricePerTray) || 0;
-                  const rowSubtotal = isChecked ? rowQty * rowPrice : 0;
-
-                  const rowIsOverselling = isChecked && rowQty > availableTrays;
-
-                  return (
-                    <div
-                      key={size.id}
-                      className={cn(
-                        "grid grid-cols-12 items-center p-4 transition-colors duration-150",
-                        isChecked
-                          ? "bg-white dark:bg-slate-900/60"
-                          : "bg-slate-50/20 dark:bg-transparent opacity-70",
-                      )}
-                    >
-                      {/* Checkbox Column */}
-                      <div className="col-span-1 flex justify-center">
-                        <Controller
-                          name={`sizes.${size.id}.checked`}
-                          control={control}
-                          render={({ field }) => (
-                            <Checkbox
-                              id={`check-${size.id}`}
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              className="h-5 w-5 rounded-md border-slate-300 dark:border-slate-700 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-                            />
-                          )}
-                        />
-                      </div>
-
-                      {/* Classification Badge Name */}
-                      <div className="col-span-2">
-                        <label
-                          htmlFor={`check-${size.id}`}
-                          className={cn(
-                            "text-sm font-black tracking-wide uppercase cursor-pointer select-none",
-                            size.color,
-                          )}
-                        >
-                          {size.label}
-                        </label>
-                      </div>
-
-                      {/* Available Bodega Stock Level */}
-                      <div className="col-span-3 text-center text-xs">
-                        <span
-                          className={cn(
-                            "font-bold px-2.5 py-1 rounded-full text-[11px]",
-                            availableTrays === 0
-                              ? "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
-                          )}
-                        >
-                          {availableTrays} Trays{" "}
-                          {looseEggs > 0 ? `(+${looseEggs} pcs)` : ""}
-                        </span>
-                      </div>
-
-                      {/* Quantity Input Form Field */}
-                      <div className="col-span-2 px-1">
-                        <Controller
-                          name={`sizes.${size.id}.quantityTrays`}
-                          control={control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              type="number"
-                              disabled={!isChecked}
-                              placeholder="0"
-                              onClick={(e) => e.currentTarget.select()}
-                              className={cn(
-                                "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
-                                rowIsOverselling
-                                  ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                                  : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
-                              )}
-                            />
-                          )}
-                        />
-                      </div>
-
-                      {/* Price Per Tray Input Form Field */}
-                      <div className="col-span-2 px-1">
-                        <Controller
-                          name={`sizes.${size.id}.pricePerTray`}
-                          control={control}
-                          render={({ field }) => (
-                            <Input
-                              {...field}
-                              type="number"
-                              disabled={!isChecked}
-                              placeholder="₱0"
-                              onClick={(e) => e.currentTarget.select()}
-                              className="h-9 font-black rounded-lg text-sm text-center bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500 text-emerald-600"
-                            />
-                          )}
-                        />
-                      </div>
-
-                      {/* Interactive Live Subtotal Cell */}
-                      <div
-                        className={cn(
-                          "col-span-2 text-right font-mono font-bold text-sm pr-2",
-                          isChecked
-                            ? "text-slate-900 dark:text-white"
-                            : "text-slate-300 dark:text-slate-700",
-                        )}
-                      >
-                        ₱{rowSubtotal.toLocaleString()}
-                      </div>
-                    </div>
-                  );
-                })}
+                {/* BROWN EGGS CATEGORY */}
+                <div className="bg-amber-50/60 dark:bg-amber-900/10 p-3 text-[10px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-widest border-y border-slate-200 dark:border-slate-800/60 pl-6">
+                  Brown Eggs Category
+                </div>
+                {EGG_SIZES.filter((s) => s.id.startsWith("BROWN_")).map(
+                  renderEggRow,
+                )}
               </div>
             </div>
 

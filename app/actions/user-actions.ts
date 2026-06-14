@@ -237,3 +237,20 @@ export async function updateUserAvatar(userId: number, avatarUrl: string) {
     return { success: false, error: "Failed to update database." };
   }
 }
+
+export async function pingUserPresence() {
+  try {
+    const userId = await getAdminId();
+    if (!userId) return { success: false };
+
+    await db
+      .update(users)
+      .set({ lastActiveAt: new Date() })
+      .where(eq(users.id, userId));
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to update presence:", error);
+    return { success: false };
+  }
+}

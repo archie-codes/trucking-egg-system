@@ -266,6 +266,95 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
       );
     },
   },
+  // --- BROWN EGGS COLUMNS ---
+  {
+    accessorKey: "brownQtyPeewee",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br PW</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyPeewee") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyXs",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br XS</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyXs") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtySmall",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br S</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtySmall") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyMedium",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br M</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyMedium") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyLarge",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br L</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyLarge") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyXl",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br XL</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyXl") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyXxl",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br XXL</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyXxl") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyAssorted",
+    header: () => <div className="text-right text-amber-700 dark:text-amber-500 border-r border-slate-200 dark:border-slate-800 pr-2">Br ASST</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyAssorted") as number;
+      return <div className="text-right font-mono text-amber-700 dark:text-amber-500 border-r border-slate-100 dark:border-slate-800/60 pr-2">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyCracked",
+    header: () => <div className="text-right text-rose-500">Br CRK</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyCracked") as number;
+      return <div className="text-right font-mono text-rose-500 bg-rose-50/30 dark:bg-rose-900/10 px-2 py-1 rounded">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyBroken",
+    header: () => <div className="text-right text-rose-500">Br BRK</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyBroken") as number;
+      return <div className="text-right font-mono text-rose-500 bg-rose-50/30 dark:bg-rose-900/10 px-2 py-1 rounded">{val > 0 ? val : "-"}</div>;
+    },
+  },
+  {
+    accessorKey: "brownQtyDirty",
+    header: () => <div className="text-right text-orange-500">Br DRT</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("brownQtyDirty") as number;
+      return <div className="text-right font-mono text-orange-500 bg-orange-50/30 dark:bg-orange-900/10 px-2 py-1 rounded">{val > 0 ? val : "-"}</div>;
+    },
+  },
   {
     id: "totalEggs",
     header: () => (
@@ -285,6 +374,17 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
         qtyCracked,
         qtyBroken,
         qtyDirty,
+        brownQtyPeewee,
+        brownQtyXs,
+        brownQtySmall,
+        brownQtyMedium,
+        brownQtyLarge,
+        brownQtyXl,
+        brownQtyXxl,
+        brownQtyAssorted,
+        brownQtyCracked,
+        brownQtyBroken,
+        brownQtyDirty,
       } = row.original;
 
       const total =
@@ -297,7 +397,18 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
         (qtyXxl || 0) +
         (qtyCracked || 0) +
         (qtyBroken || 0) +
-        (qtyDirty || 0);
+        (qtyDirty || 0) +
+        (brownQtyPeewee || 0) +
+        (brownQtyXs || 0) +
+        (brownQtySmall || 0) +
+        (brownQtyMedium || 0) +
+        (brownQtyLarge || 0) +
+        (brownQtyXl || 0) +
+        (brownQtyXxl || 0) +
+        (brownQtyAssorted || 0) +
+        (brownQtyCracked || 0) +
+        (brownQtyBroken || 0) +
+        (brownQtyDirty || 0);
 
       return (
         <div className="text-right font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 px-2 py-1 rounded">
@@ -344,6 +455,17 @@ const ActionCell = ({
     qtyCracked: batch.qtyCracked,
     qtyBroken: batch.qtyBroken,
     qtyDirty: batch.qtyDirty,
+    brownQtyPeewee: batch.brownQtyPeewee,
+    brownQtyXs: batch.brownQtyXs,
+    brownQtySmall: batch.brownQtySmall,
+    brownQtyMedium: batch.brownQtyMedium,
+    brownQtyLarge: batch.brownQtyLarge,
+    brownQtyXl: batch.brownQtyXl,
+    brownQtyXxl: batch.brownQtyXxl,
+    brownQtyAssorted: batch.brownQtyAssorted,
+    brownQtyCracked: batch.brownQtyCracked,
+    brownQtyBroken: batch.brownQtyBroken,
+    brownQtyDirty: batch.brownQtyDirty,
   });
 
   const handleDelete = async () => {
@@ -381,8 +503,21 @@ const ActionCell = ({
   const broken = Number(formData.qtyBroken) || 0;
   const dirty = Number(formData.qtyDirty) || 0;
 
+  const bPeewee = Number(formData.brownQtyPeewee) || 0;
+  const bXs = Number(formData.brownQtyXs) || 0;
+  const bS = Number(formData.brownQtySmall) || 0;
+  const bM = Number(formData.brownQtyMedium) || 0;
+  const bL = Number(formData.brownQtyLarge) || 0;
+  const bXl = Number(formData.brownQtyXl) || 0;
+  const bXxl = Number(formData.brownQtyXxl) || 0;
+  const bAssorted = Number(formData.brownQtyAssorted) || 0;
+  const bCracked = Number(formData.brownQtyCracked) || 0;
+  const bBroken = Number(formData.brownQtyBroken) || 0;
+  const bDirty = Number(formData.brownQtyDirty) || 0;
+
   const totalSortedPieces =
-    peewee + xs + s + m + l + xl + xxl + cracked + broken + dirty;
+    peewee + xs + s + m + l + xl + xxl + cracked + broken + dirty +
+    bPeewee + bXs + bS + bM + bL + bXl + bXxl + bAssorted + bCracked + bBroken + bDirty;
   const variancePieces = totalExpectedPieces - totalSortedPieces;
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -478,6 +613,17 @@ const ActionCell = ({
                 qtyCracked: batch.qtyCracked,
                 qtyBroken: batch.qtyBroken,
                 qtyDirty: batch.qtyDirty,
+                brownQtyPeewee: batch.brownQtyPeewee,
+                brownQtyXs: batch.brownQtyXs,
+                brownQtySmall: batch.brownQtySmall,
+                brownQtyMedium: batch.brownQtyMedium,
+                brownQtyLarge: batch.brownQtyLarge,
+                brownQtyXl: batch.brownQtyXl,
+                brownQtyXxl: batch.brownQtyXxl,
+                brownQtyAssorted: batch.brownQtyAssorted,
+                brownQtyCracked: batch.brownQtyCracked,
+                brownQtyBroken: batch.brownQtyBroken,
+                brownQtyDirty: batch.brownQtyDirty,
               });
               setIsEditOpen(true);
             }}
@@ -704,7 +850,7 @@ const ActionCell = ({
 
               <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <h4 className="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest border-b border-blue-100 dark:border-blue-900/30 pb-2">
-                  QA Breakdown (Pieces)
+                  White QA Breakdown (Pieces)
                 </h4>
 
                 <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
@@ -794,6 +940,107 @@ const ActionCell = ({
                       }
                       onChange={(e) =>
                         handleNumChange("qtyDirty", e.target.value)
+                      }
+                      onClick={(e) => e.currentTarget.select()}
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 font-mono font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest border-b border-amber-100 dark:border-amber-900/30 pb-2">
+                  Brown QA Breakdown (Pieces)
+                </h4>
+
+                <div className="grid grid-cols-3 sm:grid-cols-8 gap-3">
+                  {[
+                    { key: "brownQtyPeewee", label: "Peewee" },
+                    { key: "brownQtyXs", label: "XS" },
+                    { key: "brownQtySmall", label: "Small" },
+                    { key: "brownQtyMedium", label: "Medium" },
+                    { key: "brownQtyLarge", label: "Large" },
+                    { key: "brownQtyXl", label: "XL" },
+                    { key: "brownQtyXxl", label: "XXL" },
+                    { key: "brownQtyAssorted", label: "Assorted" },
+                  ].map((size) => (
+                    <div key={size.key} className="space-y-1.5">
+                      <Label className="text-[10px] font-bold text-slate-500 uppercase">
+                        {size.label}
+                      </Label>
+                      <Input
+                        type="number"
+                        value={
+                          formData[size.key as keyof typeof formData] === 0 &&
+                          formData[
+                            size.key as keyof typeof formData
+                          ].toString() !== "0"
+                            ? ""
+                            : formData[size.key as keyof typeof formData]
+                        }
+                        onChange={(e) =>
+                          handleNumChange(size.key, e.target.value)
+                        }
+                        onClick={(e) => e.currentTarget.select()}
+                        className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-amber-50 dark:bg-amber-950/20 text-amber-600 font-mono font-bold"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 pt-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-rose-400 uppercase">
+                      Cracked
+                    </Label>
+                    <Input
+                      type="number"
+                      value={
+                        formData.brownQtyCracked === 0 &&
+                        formData.brownQtyCracked.toString() !== "0"
+                          ? ""
+                          : formData.brownQtyCracked
+                      }
+                      onChange={(e) =>
+                        handleNumChange("brownQtyCracked", e.target.value)
+                      }
+                      onClick={(e) => e.currentTarget.select()}
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 font-mono font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-rose-400 uppercase">
+                      Broken
+                    </Label>
+                    <Input
+                      type="number"
+                      value={
+                        formData.brownQtyBroken === 0 &&
+                        formData.brownQtyBroken.toString() !== "0"
+                          ? ""
+                          : formData.brownQtyBroken
+                      }
+                      onChange={(e) =>
+                        handleNumChange("brownQtyBroken", e.target.value)
+                      }
+                      onClick={(e) => e.currentTarget.select()}
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 font-mono font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-orange-400 uppercase">
+                      Dirty
+                    </Label>
+                    <Input
+                      type="number"
+                      value={
+                        formData.brownQtyDirty === 0 &&
+                        formData.brownQtyDirty.toString() !== "0"
+                          ? ""
+                          : formData.brownQtyDirty
+                      }
+                      onChange={(e) =>
+                        handleNumChange("brownQtyDirty", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 font-mono font-bold"

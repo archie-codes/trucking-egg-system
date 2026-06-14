@@ -70,7 +70,19 @@ const batchSchema = z.object({
   qtyXxl: numField,
   qtyCracked: numField,
   qtyBroken: numField,
-  qtyDirty: numField, // ✨ ADDED
+  qtyDirty: numField,
+
+  brownQtyPeewee: numField,
+  brownQtyXs: numField,
+  brownQtySmall: numField,
+  brownQtyMedium: numField,
+  brownQtyLarge: numField,
+  brownQtyXl: numField,
+  brownQtyXxl: numField,
+  brownQtyAssorted: numField,
+  brownQtyCracked: numField,
+  brownQtyBroken: numField,
+  brownQtyDirty: numField,
 });
 
 // ✨ UPGRADED: Now includes Seconds + a 4-character random unique string
@@ -121,6 +133,17 @@ export default function ReceivingPage() {
       qtyCracked: "",
       qtyBroken: "",
       qtyDirty: "",
+      brownQtyPeewee: "",
+      brownQtyXs: "",
+      brownQtySmall: "",
+      brownQtyMedium: "",
+      brownQtyLarge: "",
+      brownQtyXl: "",
+      brownQtyXxl: "",
+      brownQtyAssorted: "",
+      brownQtyCracked: "",
+      brownQtyBroken: "",
+      brownQtyDirty: "",
     },
   });
 
@@ -143,9 +166,42 @@ export default function ReceivingPage() {
   const broken = Number(useWatch({ control, name: "qtyBroken" })) || 0;
   const dirty = Number(useWatch({ control, name: "qtyDirty" })) || 0;
 
+  const bPeewee = Number(useWatch({ control, name: "brownQtyPeewee" })) || 0;
+  const bXs = Number(useWatch({ control, name: "brownQtyXs" })) || 0;
+  const bS = Number(useWatch({ control, name: "brownQtySmall" })) || 0;
+  const bM = Number(useWatch({ control, name: "brownQtyMedium" })) || 0;
+  const bL = Number(useWatch({ control, name: "brownQtyLarge" })) || 0;
+  const bXl = Number(useWatch({ control, name: "brownQtyXl" })) || 0;
+  const bXxl = Number(useWatch({ control, name: "brownQtyXxl" })) || 0;
+  const bAssorted =
+    Number(useWatch({ control, name: "brownQtyAssorted" })) || 0;
+  const bCracked = Number(useWatch({ control, name: "brownQtyCracked" })) || 0;
+  const bBroken = Number(useWatch({ control, name: "brownQtyBroken" })) || 0;
+  const bDirty = Number(useWatch({ control, name: "brownQtyDirty" })) || 0;
+
   // ✨ Added Dirty to total calculation
   const totalSortedPieces =
-    peewee + xs + s + m + l + xl + xxl + cracked + broken + dirty;
+    peewee +
+    xs +
+    s +
+    m +
+    l +
+    xl +
+    xxl +
+    cracked +
+    broken +
+    dirty +
+    bPeewee +
+    bXs +
+    bS +
+    bM +
+    bL +
+    bXl +
+    bXxl +
+    bAssorted +
+    bCracked +
+    bBroken +
+    bDirty;
   const variancePieces = totalExpectedPieces - totalSortedPieces;
 
   // Handles the initial click on the bottom bar
@@ -215,6 +271,17 @@ export default function ReceivingPage() {
         qtyCracked: "",
         qtyBroken: "",
         qtyDirty: "",
+        brownQtyPeewee: "",
+        brownQtyXs: "",
+        brownQtySmall: "",
+        brownQtyMedium: "",
+        brownQtyLarge: "",
+        brownQtyXl: "",
+        brownQtyXxl: "",
+        brownQtyAssorted: "",
+        brownQtyCracked: "",
+        brownQtyBroken: "",
+        brownQtyDirty: "",
       });
     } else {
       toast.error("Database Error", {
@@ -402,7 +469,13 @@ export default function ReceivingPage() {
                       <Input
                         {...field}
                         type="number"
+                        min="0"
                         placeholder="0"
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === "e" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
                         onClick={(e) => e.currentTarget.select()}
                         className="h-11 rounded-xl font-black text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
                       />
@@ -420,7 +493,13 @@ export default function ReceivingPage() {
                       <Input
                         {...field}
                         type="number"
+                        min="0"
                         placeholder="0"
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === "e" || e.key === "+") {
+                            e.preventDefault();
+                          }
+                        }}
                         onClick={(e) => e.currentTarget.select()}
                         className="h-11 rounded-xl font-black text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
                       />
@@ -443,6 +522,12 @@ export default function ReceivingPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-6 px-6 space-y-6">
+              {/* WHITE EGGS HEADER */}
+              <div className="pb-2 mb-2 border-b-2 border-slate-200 dark:border-slate-700">
+                <h3 className="text-md font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                  White Eggs
+                </h3>
+              </div>
               {/* Good Eggs */}
               <div>
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
@@ -594,6 +679,171 @@ export default function ReceivingPage() {
                   />
                 </div>
               </div>
+
+              {/* BROWN EGGS HEADER */}
+              <div className="pt-6 pb-2 mb-2 border-b-2 border-amber-200 dark:border-amber-900/50">
+                <h3 className="text-md font-black text-amber-800 dark:text-amber-500 uppercase tracking-widest">
+                  Brown Eggs
+                </h3>
+              </div>
+
+              {/* Brown Good Eggs */}
+              <div>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                  Classified Inventory (Pcs)
+                </h4>
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                  {[
+                    {
+                      name: "brownQtyPeewee" as const,
+                      size: "Peewee",
+                      color:
+                        "text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900/50",
+                      labelColor: "text-indigo-600 dark:text-indigo-400",
+                    },
+                    {
+                      name: "brownQtyXs" as const,
+                      size: "Xs",
+                      color:
+                        "text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50",
+                      labelColor: "text-blue-600 dark:text-blue-400",
+                    },
+                    {
+                      name: "brownQtySmall" as const,
+                      size: "Small",
+                      color:
+                        "text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50",
+                      labelColor: "text-blue-600 dark:text-blue-400",
+                    },
+                    {
+                      name: "brownQtyMedium" as const,
+                      size: "Medium",
+                      color:
+                        "text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50",
+                      labelColor: "text-emerald-600 dark:text-emerald-400",
+                    },
+                    {
+                      name: "brownQtyLarge" as const,
+                      size: "Large",
+                      color:
+                        "text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50",
+                      labelColor: "text-amber-600 dark:text-amber-400",
+                    },
+                    {
+                      name: "brownQtyXl" as const,
+                      size: "Xl",
+                      color:
+                        "text-orange-600 dark:text-orange-400 bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/50",
+                      labelColor: "text-orange-600 dark:text-orange-400",
+                    },
+                    {
+                      name: "brownQtyXxl" as const,
+                      size: "Xxl",
+                      color:
+                        "text-purple-600 dark:text-purple-400 bg-purple-50/50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900/50",
+                      labelColor: "text-purple-600 dark:text-purple-400",
+                    },
+                    {
+                      name: "brownQtyAssorted" as const,
+                      size: "Assorted",
+                      color:
+                        "text-teal-600 dark:text-teal-400 bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-900/50",
+                      labelColor: "text-teal-600 dark:text-teal-400",
+                    },
+                  ].map(({ name, size, color, labelColor }) => (
+                    <Controller
+                      key={size}
+                      name={name}
+                      control={form.control}
+                      render={({ field }) => (
+                        <div className="flex flex-col space-y-1">
+                          <Label
+                            className={cn(
+                              "text-[10px] sm:text-xs font-bold uppercase",
+                              labelColor,
+                            )}
+                          >
+                            {size}
+                          </Label>
+                          <Input
+                            {...field}
+                            type="number"
+                            placeholder="0"
+                            onClick={(e) => e.currentTarget.select()}
+                            className={cn(
+                              "h-11 rounded-xl font-mono font-bold",
+                              color,
+                            )}
+                          />
+                        </div>
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Brown Losses & Downgrades */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                <h4 className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-3">
+                  Losses & Downgrades (Pcs)
+                </h4>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                  <Controller
+                    name="brownQtyCracked"
+                    control={form.control}
+                    render={({ field }) => (
+                      <div className="flex flex-col space-y-1">
+                        <Label className="text-[10px] sm:text-xs font-bold text-fuchsia-500 uppercase">
+                          Cracked
+                        </Label>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="0"
+                          onClick={(e) => e.currentTarget.select()}
+                          className="h-11 rounded-xl font-mono text-fuchsia-600 bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border-fuchsia-200 dark:border-fuchsia-900/50"
+                        />
+                      </div>
+                    )}
+                  />
+                  <Controller
+                    name="brownQtyBroken"
+                    control={form.control}
+                    render={({ field }) => (
+                      <div className="flex flex-col space-y-1">
+                        <Label className="text-[10px] sm:text-xs font-bold text-rose-500 uppercase">
+                          Broken
+                        </Label>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="0"
+                          onClick={(e) => e.currentTarget.select()}
+                          className="h-11 rounded-xl font-mono text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50"
+                        />
+                      </div>
+                    )}
+                  />
+                  <Controller
+                    name="brownQtyDirty"
+                    control={form.control}
+                    render={({ field }) => (
+                      <div className="flex flex-col space-y-1">
+                        <Label className="text-[10px] sm:text-xs font-bold text-stone-500 dark:text-stone-400 uppercase">
+                          Dirty
+                        </Label>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="0"
+                          onClick={(e) => e.currentTarget.select()}
+                          className="h-11 rounded-xl font-mono text-stone-600 dark:text-stone-400 bg-stone-50/50 dark:bg-stone-900/40 border-stone-200 dark:border-stone-800"
+                        />
+                      </div>
+                    )}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </form>
@@ -614,7 +864,7 @@ export default function ReceivingPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 my-4 space-y-3 border border-slate-100 dark:border-slate-800/60">
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 my-4 space-y-3 border border-slate-100 dark:border-slate-800/60 max-h-[50vh] overflow-y-auto custom-scrollbar">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-500 font-medium">Batch ID:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
@@ -645,46 +895,109 @@ export default function ReceivingPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Peewee:</span>
-                  <span className="font-bold text-indigo-600">{peewee}</span>
+              <div className="space-y-4 pt-2">
+                {/* White Eggs */}
+                <div>
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 pb-1 border-b border-slate-200 dark:border-slate-800">
+                    White Eggs
+                  </h5>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Peewee:</span>
+                      <span className="font-bold text-indigo-600">{peewee}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">XS:</span>
+                      <span className="font-bold text-blue-600">{xs}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Small:</span>
+                      <span className="font-bold text-blue-600">{s}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Medium:</span>
+                      <span className="font-bold text-emerald-600">{m}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Large:</span>
+                      <span className="font-bold text-amber-600">{l}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">XL:</span>
+                      <span className="font-bold text-orange-600">{xl}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">XXL:</span>
+                      <span className="font-bold text-purple-600">{xxl}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Cracked:</span>
+                      <span className="font-bold text-fuchsia-600">{cracked}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Broken:</span>
+                      <span className="font-bold text-rose-600">{broken}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Dirty:</span>
+                      <span className="font-bold text-stone-600">{dirty}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">XS:</span>
-                  <span className="font-bold text-blue-600">{xs}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Small:</span>
-                  <span className="font-bold text-blue-600">{s}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Medium:</span>
-                  <span className="font-bold text-emerald-600">{m}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Large:</span>
-                  <span className="font-bold text-amber-600">{l}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">XL:</span>
-                  <span className="font-bold text-orange-600">{xl}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">XXL:</span>
-                  <span className="font-bold text-purple-600">{xxl}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Cracked:</span>
-                  <span className="font-bold text-fuchsia-600">{cracked}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Broken:</span>
-                  <span className="font-bold text-rose-600">{broken}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Dirty:</span>
-                  <span className="font-bold text-stone-600">{dirty}</span>
+
+                {/* Brown Eggs */}
+                <div>
+                  <h5 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-2 pb-1 border-b border-amber-200/50 dark:border-amber-900/30">
+                    Brown Eggs
+                  </h5>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Peewee:</span>
+                      <span className="font-bold text-amber-600">{bPeewee}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">XS:</span>
+                      <span className="font-bold text-amber-600">{bXs}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Small:</span>
+                      <span className="font-bold text-amber-600">{bS}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Medium:</span>
+                      <span className="font-bold text-amber-600">{bM}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Large:</span>
+                      <span className="font-bold text-amber-600">{bL}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">XL:</span>
+                      <span className="font-bold text-amber-600">{bXl}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">XXL:</span>
+                      <span className="font-bold text-amber-600">{bXxl}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500">Assorted:</span>
+                      <span className="font-bold text-amber-600">{bAssorted}</span>
+                    </div>
+                    <div className="col-span-2 grid grid-cols-2 gap-x-4">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Cracked:</span>
+                        <span className="font-bold text-amber-600">{bCracked}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Broken:</span>
+                        <span className="font-bold text-amber-600">{bBroken}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Dirty:</span>
+                        <span className="font-bold text-amber-600">{bDirty}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -787,6 +1100,7 @@ export default function ReceivingPage() {
             <Button
               type="button"
               onClick={handlePreSubmitCheck}
+              disabled={form.formState.isSubmitting || totalExpectedPieces === 0 || variancePieces !== 0}
               className={cn(
                 "relative overflow-hidden group/btn border-0 h-11 px-8 rounded-xl bg-linear-to-r from-amber-600 to-orange-500 text-white shadow-lg font-semibold w-full sm:w-auto shrink-0 transition-all duration-300",
                 totalExpectedPieces === 0 || variancePieces !== 0
@@ -795,7 +1109,11 @@ export default function ReceivingPage() {
               )}
             >
               <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out z-0" />
-              {variancePieces !== 0 && totalExpectedPieces > 0 ? (
+              {form.formState.isSubmitting ? (
+                <span className="relative z-10 flex items-center">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
+                </span>
+              ) : variancePieces !== 0 && totalExpectedPieces > 0 ? (
                 <span className="relative z-10 flex items-center">
                   <AlertCircle className="w-4 h-4 mr-2" /> Resolve Variance
                 </span>

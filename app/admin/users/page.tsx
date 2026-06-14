@@ -93,6 +93,7 @@ import { Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
+import { AutoRefresh } from "@/components/admin/auto-refresh";
 
 export const dynamic = "force-dynamic";
 
@@ -130,8 +131,17 @@ export default async function AdminUsersPage() {
         ? "Fhernie Logistics personnel."
         : "Otso Dragon personnel.";
 
+  const now = new Date().getTime();
+  const onlineCount = data.filter(
+    (u) =>
+      u.isActive &&
+      u.lastActiveAt &&
+      now - new Date(u.lastActiveAt).getTime() < 5 * 60 * 1000
+  ).length;
+
   return (
     <div className="max-w-7xl mx-auto space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-200 pt-2 md:pt-0">
+      <AutoRefresh intervalMs={10000} />
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -158,7 +168,7 @@ export default async function AdminUsersPage() {
       </div>
 
       {/* ── Table ── */}
-      <DataTable columns={columns} data={data} currentUserId={currentUserId} />
+      <DataTable columns={columns} data={data} currentUserId={currentUserId} onlineCount={onlineCount} />
     </div>
   );
 }

@@ -32,6 +32,7 @@ export const users = pgTable("users", {
 
   avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").default(true).notNull(),
+  lastActiveAt: timestamp("last_active_at"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -135,6 +136,21 @@ export const eggBatches = pgTable("egg_batches", {
   qtyCracked: integer("qty_cracked").default(0).notNull(),
   qtyBroken: integer("qty_broken").default(0).notNull(),
   qtyDirty: integer("qty_dirty").default(0).notNull(), // ✨ NEW: Dirty Eggs
+
+  // ✨ NEW: Brown Eggs
+  brownQtyPeewee: integer("brown_qty_peewee").default(0).notNull(),
+  brownQtyXs: integer("brown_qty_xs").default(0).notNull(),
+  brownQtySmall: integer("brown_qty_small").default(0).notNull(),
+  brownQtyMedium: integer("brown_qty_medium").default(0).notNull(),
+  brownQtyLarge: integer("brown_qty_large").default(0).notNull(),
+  brownQtyXl: integer("brown_qty_xl").default(0).notNull(),
+  brownQtyXxl: integer("brown_qty_xxl").default(0).notNull(),
+  brownQtyAssorted: integer("brown_qty_assorted").default(0).notNull(),
+  
+  // Brown Spoilage
+  brownQtyCracked: integer("brown_qty_cracked").default(0).notNull(),
+  brownQtyBroken: integer("brown_qty_broken").default(0).notNull(),
+  brownQtyDirty: integer("brown_qty_dirty").default(0).notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

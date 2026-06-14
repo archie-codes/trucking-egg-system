@@ -933,6 +933,73 @@ const CLASS_METADATA: Record<
     accent: "#854F0B",
     type: "off-grade",
   },
+  // --- BROWN EGGS ---
+  BROWN_PEEWEE: {
+    label: "Brown Peewee",
+    description: "40–45g per egg",
+    accent: "#7F77DD",
+    type: "standard",
+  },
+  BROWN_XS: {
+    label: "Brown Extra Small",
+    description: "45.1–50g per egg",
+    accent: "#378ADD",
+    type: "standard",
+  },
+  BROWN_SMALL: {
+    label: "Brown Small",
+    description: "50.1–55g per egg",
+    accent: "#1D9E75",
+    type: "standard",
+  },
+  BROWN_MEDIUM: {
+    label: "Brown Medium",
+    description: "55.1–60g per egg",
+    accent: "#BA7517",
+    type: "standard",
+  },
+  BROWN_LARGE: {
+    label: "Brown Large",
+    description: "60.1–65g per egg",
+    accent: "#D85A30",
+    type: "standard",
+  },
+  BROWN_XL: {
+    label: "Brown Extra Large",
+    description: "65.1–70g per egg",
+    accent: "#D4537E",
+    type: "standard",
+  },
+  BROWN_XXL: {
+    label: "Brown XXL",
+    description: "70.1g+ per egg",
+    accent: "#639922",
+    type: "standard",
+  },
+  BROWN_ASSORTED: {
+    label: "Brown Assorted",
+    description: "Mixed brown eggs",
+    accent: "#009688",
+    type: "standard",
+  },
+  BROWN_CRACKED: {
+    label: "Brown Cracked",
+    description: "Damaged shell, membrane intact",
+    accent: "#888780",
+    type: "off-grade",
+  },
+  BROWN_BROKEN: {
+    label: "Brown Broken",
+    description: "Leaking contents, handle fast",
+    accent: "#E24B4A",
+    type: "off-grade",
+  },
+  BROWN_DIRTY: {
+    label: "Brown Dirty",
+    description: "Stained shells, needs cleaning",
+    accent: "#854F0B",
+    type: "off-grade",
+  },
 };
 
 const STANDARD_SIZES = [
@@ -947,7 +1014,25 @@ const STANDARD_SIZES = [
 
 const OFF_GRADE_SIZES = ["CRACKED", "BROKEN", "DIRTY"] as const;
 
-const CLASS_ORDER = [...STANDARD_SIZES, ...OFF_GRADE_SIZES] as const;
+const BROWN_STANDARD_SIZES = [
+  "BROWN_PEEWEE",
+  "BROWN_XS",
+  "BROWN_SMALL",
+  "BROWN_MEDIUM",
+  "BROWN_LARGE",
+  "BROWN_XL",
+  "BROWN_XXL",
+  "BROWN_ASSORTED",
+] as const;
+
+const BROWN_OFF_GRADE_SIZES = ["BROWN_CRACKED", "BROWN_BROKEN", "BROWN_DIRTY"] as const;
+
+const CLASS_ORDER = [
+  ...STANDARD_SIZES,
+  ...OFF_GRADE_SIZES,
+  ...BROWN_STANDARD_SIZES,
+  ...BROWN_OFF_GRADE_SIZES,
+] as const;
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 function SkeletonCard() {
@@ -1496,11 +1581,11 @@ export default function InventoryDashboard() {
         />
       </div>
 
-      {/* ── PREMIUM GRADED SIZES ── */}
-      <section aria-label="Premium graded egg sizes">
+      {/* ── WHITE PREMIUM GRADED SIZES ── */}
+      <section aria-label="White premium graded egg sizes">
         <SectionHeader
           icon={Sparkles}
-          title="Premium graded sizes"
+          title="White Premium Graded Sizes"
           count={STANDARD_SIZES.length}
           description="standard graded weights"
         />
@@ -1511,16 +1596,46 @@ export default function InventoryDashboard() {
         </div>
       </section>
 
-      {/* ── OFF-GRADE & REJECTS ── */}
-      <section aria-label="Off-grade and reject egg classifications">
+      {/* ── WHITE OFF-GRADE & REJECTS ── */}
+      <section aria-label="White off-grade and reject egg classifications">
         <SectionHeader
           icon={ShieldAlert}
-          title="Off-grade & rejects"
+          title="White Off-grade & Rejects"
           count={OFF_GRADE_SIZES.length}
           description="defective classifications"
         />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
           {OFF_GRADE_SIZES.map((size) => (
+            <EggCard key={size} size={size} pieces={getStock(size)} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── BROWN PREMIUM GRADED SIZES ── */}
+      <section aria-label="Brown premium graded egg sizes" className="mt-8">
+        <SectionHeader
+          icon={Sparkles}
+          title="Brown Premium Graded Sizes"
+          count={BROWN_STANDARD_SIZES.length}
+          description="standard graded weights"
+        />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
+          {BROWN_STANDARD_SIZES.map((size) => (
+            <EggCard key={size} size={size} pieces={getStock(size)} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── BROWN OFF-GRADE & REJECTS ── */}
+      <section aria-label="Brown off-grade and reject egg classifications" className="mb-8">
+        <SectionHeader
+          icon={ShieldAlert}
+          title="Brown Off-grade & Rejects"
+          count={BROWN_OFF_GRADE_SIZES.length}
+          description="defective classifications"
+        />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
+          {BROWN_OFF_GRADE_SIZES.map((size) => (
             <EggCard key={size} size={size} pieces={getStock(size)} />
           ))}
         </div>
