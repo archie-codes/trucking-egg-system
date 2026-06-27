@@ -156,11 +156,12 @@ export function DataTable<TData>({
     let totalGross = 0;
     let totalExpenses = 0;
     const isCpfTab = rows.some((r) => r.original.tripType === "CPF");
-    const tripTypeFilter = rows.length > 0 ? (rows[0].original.tripType || "ALL") : "ALL";
+    const tripTypeFilter =
+      rows.length > 0 ? rows[0].original.tripType || "ALL" : "ALL";
 
     rows.forEach((r) => {
       const d = r.original;
-      totalGross += isCpfTab ? (d.ratePerTrip || 0) : d.qtyHeads * d.rate;
+      totalGross += isCpfTab ? d.ratePerTrip || 0 : d.qtyHeads * d.rate;
       totalExpenses +=
         d.tollFees +
         d.dieselCash +
@@ -214,7 +215,9 @@ export function DataTable<TData>({
         `""`,
         `"FINANCIAL SUMMARY"`,
         `"Total Trips: ${meta.totalTrips}"`,
-        isCpfTab ? `"Total Rate per trips: ${meta.totalGross}"` : `"Collectibles: ${meta.totalGross}"`,
+        isCpfTab
+          ? `"Total Rate per trips: ${meta.totalGross}"`
+          : `"Collectibles: ${meta.totalGross}"`,
         `"Expenses: ${meta.totalExpenses}"`,
         `"Net Income: ${meta.totalNet}"`,
         `""`,
@@ -246,7 +249,7 @@ export function DataTable<TData>({
 
       const csvData = rows.map((row: { original: TripRecord }) => {
         const d = row.original;
-        const collectible = isCpfTab ? (d.ratePerTrip || 0) : d.qtyHeads * d.rate;
+        const collectible = isCpfTab ? d.ratePerTrip || 0 : d.qtyHeads * d.rate;
         const expenses =
           d.tollFees +
           d.dieselCash +
@@ -341,14 +344,21 @@ export function DataTable<TData>({
       doc.text("FINANCIAL SUMMARY", 896, 60, { align: "right" });
       doc.setFont("helvetica", "normal");
       doc.text(`Total Trips: ${meta.totalTrips}`, 896, 75, { align: "right" });
-      doc.text(isCpfTab ? `Rate per trips: ${meta.totalGross}` : `Collectibles: ${meta.totalGross}`, 896, 90, { align: "right" });
+      doc.text(
+        isCpfTab
+          ? `Rate per trips: ${meta.totalGross}`
+          : `Collectibles: ${meta.totalGross}`,
+        896,
+        90,
+        { align: "right" },
+      );
       doc.text(`Expenses: ${meta.totalExpenses}`, 896, 105, { align: "right" });
       doc.setFont("helvetica", "bold");
       doc.text(`Net Income: ${meta.totalNet}`, 896, 120, { align: "right" });
 
       const tableRows = rows.map((row: { original: TripRecord }) => {
         const d = row.original;
-        const gross = isCpfTab ? (d.ratePerTrip || 0) : d.qtyHeads * d.rate;
+        const gross = isCpfTab ? d.ratePerTrip || 0 : d.qtyHeads * d.rate;
         const expenses =
           d.tollFees +
           d.dieselCash +
@@ -381,11 +391,11 @@ export function DataTable<TData>({
       });
 
       const colStyles: Record<
-        number,
+        string,
         {
           halign?: "left" | "center" | "right";
           fontStyle?: "normal" | "bold" | "italic";
-          textColor?: number[];
+          textColor?: [number, number, number];
         }
       > = {};
       let colIdx = isCpfTab ? 5 : 6;
@@ -402,8 +412,16 @@ export function DataTable<TData>({
       colStyles[colIdx++] = { halign: "right" }; // Salary
       if (!isCpfTab) colStyles[colIdx++] = { halign: "right" }; // Others
       colStyles[colIdx++] = { halign: "right" }; // Misc
-      colStyles[colIdx++] = { halign: "right", textColor: [225, 29, 72], fontStyle: "bold" }; // Total Exp
-      colStyles[colIdx++] = { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" }; // Net
+      colStyles[colIdx++] = {
+        halign: "right",
+        textColor: [225, 29, 72],
+        fontStyle: "bold",
+      }; // Total Exp
+      colStyles[colIdx++] = {
+        halign: "right",
+        textColor: [5, 150, 105],
+        fontStyle: "bold",
+      }; // Net
 
       autoTable(doc, {
         head: [
