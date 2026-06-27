@@ -4,7 +4,7 @@
 import { db } from "@/db";
 import { truckingFleet, truckingTrips } from "@/db/schema";
 import { addDays, format } from "date-fns";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -134,39 +134,97 @@ export async function getActiveTrucks() {
 // Fetch trips for a specific truck (formatted perfectly for our DataTable)
 // ============================================================================
 
-export async function getTruckTrips(truckId: number) {
+export async function getTruckTrips(truckId: number, tab: string = "RTL") {
   try {
-    const data = await db
-      .select({
-        id: truckingTrips.id,
-        truckId: truckingTrips.truckId,
-        date: truckingTrips.date,
-        customerId: truckingTrips.customerId,
-        farmName: truckingTrips.farmName,
-        origin: truckingTrips.origin,
-        destination: truckingTrips.destination,
-        qtyHeads: truckingTrips.qtyHeads,
-        qtyNote: truckingTrips.qtyNote,
-        rate: truckingTrips.rate,
-        tollFees: truckingTrips.tollFees,
-        dieselCash: truckingTrips.dieselCash,
-        dieselPo: truckingTrips.dieselPo,
-        meals: truckingTrips.meals,
-        roroShip: truckingTrips.roroShip,
-        salary: truckingTrips.salary,
-        salaryNote: truckingTrips.salaryNote,
-        others: truckingTrips.others,
-        othersNote: truckingTrips.othersNote,
-        createdAt: truckingTrips.createdAt,
-        fleetCode: truckingFleet.fleetCode,
-        plateNumber: truckingFleet.plateNumber,
-      })
-      .from(truckingTrips)
-      .leftJoin(truckingFleet, eq(truckingTrips.truckId, truckingFleet.id))
-      .where(eq(truckingTrips.truckId, truckId))
-      .orderBy(desc(truckingTrips.createdAt));
+    if (tab === "CPF") {
+      const { truckingTripsCpf } = await import("@/db/schema");
+      const rawData = await db
+        .select({
+          id: truckingTripsCpf.id,
+          truckId: truckingTripsCpf.truckId,
+          date: truckingTripsCpf.date,
+          origin: truckingTripsCpf.origin,
+          destination: truckingTripsCpf.destination,
+          tripType: truckingTripsCpf.tripType,
+          deliveryOrderNo: truckingTripsCpf.deliveryOrderNo,
+          ratePerTrip: truckingTripsCpf.ratePerTrip,
+          tollFees: truckingTripsCpf.tollFees,
+          dieselCash: truckingTripsCpf.dieselCash,
+          dieselPo: truckingTripsCpf.dieselPo,
+          meals: truckingTripsCpf.meals,
+          salary: truckingTripsCpf.salary,
+          salaryNote: truckingTripsCpf.salaryNote,
+          miscellaneous: truckingTripsCpf.miscellaneous,
+          miscellaneousNote: truckingTripsCpf.miscellaneousNote,
+          createdAt: truckingTripsCpf.createdAt,
+          fleetCode: truckingFleet.fleetCode,
+          plateNumber: truckingFleet.plateNumber,
+        })
+        .from(truckingTripsCpf)
+        .leftJoin(truckingFleet, eq(truckingTripsCpf.truckId, truckingFleet.id))
+        .where(eq(truckingTripsCpf.truckId, truckId))
+        .orderBy(desc(truckingTripsCpf.createdAt));
 
-    return { success: true, data };
+      const data = rawData.map((trip) => ({
+        ...trip,
+        customerId: "N/A",
+        loadType: "NONE",
+        farmName: "N/A",
+        qtyHeads: 0,
+        qtyNote: "",
+        rate: 0,
+        roroShip: 0,
+        others: 0,
+        othersNote: "",
+      }));
+      return { success: true, data };
+    } else {
+      const data = await db
+        .select({
+          id: truckingTrips.id,
+          truckId: truckingTrips.truckId,
+          date: truckingTrips.date,
+          customerId: truckingTrips.customerId,
+          farmName: truckingTrips.farmName,
+          origin: truckingTrips.origin,
+          destination: truckingTrips.destination,
+          tripType: truckingTrips.tripType,
+          loadType: truckingTrips.loadType,
+          qtyHeads: truckingTrips.qtyHeads,
+          qtyNote: truckingTrips.qtyNote,
+          rate: truckingTrips.rate,
+          tollFees: truckingTrips.tollFees,
+          dieselCash: truckingTrips.dieselCash,
+          dieselPo: truckingTrips.dieselPo,
+          meals: truckingTrips.meals,
+          roroShip: truckingTrips.roroShip,
+          salary: truckingTrips.salary,
+          salaryNote: truckingTrips.salaryNote,
+          others: truckingTrips.others,
+          othersNote: truckingTrips.othersNote,
+          createdAt: truckingTrips.createdAt,
+          fleetCode: truckingFleet.fleetCode,
+          plateNumber: truckingFleet.plateNumber,
+        })
+        .from(truckingTrips)
+        .leftJoin(truckingFleet, eq(truckingTrips.truckId, truckingFleet.id))
+        .where(
+          and(
+            eq(truckingTrips.truckId, truckId),
+            eq(truckingTrips.tripType, tab)
+          )
+        )
+        .orderBy(desc(truckingTrips.createdAt));
+
+      const finalData = data.map((trip) => ({
+        ...trip,
+        deliveryOrderNo: undefined,
+        ratePerTrip: undefined,
+        miscellaneous: undefined,
+        miscellaneousNote: undefined,
+      }));
+      return { success: true, data: finalData };
+    }
   } catch (error) {
     console.error("Failed to fetch truck trips:", error);
     return { success: false, error: "Failed to load truck history." };
@@ -229,7 +287,7 @@ export async function updateTruck(
 // LTO Alerts Action
 // ============================================================================
 
-import { isNotNull, and, lte, or } from "drizzle-orm";
+import { isNotNull, lte, or } from "drizzle-orm";
 
 export async function getLtoAlerts() {
   try {

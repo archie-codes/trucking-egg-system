@@ -48,6 +48,9 @@ type Trip = {
   id: number;
   truckId: number;
   date: string;
+  tripType?: string | null;
+  ratePerTrip?: number | null;
+  miscellaneous?: number | null;
   qtyHeads: number;
   rate: number;
   tollFees: number;
@@ -213,6 +216,7 @@ function StatCard({
 export function ReportClient({ trips, trucks }: ReportClientProps) {
   const [selectedTruckId, setSelectedTruckId] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedTripType, setSelectedTripType] = useState<string>("rtl_layer");
 
   const { tableData, totals, availableYears } = useMemo(() => {
     const byTruck =
@@ -220,8 +224,16 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
         ? trips
         : trips.filter((t) => t.truckId.toString() === selectedTruckId);
 
+    const byTripType = byTruck.filter((t) => {
+      const type = t.tripType?.toUpperCase();
+      if (selectedTripType === "all") return true;
+      if (selectedTripType === "rtl_layer")
+        return type === "RTL" || type === "LAYER";
+      return type === selectedTripType;
+    });
+
     const yearsSet = new Set(
-      byTruck.map((t) => new Date(t.date).getFullYear().toString()),
+      byTripType.map((t) => new Date(t.date).getFullYear().toString()),
     );
     const availableYears = Array.from(yearsSet).sort((a, b) =>
       b.localeCompare(a),
@@ -229,8 +241,8 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
 
     const isYearly = selectedYear === "all";
     const byYear = isYearly
-      ? byTruck
-      : byTruck.filter(
+      ? byTripType
+      : byTripType.filter(
           (t) => new Date(t.date).getFullYear().toString() === selectedYear,
         );
 
@@ -242,15 +254,22 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
           : d.getMonth().toString();
         const label = isYearly ? key : MONTH_NAMES[d.getMonth()];
         const sort = isYearly ? d.getFullYear() : d.getMonth();
-        const collectible = trip.qtyHeads * trip.rate;
+
+        const collectible =
+          trip.tripType?.toUpperCase() === "CPF"
+            ? Number(trip.ratePerTrip || 0)
+            : Number(trip.qtyHeads || 0) * Number(trip.rate || 0);
+
         const expenses =
-          trip.tollFees +
-          trip.dieselCash +
-          trip.dieselPo +
-          trip.meals +
-          trip.roroShip +
-          trip.salary +
-          trip.others;
+          (trip.tollFees || 0) +
+          (trip.dieselCash || 0) +
+          (trip.dieselPo || 0) +
+          (trip.meals || 0) +
+          (trip.roroShip || 0) +
+          (trip.salary || 0) +
+          (trip.others || 0) +
+          (trip.miscellaneous || 0);
+
         const net = collectible - expenses;
 
         if (!acc[key])
@@ -291,7 +310,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
     );
 
     return { tableData: sorted, totals, availableYears };
-  }, [trips, selectedTruckId, selectedYear]);
+  }, [trips, selectedTruckId, selectedYear, selectedTripType]);
 
   const [prevYears, setPrevYears] = useState(availableYears);
   if (availableYears !== prevYears) {
@@ -315,6 +334,13 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
 
   const isYearly = selectedYear === "all";
 
+  const tripTypeName =
+    selectedTripType === "all"
+      ? "All Trips"
+      : selectedTripType === "rtl_layer"
+        ? "RTL & LAYER"
+        : selectedTripType;
+
   const exportSummaryToPDF = () => {
     try {
       const doc = new jsPDF("p", "pt", "letter");
@@ -330,9 +356,10 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
         40,
         70,
       );
+      doc.text(`Trip Type: ${tripTypeName}`, 40, 85);
       doc.setFontSize(9);
       doc.setTextColor(100);
-      doc.text(`Generated: ${new Date().toLocaleDateString("en-US")}`, 40, 85);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-US")}`, 40, 100);
 
       const rows = [
         ...tableData.map((r) => [
@@ -353,13 +380,13 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
         head: [
           [
             isYearly ? "Year" : "Month",
-            "Collectible",
+            selectedTripType === "CPF" ? "Rate Per Trip" : "Collectible",
             "Expenses",
             "Net Income",
           ],
         ],
         body: rows,
-        startY: 105,
+        startY: 120,
         theme: "grid",
         headStyles: { fillColor: [15, 23, 42], halign: "center" },
         columnStyles: {
@@ -387,9 +414,18 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
 
   const exportSummaryToCSV = () => {
     try {
+      const metaHeader = [
+        `"SUMMARY SALES"`,
+        `"Fleet Asset: ${selectedTruckName}"`,
+        `"Period / Year: ${isYearly ? "Yearly Aggregated Summary" : `Monthly Breakdown for ${selectedYear}`}"`,
+        `"Trip Type: ${tripTypeName}"`,
+        `"Generated: ${new Date().toLocaleDateString("en-US")}"`,
+        `""`,
+      ].join("\n");
+
       const headers = [
         isYearly ? "Year" : "Month",
-        "Collectible",
+        selectedTripType === "CPF" ? "Rate Per Trip" : "Collectible",
         "Expenses",
         "Net Income",
       ];
@@ -407,7 +443,11 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       ]);
 
       const csvContent =
-        headers.join(",") + "\n" + rows.map((e) => e.join(",")).join("\n");
+        metaHeader +
+        "\n" +
+        headers.join(",") +
+        "\n" +
+        rows.map((e) => e.join(",")).join("\n");
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -440,7 +480,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 p-3 rounded-xl shadow-sm relative z-20">
         <div className="flex flex-col lg:flex-row gap-3 w-full">
           {/* Left side: Grid of filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-3 w-full flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto] gap-3 w-full flex-1">
             {[
               {
                 label: "Fleet Asset",
@@ -500,6 +540,48 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                   </div>
                 ),
               },
+              {
+                label: "Trip Type",
+                value: selectedTripType,
+                setter: setSelectedTripType,
+                options: [
+                  {
+                    value: "RTL",
+                    label: (
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        RTL Only
+                      </div>
+                    ),
+                  },
+                  {
+                    value: "LAYER",
+                    label: (
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        LAYER Only
+                      </div>
+                    ),
+                  },
+                  {
+                    value: "CPF",
+                    label: (
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        CPF Only
+                      </div>
+                    ),
+                  },
+                ],
+                placeholder: "Combine RTL & LAYER",
+                placeholderNode: (
+                  <div className="flex items-center gap-2 font-semibold text-xs text-purple-600 dark:text-purple-400">
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    Combine RTL & LAYER
+                  </div>
+                ),
+                placeholderValue: "rtl_layer",
+              },
             ].map(
               ({
                 label,
@@ -508,6 +590,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                 options,
                 placeholder,
                 placeholderNode,
+                placeholderValue = "all",
               }) => (
                 <div key={label} className="space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -515,12 +598,15 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                       {label}
                     </p>
                     {label === "Fleet Asset" &&
-                      (selectedTruckId !== "all" || selectedYear !== "all") && (
+                      (selectedTruckId !== "all" ||
+                        selectedYear !== "all" ||
+                        selectedTripType !== "rtl_layer") && (
                         <Button
                           variant="ghost"
                           onClick={() => {
                             setSelectedTruckId("all");
                             setSelectedYear("all");
+                            setSelectedTripType("rtl_layer");
                           }}
                           className="h-5 px-2 text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition-colors sm:hidden"
                         >
@@ -534,7 +620,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                     </SelectTrigger>
                     <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
                       <SelectItem
-                        value="all"
+                        value={placeholderValue}
                         className="rounded-xl h-11! mb-1 cursor-pointer"
                       >
                         {placeholderNode}
@@ -555,13 +641,16 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
             )}
 
             {/* Clear Filter Button - Tablet & Desktop */}
-            {(selectedTruckId !== "all" || selectedYear !== "all") && (
-              <div className="hidden sm:flex w-full items-end sm:col-start-2 lg:col-start-auto justify-end pb-0.5">
+            {(selectedTruckId !== "all" ||
+              selectedYear !== "all" ||
+              selectedTripType !== "rtl_layer") && (
+              <div className="hidden sm:flex w-full items-end sm:col-start-3 lg:col-start-auto justify-end pb-0.5">
                 <Button
                   variant="ghost"
                   onClick={() => {
                     setSelectedTruckId("all");
                     setSelectedYear("all");
+                    setSelectedTripType("rtl_layer");
                   }}
                   className="h-10 px-3 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors shrink-0 font-semibold"
                 >
@@ -578,7 +667,11 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       {tableData.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatCard
-            label="Total collectible"
+            label={
+              selectedTripType === "CPF"
+                ? "Total Rate Per Trip"
+                : "Total Collectible"
+            }
             value={totals.collectible}
             variant="blue"
             icon={<ArrowUpRight className="w-4 h-4" />}
@@ -589,7 +682,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
             value={totals.expenses}
             variant="rose"
             icon={<TrendingDown className="w-4 h-4" />}
-            note={`${(totals.collectible > 0 ? (totals.expenses / totals.collectible) * 100 : 0).toFixed(1)}% of collectible`}
+            note={`${(totals.collectible > 0 ? (totals.expenses / totals.collectible) * 100 : 0).toFixed(1)}% of ${selectedTripType === "CPF" ? "rate per trip" : "collectible"}`}
           />
           <StatCard
             label="Net income"
@@ -710,7 +803,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                   {isYearly ? "Year" : "Month"}
                 </TableHead>
                 <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">
-                  Collectible
+                  {selectedTripType === "CPF" ? "Rate Per Trip" : "Collectible"}
                 </TableHead>
                 <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">
                   Expenses
@@ -797,7 +890,9 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                   {/* Collectible total */}
                   <TableCell className="px-5 py-4 text-right relative z-10 bg-slate-50 dark:bg-slate-900/90 border-r border-slate-200/50 dark:border-slate-800/50">
                     <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                      Collectible
+                      {selectedTripType === "CPF"
+                        ? "Rate Per Trip"
+                        : "Collectible"}
                     </p>
                     <p className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100 tabular-nums">
                       <AnimatedNumber value={totals.collectible} />

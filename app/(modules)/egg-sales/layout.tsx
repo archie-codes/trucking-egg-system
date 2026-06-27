@@ -76,6 +76,7 @@ export default async function EggSalesLayout({
                   side="left"
                   className="w-64 p-0 bg-slate-900 border-r border-slate-800 text-slate-300"
                   showCloseButton={false}
+                  aria-describedby={undefined}
                 >
                   <SheetTitle className="sr-only">Egg Sales Menu</SheetTitle>
                   <EggSidebar isMobile />

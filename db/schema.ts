@@ -78,6 +78,8 @@ export const truckingTrips = pgTable("trucking_trips", {
   // Core Trip Details
   customerId: varchar("customer_id", { length: 100 }).notNull(),
   date: varchar("date", { length: 20 }).notNull(),
+  tripType: varchar("trip_type", { length: 50 }),
+  loadType: varchar("load_type", { length: 50 }),
 
   // ✨ ADDED: region and farmName to perfectly match our new Analytics architecture
   farmName: varchar("farm_name", { length: 255 }).notNull().default(""),
@@ -102,9 +104,31 @@ export const truckingTrips = pgTable("trucking_trips", {
   others: real("others").default(0).notNull(),
   othersNote: text("others_note"),
 
-  // Trip Lifecycle: 'pending', 'in-transit', 'completed', 'cancelled'
-  status: varchar("status", { length: 50 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
+export const truckingTripsCpf = pgTable("trucking_trips_cpf", {
+  id: serial("id").primaryKey(),
+
+  // RELATIONAL LINK: This connects the trip directly to the truck table!
+  truckId: integer("truck_id")
+    .references(() => truckingFleet.id)
+    .notNull(),
+  // Core Trip Details
+  date: varchar("date", { length: 20 }).notNull(),
+  tripType: varchar("trip_type", { length: 50 }),
+  deliveryOrderNo: varchar("delivery_order_no", { length: 100 }),
+  origin: varchar("origin", { length: 100 }).notNull(),
+  destination: varchar("destination", { length: 100 }).notNull(),
+  ratePerTrip: real("rate_per_trip").default(0).notNull(),
+  tollFees: real("toll_fees").default(0).notNull(),
+  dieselCash: real("diesel_cash").default(0).notNull(),
+  dieselPo: real("diesel_po").default(0).notNull(),
+  meals: real("meals").default(0).notNull(),
+  salary: real("salary").default(0).notNull(),
+  salaryNote: text("salary_note"),
+  miscellaneous: real("miscellaneous").default(0).notNull(),
+  miscellaneousNote: text("miscellaneous_note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -146,7 +170,7 @@ export const eggBatches = pgTable("egg_batches", {
   brownQtyXl: integer("brown_qty_xl").default(0).notNull(),
   brownQtyXxl: integer("brown_qty_xxl").default(0).notNull(),
   brownQtyAssorted: integer("brown_qty_assorted").default(0).notNull(),
-  
+
   // Brown Spoilage
   brownQtyCracked: integer("brown_qty_cracked").default(0).notNull(),
   brownQtyBroken: integer("brown_qty_broken").default(0).notNull(),

@@ -279,6 +279,7 @@ export function TruckFolderCard({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trips, setTrips] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("RTL");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState("all");
@@ -292,28 +293,35 @@ export function TruckFolderCard({
   }, [isDashboardOpen]);
 
   useEffect(() => {
+    const fetchTrips = async () => {
+      if (isDashboardOpen || isProfileOpen) {
+        setIsLoading(true);
+        const result = await getTruckTrips(truck.id, activeTab);
+        if (result.success && result.data) setTrips(result.data);
+        setIsLoading(false);
+      }
+    };
+    fetchTrips();
+  }, [activeTab, isDashboardOpen, isProfileOpen, truck.id]);
+
+  useEffect(() => {
     const handleTripUpdate = async () => {
       if (isDashboardOpen || isProfileOpen) {
-        const result = await getTruckTrips(truck.id);
+        const result = await getTruckTrips(truck.id, activeTab);
         if (result.success && result.data) setTrips(result.data);
       }
     };
     window.addEventListener("trip-updated", handleTripUpdate);
     return () => window.removeEventListener("trip-updated", handleTripUpdate);
-  }, [isDashboardOpen, isProfileOpen, truck.id]);
+  }, [isDashboardOpen, isProfileOpen, truck.id, activeTab]);
 
   const handleOpenProfile = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsProfileOpen(true);
-    setIsLoading(true);
     setSelectedYear("all");
     setSelectedCustomer("all");
     setSelectedFarmName("all");
     setSelectedDestination("all");
-    const result = await getTruckTrips(truck.id);
-    if (result.success && result.data) setTrips(result.data);
-    else toast.error("Failed to load truck history.");
-    setIsLoading(false);
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -468,17 +476,21 @@ export function TruckFolderCard({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const calc = (arr: any[]) => {
-    const gross = arr.reduce((s, t) => s + t.qtyHeads * t.rate, 0);
+    const gross = arr.reduce(
+      (s, t) => s + (t.qtyHeads || 0) * (t.rate || 0) + (t.ratePerTrip || 0),
+      0,
+    );
     const exp = arr.reduce(
       (s, t) =>
         s +
-        (t.tollFees +
-          t.dieselCash +
-          t.dieselPo +
-          t.meals +
-          t.roroShip +
-          t.salary +
-          t.others),
+        ((t.tollFees || 0) +
+          (t.dieselCash || 0) +
+          (t.dieselPo || 0) +
+          (t.meals || 0) +
+          (t.roroShip || 0) +
+          (t.salary || 0) +
+          (t.others || 0) +
+          (t.miscellaneous || 0)),
       0,
     );
     return { gross, exp, net: gross - exp, count: arr.length };
@@ -650,7 +662,10 @@ export function TruckFolderCard({
       {/* ── Profile sheet ──────────────────────────────────────────────────────── */}
       <Sheet open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         {/* ✨ FIX: Added [&>button]:hidden to remove Shadcn's floating X button */}
-        <SheetContent className="flex flex-col p-0 gap-0 w-full! sm:w-[400px]! max-w-[100vw]! sm:max-w-[400px]! bg-background border-l border-border/60 z-200 [&>button]:hidden">
+        <SheetContent
+          aria-describedby={undefined}
+          className="flex flex-col p-0 gap-0 w-full! sm:w-[400px]! max-w-[100vw]! sm:max-w-[400px]! bg-background border-l border-border/60 z-200 [&>button]:hidden"
+        >
           {/* Accent bar */}
           <div className="absolute top-0 inset-x-0 h-[3px] bg-linear-to-r from-blue-500 to-blue-400 z-10" />
 
@@ -734,8 +749,37 @@ export function TruckFolderCard({
               </div>
             ) : (
               <>
+                {/* TABS UI */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
+                    Trip Type
+                  </p>
+                  <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-900/50 rounded-xl w-fit">
+                    {[
+                      { name: "RTL", id: "RTL" },
+                      { name: "LAYER", id: "LAYER" },
+                      { name: "CPF", id: "CPF" },
+                    ].map((t) => {
+                      const isActive = activeTab === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setActiveTab(t.id)}
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                            isActive
+                              ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
+                              : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                          }`}
+                        >
+                          {t.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Lifetime stats */}
-                <div>
+                <div className="mt-4">
                   <SectionLabel>Lifetime overview</SectionLabel>
                   <div className="grid grid-cols-2 gap-2.5">
                     <StatCard
@@ -750,7 +794,9 @@ export function TruckFolderCard({
                       accent="emerald"
                     />
                     <StatCard
-                      label="Collectibles"
+                      label={
+                        activeTab === "CPF" ? "Gross income" : "Collectibles"
+                      }
                       value={lifetime.gross}
                       isCurrency
                       accent="blue"
@@ -906,6 +952,34 @@ export function TruckFolderCard({
 
             {/* Dashboard body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/20 dark:bg-background custom-scrollbar">
+              {/* TABS UI */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
+                  Trip Type
+                </p>
+                <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-900/50 rounded-xl w-fit">
+                  {[
+                    { name: "RTL", id: "RTL" },
+                    { name: "LAYER", id: "LAYER" },
+                    { name: "CPF", id: "CPF" },
+                  ].map((t) => {
+                    const isActive = activeTab === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setActiveTab(t.id)}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                          isActive
+                            ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs"
+                            : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                        }`}
+                      >
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {/* Filter bar */}
               <div className="bg-card rounded-xl border border-border/60 p-4">
                 <div className="flex items-center justify-between mb-4">
@@ -999,7 +1073,9 @@ export function TruckFolderCard({
                     accent="emerald"
                   />
                   <StatCard
-                    label="Collectibles"
+                    label={
+                      activeTab === "CPF" ? "Gross income" : "Collectibles"
+                    }
                     value={filtered.gross}
                     isCurrency
                     accent="blue"
@@ -1017,11 +1093,16 @@ export function TruckFolderCard({
                   />
                 </div>
               )}
-
               {/* Data table */}
-              <div className="bg-card rounded-xl border border-border/60 p-4">
-                <DataTable columns={columns} data={filteredTrips} />
-              </div>
+              {filteredTrips.length > 0 && (
+                <div className="bg-card rounded-xl border border-border/60 p-4 overflow-hidden">
+                  <DataTable
+                    columns={columns}
+                    data={filteredTrips}
+                    activeTab={activeTab}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -16,7 +16,7 @@ interface Trip {
   roroShip: number;
   salary: number;
   others: number;
-  status: string;
+  status?: string | null;
   truckId?: number;
 }
 

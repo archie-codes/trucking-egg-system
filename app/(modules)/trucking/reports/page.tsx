@@ -1,6 +1,6 @@
 // app/(modules)/trucking/reports/page.tsx
 import { db } from "@/db";
-import { truckingTrips, truckingFleet } from "@/db/schema";
+import { truckingTrips, truckingTripsCpf, truckingFleet } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { ReportClient } from "./report-client";
 
@@ -8,10 +8,38 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   // Fetch all trips and all trucks to pass to our instant client-side calculator
-  const trips = await db
+  const rawNormalData = await db
     .select()
     .from(truckingTrips)
     .orderBy(desc(truckingTrips.date));
+
+  const rawCpfData = await db
+    .select()
+    .from(truckingTripsCpf)
+    .orderBy(desc(truckingTripsCpf.date));
+
+  // Combine trips into a unified array structure similar to TripsTableWrapper
+  const trips = [
+    ...rawNormalData.map((trip) => ({
+      ...trip,
+      deliveryOrderNo: "",
+      ratePerTrip: 0,
+      miscellaneous: 0,
+      miscellaneousNote: "",
+    })),
+    ...rawCpfData.map((trip) => ({
+      ...trip,
+      customerId: "N/A",
+      loadType: "NONE",
+      farmName: "N/A",
+      qtyHeads: 0,
+      qtyNote: "",
+      rate: 0,
+      roroShip: 0,
+      others: 0,
+      othersNote: "",
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const trucks = await db
     .select()

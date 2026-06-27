@@ -64,37 +64,81 @@ const numField = z
   .union([z.string(), z.number()])
   .transform((val) => Number(val) || 0);
 
-const tripSchema = z.object({
-  date: z.string().min(1, "Date is required"),
-  truckId: z.number().min(1, "Please select a truck"),
-  customerId: z
-    .string()
-    .min(1, "Customer Name is required. Put N/A if none")
-    .toUpperCase(),
-  farmName: z
-    .string()
-    .min(1, "Farm Address is required. Put N/A if none")
-    .toUpperCase(),
+const tripSchema = z
+  .object({
+    date: z.string().min(1, "Date is required"),
+    truckId: z.number().min(1, "Please select a truck"),
+    customerId: z
+      .string()
+      .min(1, "Customer Name is required. Put N/A if none")
+      .toUpperCase(),
+    farmName: z
+      .string()
+      .min(1, "Farm Address is required. Put N/A if none")
+      .toUpperCase(),
 
-  origin: z.string().min(1, "Origin is required").toUpperCase(),
-  destination: z.string().min(1, "Destination is required").toUpperCase(),
+    origin: z.string().min(1, "Origin is required").toUpperCase(),
+    destination: z.string().min(1, "Destination is required").toUpperCase(),
+    tripType: z.string().min(1, "Trip Type is required").toUpperCase(),
+    loadType: z.string().toUpperCase(),
+    deliveryOrderNo: z.string().optional(),
 
-  qtyHeads: numField.pipe(z.number().min(1, "Quantity must be at least 1")),
-  qtyNote: z.string().optional(), // ✨ ADDED QTY NOTE
-  rate: numField.pipe(z.number().min(0, "Invalid rate")),
+    qtyHeads: numField.pipe(
+      z.number().min(0, "Quantity must be a valid number"),
+    ),
+    qtyNote: z.string().optional(), // ✨ ADDED QTY NOTE
+    rate: numField.pipe(z.number().min(0, "Rate must be a valid number")),
+    ratePerTrip: numField
+      .pipe(z.number().min(0, "Rate must be a valid number"))
+      .optional(),
 
-  tollFees: numField,
-  dieselCash: numField,
-  dieselPo: numField,
-  meals: numField,
-  roroShip: numField,
+    tollFees: numField,
+    dieselCash: numField,
+    dieselPo: numField,
+    meals: numField,
+    roroShip: numField,
 
-  salary: numField,
-  salaryNote: z.string().optional(), // ✨ ADDED SALARY NOTE
+    salary: numField,
+    salaryNote: z.string().optional(), // ✨ ADDED SALARY NOTE
 
-  others: numField,
-  othersNote: z.string().optional(), // ✨ ADDED OTHERS NOTE
-});
+    others: numField,
+    othersNote: z.string().optional(), // ✨ ADDED OTHERS NOTE
+
+    miscellaneous: numField,
+    miscellaneousNote: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.tripType === "CPF") {
+      const requiredFields = [
+        { name: "salary", msg: "Salary is required for CPF trips" },
+        { name: "tollFees", msg: "Toll fees are required for CPF trips" },
+        { name: "meals", msg: "Meals are required for CPF trips" },
+        {
+          name: "miscellaneous",
+          msg: "Miscellaneous is required for CPF trips",
+        },
+        { name: "ratePerTrip", msg: "Rate / Trip is required for CPF trips" },
+      ];
+      requiredFields.forEach(({ name, msg }) => {
+        const val = data[name as keyof typeof data];
+        if (!val || (typeof val === "number" && val <= 0)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: msg,
+            path: [name],
+          });
+        }
+      });
+    } else {
+      if (!data.loadType || data.loadType.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Load Type is required",
+          path: ["loadType"],
+        });
+      }
+    }
+  });
 
 export default function NewTripPage() {
   const [availableTrucks, setAvailableTrucks] = useState<
@@ -223,9 +267,13 @@ export default function NewTripPage() {
       farmName: "",
       origin: "",
       destination: "",
+      tripType: "",
+      loadType: "",
+      deliveryOrderNo: "",
       qtyHeads: "",
       qtyNote: "", // ✨ Initialized
       rate: "",
+      ratePerTrip: "", // ✨ Added
       tollFees: "",
       dieselCash: "",
       dieselPo: "",
@@ -235,6 +283,8 @@ export default function NewTripPage() {
       salaryNote: "", // ✨ Initialized
       others: "",
       othersNote: "", // ✨ Initialized
+      miscellaneous: "",
+      miscellaneousNote: "",
     },
   });
 
@@ -249,10 +299,21 @@ export default function NewTripPage() {
   const roroShip = Number(useWatch({ control, name: "roroShip" })) || 0;
   const salary = Number(useWatch({ control, name: "salary" })) || 0;
   const others = Number(useWatch({ control, name: "others" })) || 0;
+  const miscellaneous =
+    Number(useWatch({ control, name: "miscellaneous" })) || 0;
+  const ratePerTrip = Number(useWatch({ control, name: "ratePerTrip" })) || 0;
+  const tripType = useWatch({ control, name: "tripType" }) || "";
 
-  const grossCollectible = qtyHeads * rate;
+  const grossCollectible = tripType === "CPF" ? ratePerTrip : qtyHeads * rate;
   const totalExpenses =
-    tollFees + dieselCash + dieselPo + meals + roroShip + salary + others;
+    tollFees +
+    dieselCash +
+    dieselPo +
+    meals +
+    roroShip +
+    salary +
+    others +
+    miscellaneous;
   const netIncome = grossCollectible - totalExpenses;
 
   const handleDieselModeSwitch = (mode: "cash" | "po") => {
@@ -285,9 +346,13 @@ export default function NewTripPage() {
           farmName: "",
           origin: "",
           destination: "",
+          tripType: "",
+          loadType: "",
+          deliveryOrderNo: "",
           qtyHeads: "",
           qtyNote: "", // ✨ Reset
           rate: "",
+          ratePerTrip: "", // ✨ Reset
           tollFees: "",
           dieselCash: "",
           dieselPo: "",
@@ -297,6 +362,8 @@ export default function NewTripPage() {
           salaryNote: "", // ✨ Reset
           others: "",
           othersNote: "", // ✨ Reset
+          miscellaneous: "",
+          miscellaneousNote: "", // ✨ Reset
         });
 
         setDieselMode("cash");
@@ -484,6 +551,142 @@ export default function NewTripPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Controller
+                      name="tripType"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            Trip Type
+                          </FieldLabel>
+                          <Select
+                            onValueChange={(val) => {
+                              const prevVal = form.getValues("tripType");
+                              field.onChange(val);
+                              if (val === "CPF") {
+                                form.setValue("loadType", "NONE");
+                                form.setValue("customerId", "N/A");
+                                form.setValue("farmName", "N/A");
+                                form.setValue("deliveryOrderNo", "");
+                                form.setValue("qtyHeads", "0");
+                                form.setValue("rate", "0");
+                                form.setValue("others", "0");
+                                form.setValue("othersNote", "");
+                                form.setValue(
+                                  "ratePerTrip",
+                                  form.getValues("ratePerTrip") || "",
+                                );
+                                const currentDest =
+                                  form.getValues("destination");
+                                if (
+                                  currentDest !== "AGRO FOODS" &&
+                                  currentDest !== "LPPI"
+                                ) {
+                                  form.setValue("destination", "");
+                                }
+                              } else if (prevVal === "CPF" || val !== "CPF") {
+                                form.setValue("loadType", "");
+                                if (prevVal === "CPF") {
+                                  form.setValue("customerId", "");
+                                  form.setValue("farmName", "");
+                                  form.setValue("qtyHeads", "");
+                                  form.setValue("rate", "");
+                                  form.setValue("ratePerTrip", "");
+                                  form.setValue("others", "");
+                                  form.setValue("othersNote", "");
+                                }
+                                form.setValue("deliveryOrderNo", "");
+                              }
+                            }}
+                            value={field.value || ""}
+                          >
+                            <SelectTrigger className="w-full rounded-xl border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 px-4 text-md h-11! focus-within:ring-blue-500">
+                              <SelectValue placeholder="Select Trip Type" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 z-200">
+                              <SelectItem value="RTL">RTL</SelectItem>
+                              <SelectItem value="LAYER">LAYER</SelectItem>
+                              <SelectItem value="CPF">CPF</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+
+                    <Controller
+                      name="loadType"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            Load Type
+                          </FieldLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={
+                              tripType === "CPF" ? "NONE" : field.value || ""
+                            }
+                            disabled={tripType === "CPF"}
+                            required={tripType !== "CPF"}
+                          >
+                            <SelectTrigger className="w-full rounded-xl border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950/50 px-4 text-md h-11! focus-within:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50">
+                              <SelectValue placeholder="Select Load Type" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 z-200">
+                              {tripType === "CPF" ? (
+                                <SelectItem value="NONE">NONE</SelectItem>
+                              ) : (
+                                <>
+                                  <SelectItem value="Chick">Chick</SelectItem>
+                                  <SelectItem value="Feeds">Feeds</SelectItem>
+                                  <SelectItem value="RTL">RTL</SelectItem>
+                                  <SelectItem value="Layer">Layer</SelectItem>
+                                  <SelectItem value="Broiler (45 days)">
+                                    Broiler (45 days)
+                                  </SelectItem>
+                                  <SelectItem value="Culls">Culls</SelectItem>
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+
+                    <Controller
+                      name="deliveryOrderNo"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            D.O. No.
+                          </FieldLabel>
+                          <Input
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) =>
+                              field.onChange(e.target.value.toUpperCase())
+                            }
+                            placeholder="E.g., 123456"
+                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
+                            disabled={tripType !== "CPF"}
+                            required={tripType === "CPF"}
+                          />
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Controller
                       name="customerId"
@@ -503,9 +706,11 @@ export default function NewTripPage() {
                             onChange={(e) =>
                               field.onChange(e.target.value.toUpperCase())
                             }
-                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase"
+                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                             aria-invalid={fieldState.invalid}
                             list="customer-suggestions"
+                            disabled={tripType === "CPF"}
+                            required={tripType !== "CPF"}
                           />
                           <datalist id="customer-suggestions">
                             {customerSuggestions.map((c, i) => (
@@ -537,9 +742,11 @@ export default function NewTripPage() {
                             onChange={(e) =>
                               field.onChange(e.target.value.toUpperCase())
                             }
-                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase"
+                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                             aria-invalid={fieldState.invalid}
                             list="farm-suggestions"
+                            disabled={tripType === "CPF"}
+                            required={tripType !== "CPF"}
                           />
                           <datalist id="farm-suggestions">
                             {farmSuggestions.map((f, i) => (
@@ -670,9 +877,12 @@ export default function NewTripPage() {
                               >
                                 <span className="truncate pr-2">
                                   {field.value
-                                    ? phLocations.find(
-                                        (loc) => loc.value === field.value,
-                                      )?.label
+                                    ? field.value === "AGRO FOODS" ||
+                                      field.value === "LPPI"
+                                      ? field.value
+                                      : phLocations.find(
+                                          (loc) => loc.value === field.value,
+                                        )?.label || field.value
                                     : isLoadingLocations
                                       ? "Loading cities..."
                                       : "Select City, Province..."}
@@ -696,27 +906,68 @@ export default function NewTripPage() {
                                     No location found.
                                   </CommandEmpty>
                                   <CommandGroup>
-                                    {filteredDestinations.map((loc) => (
-                                      <CommandItem
-                                        key={loc.value}
-                                        value={loc.label}
-                                        onSelect={() => {
-                                          field.onChange(loc.value);
-                                          setIsDestinationOpen(false);
-                                        }}
-                                        className="cursor-pointer"
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4 shrink-0",
-                                            field.value === loc.value
-                                              ? "opacity-100"
-                                              : "opacity-0",
-                                          )}
-                                        />
-                                        {loc.label}
-                                      </CommandItem>
-                                    ))}
+                                    {tripType === "CPF" ? (
+                                      <>
+                                        <CommandItem
+                                          value="AGRO FOODS"
+                                          onSelect={() => {
+                                            field.onChange("AGRO FOODS");
+                                            setIsDestinationOpen(false);
+                                          }}
+                                          className="cursor-pointer"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4 shrink-0",
+                                              field.value === "AGRO FOODS"
+                                                ? "opacity-100"
+                                                : "opacity-0",
+                                            )}
+                                          />
+                                          AGRO FOODS
+                                        </CommandItem>
+                                        <CommandItem
+                                          value="LPPI"
+                                          onSelect={() => {
+                                            field.onChange("LPPI");
+                                            setIsDestinationOpen(false);
+                                          }}
+                                          className="cursor-pointer"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4 shrink-0",
+                                              field.value === "LPPI"
+                                                ? "opacity-100"
+                                                : "opacity-0",
+                                            )}
+                                          />
+                                          LPPI
+                                        </CommandItem>
+                                      </>
+                                    ) : (
+                                      filteredDestinations.map((loc) => (
+                                        <CommandItem
+                                          key={loc.value}
+                                          value={loc.label}
+                                          onSelect={() => {
+                                            field.onChange(loc.value);
+                                            setIsDestinationOpen(false);
+                                          }}
+                                          className="cursor-pointer"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4 shrink-0",
+                                              field.value === loc.value
+                                                ? "opacity-100"
+                                                : "opacity-0",
+                                            )}
+                                          />
+                                          {loc.label}
+                                        </CommandItem>
+                                      ))
+                                    )}
                                   </CommandGroup>
                                 </CommandList>
                               </Command>
@@ -750,10 +1001,11 @@ export default function NewTripPage() {
                               type="number"
                               step="0.01"
                               placeholder="0"
-                              className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-blue-600 dark:text-blue-400"
+                              className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                               onChange={(e) => field.onChange(e.target.value)}
                               onClick={(e) => e.currentTarget.select()}
                               aria-invalid={fieldState.invalid}
+                              disabled={tripType === "CPF"}
                             />
                             {fieldState.invalid && (
                               <FieldError errors={[fieldState.error]} />
@@ -767,8 +1019,9 @@ export default function NewTripPage() {
                         render={({ field }) => (
                           <textarea
                             {...field}
+                            disabled={tripType === "CPF"}
                             placeholder="Notes (e.g. 5 DOA, 2 missing)"
-                            className="w-full h-[68px] p-3 text-xs border border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
+                            className="w-full h-[68px] p-3 text-xs border border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                           />
                         )}
                       />
@@ -791,10 +1044,11 @@ export default function NewTripPage() {
                             type="number"
                             step="0.01"
                             placeholder="0.00"
-                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-emerald-600 dark:text-emerald-400"
+                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-emerald-600 dark:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                             onChange={(e) => field.onChange(e.target.value)}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
+                            disabled={tripType === "CPF"}
                           />
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
@@ -820,6 +1074,38 @@ export default function NewTripPage() {
               <CardContent className="pt-3 lg:pt-4 px-6 lg:px-8">
                 <FieldGroup className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-5 lg:gap-6">
                   <Controller
+                    name="ratePerTrip"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel
+                          htmlFor="ratePerTrip"
+                          className="text-sm font-semibold text-blue-600 dark:text-blue-400"
+                        >
+                          Rate / Trip
+                          {tripType === "CPF" && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id="ratePerTrip"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onClick={(e) => e.currentTarget.select()}
+                          aria-invalid={fieldState.invalid}
+                          disabled={tripType !== "CPF"}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
                     name="tollFees"
                     control={form.control}
                     render={({ field, fieldState }) => (
@@ -829,6 +1115,9 @@ export default function NewTripPage() {
                           className="text-sm font-bold text-slate-700 dark:text-slate-300"
                         >
                           Toll Fees
+                          {tripType === "CPF" && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
                         </FieldLabel>
                         <Input
                           {...field}
@@ -928,6 +1217,9 @@ export default function NewTripPage() {
                           className="text-sm font-bold text-slate-700 dark:text-slate-300"
                         >
                           Meals
+                          {tripType === "CPF" && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
                         </FieldLabel>
                         <Input
                           {...field}
@@ -960,7 +1252,8 @@ export default function NewTripPage() {
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400"
+                          disabled={tripType === "CPF"}
+                          className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                           onChange={(e) => field.onChange(e.target.value)}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
@@ -981,6 +1274,9 @@ export default function NewTripPage() {
                             className="text-sm font-bold text-slate-700 dark:text-slate-300"
                           >
                             Salary
+                            {tripType === "CPF" && (
+                              <span className="text-red-500 ml-1">*</span>
+                            )}
                           </FieldLabel>
                           <Input
                             {...field}
@@ -1028,10 +1324,11 @@ export default function NewTripPage() {
                             type="number"
                             step="0.01"
                             placeholder="0.00"
-                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400"
+                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                             onChange={(e) => field.onChange(e.target.value)}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
+                            disabled={tripType === "CPF"}
                           />
                         </Field>
                       )}
@@ -1043,7 +1340,53 @@ export default function NewTripPage() {
                         <textarea
                           {...field}
                           placeholder="Breakdown (e.g. RFID - 1000)"
-                          className="w-full h-[68px] p-3 text-xs border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
+                          className="w-full h-[68px] p-3 text-xs border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
+                          disabled={tripType === "CPF"}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  {/* ✨ UPDATED: Miscellaneous with Note Textarea */}
+                  <div className="space-y-2">
+                    <Controller
+                      name="miscellaneous"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel
+                            htmlFor="miscellaneous"
+                            className="text-sm font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            Miscellaneous
+                            {tripType === "CPF" && (
+                              <span className="text-red-500 ml-1">*</span>
+                            )}
+                          </FieldLabel>
+                          <Input
+                            {...field}
+                            id="miscellaneous"
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
+                            onChange={(e) => field.onChange(e.target.value)}
+                            onClick={(e) => e.currentTarget.select()}
+                            aria-invalid={fieldState.invalid}
+                            disabled={tripType !== "CPF"}
+                          />
+                        </Field>
+                      )}
+                    />
+                    <Controller
+                      name="miscellaneousNote"
+                      control={form.control}
+                      render={({ field }) => (
+                        <textarea
+                          {...field}
+                          placeholder="Breakdown (e.g. Police - 500)"
+                          className="w-full h-[68px] p-3 text-xs border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
+                          disabled={tripType !== "CPF"}
                         />
                       )}
                     />
@@ -1073,16 +1416,24 @@ export default function NewTripPage() {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
             {/* LEFT SIDE: Financial Metrics */}
             <div className="flex items-center justify-between w-full sm:w-auto space-x-2 sm:space-x-6 lg:space-x-12">
-              <div className="text-left flex-1 sm:flex-none">
-                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
-                  Collectible
-                </p>
-                <p className="text-[13px] sm:text-base md:text-lg font-mono text-slate-900 dark:text-white flex items-center font-bold">
-                  ₱<NumberTicker value={grossCollectible} decimalPlaces={2} />
-                </p>
-              </div>
+              {tripType !== "CPF" && (
+                <>
+                  <div className="text-left flex-1 sm:flex-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">
+                      Collectible
+                    </p>
+                    <p className="text-[13px] sm:text-base md:text-lg font-mono text-slate-900 dark:text-white flex items-center font-bold">
+                      ₱
+                      <NumberTicker
+                        value={grossCollectible}
+                        decimalPlaces={2}
+                      />
+                    </p>
+                  </div>
 
-              <div className="w-px h-6 sm:h-8 bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="w-px h-6 sm:h-8 bg-slate-200 dark:bg-slate-800 shrink-0" />
+                </>
+              )}
 
               <div className="text-left flex-1 sm:flex-none">
                 <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px] md:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">

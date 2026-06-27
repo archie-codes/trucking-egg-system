@@ -58,6 +58,14 @@ import {
 } from "@/components/ui/command";
 
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
   deleteTripRecord,
   updateTripRecord,
   getTripHistorySuggestions,
@@ -73,9 +81,13 @@ export type TripRecord = {
   farmName: string;
   origin: string;
   destination: string;
+  tripType: string | null;
+  loadType: string | null;
+  deliveryOrderNo: string | null;
   qtyHeads: number;
   qtyNote: string | null;
   rate: number;
+  ratePerTrip: number;
   tollFees: number;
   dieselCash: number;
   dieselPo: number;
@@ -85,6 +97,8 @@ export type TripRecord = {
   salaryNote: string | null;
   others: number;
   othersNote: string | null;
+  miscellaneous: number;
+  miscellaneousNote: string | null;
   createdAt: Date;
 };
 
@@ -242,21 +256,30 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
     farmName: trip.farmName,
     origin: trip.origin,
     destination: trip.destination,
+    tripType: trip.tripType || "",
+    loadType: trip.loadType || "",
+    deliveryOrderNo: trip.deliveryOrderNo || "",
     qtyHeads: trip.qtyHeads,
     qtyNote: trip.qtyNote || "",
     rate: trip.rate,
+    ratePerTrip: trip.ratePerTrip || 0,
     tollFees: trip.tollFees,
     dieselCash: trip.dieselCash,
     dieselPo: trip.dieselPo,
     meals: trip.meals,
     roroShip: trip.roroShip,
-    salary: trip.salary,
+    salary: trip.salary || 0,
     salaryNote: trip.salaryNote || "",
-    others: trip.others,
+    others: trip.others || 0,
     othersNote: trip.othersNote || "",
+    miscellaneous: trip.miscellaneous || 0,
+    miscellaneousNote: trip.miscellaneousNote || "",
   });
 
-  const grossCollectible = (formData.qtyHeads || 0) * (formData.rate || 0);
+  const grossCollectible =
+    formData.tripType === "CPF"
+      ? formData.ratePerTrip || 0
+      : (formData.qtyHeads || 0) * (formData.rate || 0);
   const totalExpenses =
     (formData.tollFees || 0) +
     (formData.dieselCash || 0) +
@@ -264,7 +287,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
     (formData.meals || 0) +
     (formData.roroShip || 0) +
     (formData.salary || 0) +
-    (formData.others || 0);
+    (formData.others || 0) +
+    (formData.miscellaneous || 0);
   const netIncome = grossCollectible - totalExpenses;
 
   useEffect(() => {
@@ -324,7 +348,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
     setIsDeleting(true);
     const toastId = toast.loading("Deleting record...");
 
-    const result = await deleteTripRecord(trip.id);
+    const result = await deleteTripRecord(trip.id, trip.tripType || "");
 
     if (result.success) {
       toast.success("Trip deleted successfully.", { id: toastId });
@@ -400,18 +424,24 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                 farmName: trip.farmName,
                 origin: trip.origin,
                 destination: trip.destination,
+                tripType: trip.tripType || "",
+                loadType: trip.loadType || "",
+                deliveryOrderNo: trip.deliveryOrderNo || "",
                 qtyHeads: trip.qtyHeads,
                 qtyNote: trip.qtyNote || "",
                 rate: trip.rate,
+                ratePerTrip: trip.ratePerTrip || 0,
                 tollFees: trip.tollFees,
                 dieselCash: trip.dieselCash,
                 dieselPo: trip.dieselPo,
                 meals: trip.meals,
                 roroShip: trip.roroShip,
-                salary: trip.salary,
+                salary: trip.salary || 0,
                 salaryNote: trip.salaryNote || "",
-                others: trip.others,
+                others: trip.others || 0,
                 othersNote: trip.othersNote || "",
+                miscellaneous: trip.miscellaneous || 0,
+                miscellaneousNote: trip.miscellaneousNote || "",
               });
               setDieselMode(trip.dieselPo > 0 ? "po" : "cash");
               setIsEditOpen(true);
@@ -581,6 +611,111 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                     </Popover>
                   </div>
 
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                      Trip Type
+                    </Label>
+                    <Select
+                      value={formData.tripType}
+                      onValueChange={(val) => {
+                        const isCpf = val === "CPF";
+                        const wasCpf = formData.tripType === "CPF";
+                        setFormData({
+                          ...formData,
+                          tripType: val,
+                          loadType: isCpf
+                            ? "NONE"
+                            : wasCpf
+                              ? ""
+                              : formData.loadType,
+                          customerId: isCpf
+                            ? "N/A"
+                            : wasCpf
+                              ? ""
+                              : formData.customerId,
+                          farmName: isCpf
+                            ? "N/A"
+                            : wasCpf
+                              ? ""
+                              : formData.farmName,
+                          deliveryOrderNo: isCpf ? "" : "",
+                          destination:
+                            isCpf &&
+                            formData.destination !== "AGRO FOODS" &&
+                            formData.destination !== "LPPI"
+                              ? ""
+                              : formData.destination,
+                          qtyHeads: isCpf ? 0 : wasCpf ? 0 : formData.qtyHeads,
+                          rate: isCpf ? 0 : wasCpf ? 0 : formData.rate,
+                          ratePerTrip: isCpf ? formData.ratePerTrip : 0,
+                        });
+                      }}
+                      disabled={trip.tripType === "CPF"}
+                    >
+                      <SelectTrigger className="h-11! border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 w-full disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed">
+                        <SelectValue placeholder="Select Trip Type" />
+                      </SelectTrigger>
+                      <SelectContent className="z-250">
+                        <SelectItem value="RTL">RTL</SelectItem>
+                        <SelectItem value="LAYER">LAYER</SelectItem>
+                        <SelectItem value="CPF" disabled={trip.tripType !== "CPF"}>CPF</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                      Load Type
+                    </Label>
+                    <Select
+                      value={
+                        formData.tripType === "CPF" ? "NONE" : formData.loadType
+                      }
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, loadType: val })
+                      }
+                      disabled={formData.tripType === "CPF"}
+                    >
+                      <SelectTrigger className="h-11! w-full border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed">
+                        <SelectValue placeholder="Select Load Type" />
+                      </SelectTrigger>
+                      <SelectContent className="z-250">
+                        {formData.tripType === "CPF" ? (
+                          <SelectItem value="NONE">NONE</SelectItem>
+                        ) : (
+                          <>
+                            <SelectItem value="CHICK">Chick</SelectItem>
+                            <SelectItem value="FEEDS">Feeds</SelectItem>
+                            <SelectItem value="RTL">RTL</SelectItem>
+                            <SelectItem value="LAYER">Layer</SelectItem>
+                            <SelectItem value="BROILER (45 DAYS)">
+                              Broiler (45 days)
+                            </SelectItem>
+                            <SelectItem value="CULLS">Culls</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                      D.O. No.
+                    </Label>
+                    <Input
+                      value={formData.deliveryOrderNo}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          deliveryOrderNo: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 uppercase disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType !== "CPF"}
+                      required={formData.tripType === "CPF"}
+                    />
+                  </div>
+
                   {/* ✨ UPDATED: Customer Autocomplete */}
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-bold text-slate-500 uppercase">
@@ -594,8 +729,9 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                           customerId: e.target.value.toUpperCase(),
                         })
                       }
-                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 uppercase"
-                      required
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 uppercase disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
+                      required={formData.tripType !== "CPF"}
                       list={`edit-customer-suggestions-${trip.id}`}
                     />
                     <datalist id={`edit-customer-suggestions-${trip.id}`}>
@@ -618,7 +754,9 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                           farmName: e.target.value.toUpperCase(),
                         })
                       }
-                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 uppercase"
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 uppercase disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
+                      required={formData.tripType !== "CPF"}
                       list={`edit-farm-suggestions-${trip.id}`}
                     />
                     <datalist id={`edit-farm-suggestions-${trip.id}`}>
@@ -730,30 +868,77 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                           <CommandList className="max-h-[250px]">
                             <CommandEmpty>No location found.</CommandEmpty>
                             <CommandGroup>
-                              {phLocations.map((loc) => (
-                                <CommandItem
-                                  key={loc.value}
-                                  value={loc.label}
-                                  onSelect={() => {
-                                    setFormData({
-                                      ...formData,
-                                      destination: loc.value,
-                                    });
-                                    setIsDestinationOpen(false);
-                                  }}
-                                  className="cursor-pointer"
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4 shrink-0",
-                                      formData.destination === loc.value
-                                        ? "opacity-100"
-                                        : "opacity-0",
-                                    )}
-                                  />
-                                  {loc.label}
-                                </CommandItem>
-                              ))}
+                              {formData.tripType === "CPF" ? (
+                                <>
+                                  <CommandItem
+                                    value="AGRO FOODS"
+                                    onSelect={() => {
+                                      setFormData({
+                                        ...formData,
+                                        destination: "AGRO FOODS",
+                                      });
+                                      setIsDestinationOpen(false);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4 shrink-0",
+                                        formData.destination === "AGRO FOODS"
+                                          ? "opacity-100"
+                                          : "opacity-0",
+                                      )}
+                                    />
+                                    AGRO FOODS
+                                  </CommandItem>
+                                  <CommandItem
+                                    value="LPPI"
+                                    onSelect={() => {
+                                      setFormData({
+                                        ...formData,
+                                        destination: "LPPI",
+                                      });
+                                      setIsDestinationOpen(false);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4 shrink-0",
+                                        formData.destination === "LPPI"
+                                          ? "opacity-100"
+                                          : "opacity-0",
+                                      )}
+                                    />
+                                    LPPI
+                                  </CommandItem>
+                                </>
+                              ) : (
+                                phLocations.map((loc) => (
+                                  <CommandItem
+                                    key={loc.value}
+                                    value={loc.label}
+                                    onSelect={() => {
+                                      setFormData({
+                                        ...formData,
+                                        destination: loc.value,
+                                      });
+                                      setIsDestinationOpen(false);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4 shrink-0",
+                                        formData.destination === loc.value
+                                          ? "opacity-100"
+                                          : "opacity-0",
+                                      )}
+                                    />
+                                    {loc.label}
+                                  </CommandItem>
+                                ))
+                              )}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -768,7 +953,7 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                   Financial Matrix
                 </h4>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-slate-500 uppercase">
                       Qty (Heads)
@@ -780,7 +965,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("qtyHeads", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-blue-600 mb-2"
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-blue-600 mb-2 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
                       required
                     />
                     <textarea
@@ -789,7 +975,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         setFormData({ ...formData, qtyNote: e.target.value })
                       }
                       placeholder="Notes (e.g. 5 DOA)"
-                      className="w-full h-11 min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
+                      className="w-full h-11 min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
                     />
                   </div>
 
@@ -803,7 +990,25 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                       value={formData.rate || ""}
                       onChange={(e) => handleNumChange("rate", e.target.value)}
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-emerald-600"
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-emerald-600 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 flex flex-col">
+                    <Label className="text-[11px] font-bold text-blue-500 uppercase">
+                      Rate / Trip (CPF)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.ratePerTrip || ""}
+                      onChange={(e) =>
+                        handleNumChange("ratePerTrip", e.target.value)
+                      }
+                      onClick={(e) => e.currentTarget.select()}
+                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-950 font-bold text-blue-600 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType !== "CPF"}
                     />
                   </div>
 
@@ -898,7 +1103,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("roroShip", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600"
+                      className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
                     />
                   </div>
                 </div>
@@ -940,7 +1146,8 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         handleNumChange("others", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
-                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-xl font-mono text-rose-600 mb-2"
+                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-xl font-mono text-rose-600 mb-2 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
                     />
                     <textarea
                       value={formData.othersNote}
@@ -948,7 +1155,37 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                         setFormData({ ...formData, othersNote: e.target.value })
                       }
                       placeholder="Breakdown (e.g. RFID - 1250)"
-                      className="w-full h-full min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400"
+                      className="w-full h-full min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType === "CPF"}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 flex flex-col sm:col-span-2">
+                    <Label className="text-[11px] font-bold text-rose-500 uppercase">
+                      Miscellaneous Expenses
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.miscellaneous || ""}
+                      onChange={(e) =>
+                        handleNumChange("miscellaneous", e.target.value)
+                      }
+                      onClick={(e) => e.currentTarget.select()}
+                      className="h-11 shrink-0 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-xl font-mono text-rose-600 mb-2 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType !== "CPF"}
+                    />
+                    <textarea
+                      value={formData.miscellaneousNote}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          miscellaneousNote: e.target.value,
+                        })
+                      }
+                      placeholder="Breakdown (e.g. Police - 500)"
+                      className="w-full h-full min-h-[50px] p-2.5 text-[11px] border border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-slate-600 dark:text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 disabled:opacity-50 disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50 disabled:cursor-not-allowed"
+                      disabled={formData.tripType !== "CPF"}
                     />
                   </div>
                 </div>
@@ -956,18 +1193,25 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
             </div>
 
             <DialogFooter className="flex-col border-t border-slate-100 dark:border-white/10 shrink-0 bg-slate-50 dark:bg-white/2 p-0 sm:p-0">
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 border-b border-slate-200 dark:border-white/10 p-3 sm:p-4">
-                <div className="text-left bg-slate-100/50 dark:bg-white/5 p-2 sm:p-3 rounded-xl border border-slate-200/50 dark:border-white/5 overflow-hidden flex flex-col justify-center w-full">
-                  <p className="text-[9px] sm:text-xs font-bold text-slate-500 uppercase tracking-tight sm:tracking-widest mb-0.5 sm:mb-1 truncate">
-                    Collectible
-                  </p>
-                  <p
-                    className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-mono truncate font-bold"
-                    title={formatPHP(grossCollectible)}
-                  >
-                    <AnimatedNumber value={grossCollectible} isCurrency />
-                  </p>
-                </div>
+              <div
+                className={cn(
+                  "grid gap-2 sm:gap-4 border-b border-slate-200 dark:border-white/10 p-3 sm:p-4",
+                  formData.tripType === "CPF" ? "grid-cols-2" : "grid-cols-3",
+                )}
+              >
+                {formData.tripType !== "CPF" && (
+                  <div className="text-left bg-slate-100/50 dark:bg-white/5 p-2 sm:p-3 rounded-xl border border-slate-200/50 dark:border-white/5 overflow-hidden flex flex-col justify-center w-full">
+                    <p className="text-[9px] sm:text-xs font-bold text-slate-500 uppercase tracking-tight sm:tracking-widest mb-0.5 sm:mb-1 truncate">
+                      Collectible
+                    </p>
+                    <p
+                      className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-mono truncate font-bold"
+                      title={formatPHP(grossCollectible)}
+                    >
+                      <AnimatedNumber value={grossCollectible} isCurrency />
+                    </p>
+                  </div>
+                )}
                 <div className="text-left bg-rose-50/50 dark:bg-rose-500/10 p-2 sm:p-3 rounded-xl border border-rose-100/50 dark:border-rose-500/10 overflow-hidden flex flex-col justify-center w-full">
                   <p className="text-[9px] sm:text-xs font-bold text-rose-500 uppercase tracking-tight sm:tracking-widest mb-0.5 sm:mb-1 truncate">
                     Expenses
@@ -1095,6 +1339,33 @@ export const columns: ColumnDef<TripRecord>[] = [
     ),
   },
   {
+    accessorKey: "tripType",
+    header: "Trip Type",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap font-medium text-slate-600 dark:text-slate-400">
+        {row.getValue("tripType") || "-"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "loadType",
+    header: "Load Type",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap font-medium text-slate-600 dark:text-slate-400">
+        {row.getValue("loadType") || "-"}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "deliveryOrderNo",
+    header: "D.O. No.",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap font-medium text-slate-600 dark:text-slate-400">
+        {row.getValue("deliveryOrderNo") || "-"}
+      </span>
+    ),
+  },
+  {
     accessorKey: "date",
     header: ({ column }) => {
       return (
@@ -1146,13 +1417,28 @@ export const columns: ColumnDef<TripRecord>[] = [
     ),
   },
   {
-    id: "collectible",
-    header: () => <div className="text-right font-medium">Collectible</div>,
+    accessorKey: "ratePerTrip",
+    header: () => <div className="text-right">Rate / Trip</div>,
     cell: ({ row }) => (
-      <div className="text-right font-medium whitespace-nowrap">
-        {formatPHP(row.original.qtyHeads * row.original.rate)}
+      <div className="text-right text-muted-foreground">
+        {formatPHP(row.getValue("ratePerTrip") || 0)}
       </div>
     ),
+  },
+  {
+    id: "collectible",
+    header: () => <div className="text-right font-medium">Collectible</div>,
+    cell: ({ row }) => {
+      const collectible =
+        row.original.tripType === "CPF"
+          ? row.original.ratePerTrip || 0
+          : (row.original.qtyHeads || 0) * (row.original.rate || 0);
+      return (
+        <div className="text-right font-medium whitespace-nowrap">
+          {formatPHP(collectible)}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "tollFees",
@@ -1212,6 +1498,18 @@ export const columns: ColumnDef<TripRecord>[] = [
     ),
   },
   {
+    accessorKey: "miscellaneous",
+    header: () => <div className="text-right">Miscellaneous</div>,
+    cell: ({ row }) => (
+      <NoteCell
+        value={row.original.miscellaneous}
+        note={row.original.miscellaneousNote}
+        isCurrency={true}
+        textColor="text-destructive"
+      />
+    ),
+  },
+  {
     accessorKey: "salary",
     header: () => <div className="text-right">Salary</div>,
     cell: ({ row }) => (
@@ -1231,13 +1529,14 @@ export const columns: ColumnDef<TripRecord>[] = [
       return (
         <div className="text-right font-bold text-destructive whitespace-nowrap">
           {formatPHP(
-            t.tollFees +
-              t.dieselCash +
-              t.dieselPo +
-              t.meals +
-              t.roroShip +
-              t.salary +
-              t.others,
+            (t.tollFees || 0) +
+              (t.dieselCash || 0) +
+              (t.dieselPo || 0) +
+              (t.meals || 0) +
+              (t.roroShip || 0) +
+              (t.salary || 0) +
+              (t.others || 0) +
+              (t.miscellaneous || 0),
           )}
         </div>
       );
@@ -1248,15 +1547,20 @@ export const columns: ColumnDef<TripRecord>[] = [
     header: () => <div className="text-right font-bold">Net Income</div>,
     cell: ({ row }) => {
       const t = row.original;
+      const collectible =
+        t.tripType === "CPF"
+          ? t.ratePerTrip || 0
+          : (t.qtyHeads || 0) * (t.rate || 0);
       const net =
-        t.qtyHeads * t.rate -
-        (t.tollFees +
-          t.dieselCash +
-          t.dieselPo +
-          t.meals +
-          t.roroShip +
-          t.salary +
-          t.others);
+        collectible -
+        ((t.tollFees || 0) +
+          (t.dieselCash || 0) +
+          (t.dieselPo || 0) +
+          (t.meals || 0) +
+          (t.roroShip || 0) +
+          (t.salary || 0) +
+          (t.others || 0) +
+          (t.miscellaneous || 0));
       return (
         <div
           className={`text-right font-bold whitespace-nowrap ${net >= 0 ? "text-emerald-500" : "text-destructive"}`}

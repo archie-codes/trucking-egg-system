@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { UsersIcon, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { UsersIcon, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -250,6 +250,16 @@ export function DataTable<TData>({ columns, data, currentUserId, onlineCount }: 
             <Button
               variant="outline"
               size="sm"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+              title="First Page"
+            >
+              <ChevronsLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
               className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
@@ -261,11 +271,11 @@ export function DataTable<TData>({ columns, data, currentUserId, onlineCount }: 
               {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
                 let page = i;
                 if (pageCount > 5) {
-                  const half = 2;
-                  page = Math.min(
-                    Math.max(currentPage - 1 - half, 0) + i,
-                    pageCount - 1,
-                  );
+                  let startPage = Math.max(0, currentPage - 1 - 2);
+                  if (startPage + 4 >= pageCount) {
+                    startPage = Math.max(0, pageCount - 5);
+                  }
+                  page = startPage + i;
                 }
                 const isActive = page === currentPage - 1;
                 return (
@@ -293,6 +303,16 @@ export function DataTable<TData>({ columns, data, currentUserId, onlineCount }: 
             >
               Next
               <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+              title="Last Page"
+            >
+              <ChevronsRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>

@@ -10,7 +10,9 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
+import { useSearchParams } from "next/navigation";
 
 import {
   Table,
@@ -47,6 +49,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Download,
   FileText,
   FileSpreadsheet,
@@ -71,9 +75,14 @@ interface DataTableProps<TData> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: any[];
   data: TData[];
+  activeTab?: string;
 }
 
-export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
+export function DataTable<TData>({
+  columns,
+  data,
+  activeTab,
+}: DataTableProps<TData>) {
   "use no memo";
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -82,6 +91,30 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
   const [viewData, setViewData] = React.useState<TripRecord | null>(null);
+
+  const searchParams = useSearchParams();
+  const tab = activeTab || searchParams.get("tab") || "RTL";
+  const isCpfTab = tab === "CPF";
+
+  const columnVisibility = React.useMemo<VisibilityState>(() => {
+    if (isCpfTab) {
+      return {
+        customerId: false,
+        loadType: false,
+        farmName: false,
+        qtyHeads: false,
+        rate: false,
+        roroShip: false,
+        others: false,
+        collectible: false,
+      } as VisibilityState;
+    }
+    return {
+      deliveryOrderNo: false,
+      ratePerTrip: false,
+      miscellaneous: false,
+    } as VisibilityState;
+  }, [isCpfTab]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -94,7 +127,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting, columnFilters, globalFilter, columnVisibility },
     initialState: { pagination: { pageSize: 20 } },
   });
 
@@ -122,9 +155,12 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
     let totalGross = 0;
     let totalExpenses = 0;
+    const isCpfTab = rows.some((r) => r.original.tripType === "CPF");
+    const tripTypeFilter = rows.length > 0 ? (rows[0].original.tripType || "ALL") : "ALL";
+
     rows.forEach((r) => {
       const d = r.original;
-      totalGross += d.qtyHeads * d.rate;
+      totalGross += isCpfTab ? (d.ratePerTrip || 0) : d.qtyHeads * d.rate;
       totalExpenses +=
         d.tollFees +
         d.dieselCash +
@@ -132,7 +168,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         d.meals +
         d.roroShip +
         d.salary +
-        d.others;
+        d.others +
+        (d.miscellaneous || 0);
     });
 
     const totalNet = totalGross - totalExpenses;
@@ -149,6 +186,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       totalGross: fmt(totalGross),
       totalExpenses: fmt(totalExpenses),
       totalNet: fmt(totalNet),
+      tripTypeFilter,
+      isCpfTab,
     };
   };
 
@@ -162,10 +201,12 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         return;
       }
       const meta = extractReportMetadata(rows);
+      const isCpfTab = meta.isCpfTab;
 
       const metaHeader = [
         `"Fhernie Logistics - Trip Ledger"`,
-        `"${meta.truckName}"`,
+        `"Trip Type Filter : ${meta.tripTypeFilter}"`,
+        `"Fleet Asset : ${meta.truckName}"`,
         `"Period / Year : ${meta.periodYear}"`,
         `"Customer / Client : ${meta.customerName}"`,
         `"Delivery Route: ${meta.routeName}"`,
@@ -173,7 +214,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         `""`,
         `"FINANCIAL SUMMARY"`,
         `"Total Trips: ${meta.totalTrips}"`,
-        `"Collectibles: ${meta.totalGross}"`,
+        isCpfTab ? `"Total Rate per trips: ${meta.totalGross}"` : `"Collectibles: ${meta.totalGross}"`,
         `"Expenses: ${meta.totalExpenses}"`,
         `"Net Income: ${meta.totalNet}"`,
         `""`,
@@ -184,30 +225,28 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         "Date",
         "Truck",
         "Plate No.",
-        "Customer",
-        "Farm Name",
+        ...(isCpfTab ? ["D.O No."] : []),
+        ...(isCpfTab ? [] : ["Customer", "Farm Name"]),
         "Origin",
         "Destination",
-        "Qty (Heads)",
-        "Qty Note",
-        "Rate",
-        "Gross Collectible",
+        ...(isCpfTab ? [] : ["Qty (Heads)", "Qty Note", "Rate"]),
+        isCpfTab ? "Rate Per Trip" : "Gross Collectible",
         "Toll Fees",
         "Diesel (Cash)",
         "Diesel (PO)",
         "Meals",
-        "Roro",
+        ...(isCpfTab ? [] : ["Roro"]),
         "Salary",
         "Salary Note",
-        "Others",
-        "Others Note",
+        ...(isCpfTab ? [] : ["Others", "Others Note"]),
+        "Miscellaneous",
         "Total Expenses",
         "Net Income",
       ];
 
       const csvData = rows.map((row: { original: TripRecord }) => {
         const d = row.original;
-        const collectible = d.qtyHeads * d.rate;
+        const collectible = isCpfTab ? (d.ratePerTrip || 0) : d.qtyHeads * d.rate;
         const expenses =
           d.tollFees +
           d.dieselCash +
@@ -215,29 +254,28 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           d.meals +
           d.roroShip +
           d.salary +
-          d.others;
+          d.others +
+          (d.miscellaneous || 0);
 
         return [
           new Date(d.date).toLocaleDateString(),
           d.fleetCode || "N/A",
           d.plateNumber || "N/A",
-          `"${d.customerId}"`,
-          `"${d.farmName || ""}"`,
+          ...(isCpfTab ? [`"${d.deliveryOrderNo || ""}"`] : []),
+          ...(isCpfTab ? [] : [`"${d.customerId}"`, `"${d.farmName || ""}"`]),
           `"${d.origin}"`,
           `"${d.destination}"`,
-          d.qtyHeads,
-          `"${d.qtyNote || ""}"`, // ✨ ADDED QTY NOTE
-          d.rate,
+          ...(isCpfTab ? [] : [d.qtyHeads, `"${d.qtyNote || ""}"`, d.rate]),
           collectible,
           d.tollFees,
           d.dieselCash,
           d.dieselPo,
           d.meals,
-          d.roroShip,
+          ...(isCpfTab ? [] : [d.roroShip]),
           d.salary,
           `"${d.salaryNote || ""}"`, // ✨ ADDED SALARY NOTE
-          d.others,
-          `"${d.othersNote || ""}"`, // ✨ ADDED OTHERS NOTE
+          ...(isCpfTab ? [] : [d.others, `"${d.othersNote || ""}"`]),
+          d.miscellaneous || 0,
           expenses,
           collectible - expenses,
         ].join(",");
@@ -274,6 +312,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         return;
       }
       const meta = extractReportMetadata(rows);
+      const isCpfTab = meta.isCpfTab;
       const doc = new jsPDF("l", "pt", [612, 936]);
       const fmt = (n: number) =>
         n.toLocaleString("en-US", {
@@ -288,27 +327,28 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       doc.text(meta.truckName, 40, 60);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Period / Year : ${meta.periodYear}`, 40, 80);
-      doc.text(`Customer / Client : ${meta.customerName}`, 40, 95);
-      doc.text(`Delivery Route: ${meta.routeName}`, 40, 110);
+      doc.text(`Trip Type Filter : ${meta.tripTypeFilter}`, 40, 80);
+      doc.text(`Period / Year : ${meta.periodYear}`, 40, 95);
+      doc.text(`Customer / Client : ${meta.customerName}`, 40, 110);
+      doc.text(`Delivery Route: ${meta.routeName}`, 40, 125);
       doc.text(
         `Generated on: ${new Date().toLocaleDateString("en-US")}`,
         40,
-        125,
+        140,
       );
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
       doc.text("FINANCIAL SUMMARY", 896, 60, { align: "right" });
       doc.setFont("helvetica", "normal");
       doc.text(`Total Trips: ${meta.totalTrips}`, 896, 75, { align: "right" });
-      doc.text(`Collectibles: ${meta.totalGross}`, 896, 90, { align: "right" });
+      doc.text(isCpfTab ? `Rate per trips: ${meta.totalGross}` : `Collectibles: ${meta.totalGross}`, 896, 90, { align: "right" });
       doc.text(`Expenses: ${meta.totalExpenses}`, 896, 105, { align: "right" });
       doc.setFont("helvetica", "bold");
       doc.text(`Net Income: ${meta.totalNet}`, 896, 120, { align: "right" });
 
       const tableRows = rows.map((row: { original: TripRecord }) => {
         const d = row.original;
-        const gross = d.qtyHeads * d.rate;
+        const gross = isCpfTab ? (d.ratePerTrip || 0) : d.qtyHeads * d.rate;
         const expenses =
           d.tollFees +
           d.dieselCash +
@@ -316,71 +356,84 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           d.meals +
           d.roroShip +
           d.salary +
-          d.others;
+          d.others +
+          (d.miscellaneous || 0);
         return [
           new Date(d.date).toLocaleDateString(),
           `${d.fleetCode || "N/A"}\n${d.plateNumber || ""}`,
-          d.customerId,
-          d.farmName || "-",
+          ...(isCpfTab ? [d.deliveryOrderNo || "-"] : []),
+          ...(isCpfTab ? [] : [d.customerId, d.farmName || "-"]),
           d.origin,
           d.destination,
-          d.qtyHeads.toString(),
-          fmt(d.rate),
+          ...(isCpfTab ? [] : [d.qtyHeads.toString(), fmt(d.rate)]),
           fmt(gross),
           fmt(d.tollFees),
           fmt(d.dieselCash),
           fmt(d.dieselPo),
           fmt(d.meals),
-          fmt(d.roroShip),
+          ...(isCpfTab ? [] : [fmt(d.roroShip)]),
           fmt(d.salary),
-          fmt(d.others),
+          ...(isCpfTab ? [] : [fmt(d.others)]),
+          fmt(d.miscellaneous || 0),
           fmt(expenses),
           fmt(gross - expenses),
         ];
       });
+
+      const colStyles: Record<
+        number,
+        {
+          halign?: "left" | "center" | "right";
+          fontStyle?: "normal" | "bold" | "italic";
+          textColor?: number[];
+        }
+      > = {};
+      let colIdx = isCpfTab ? 5 : 6;
+      if (!isCpfTab) {
+        colStyles[colIdx++] = { halign: "center" }; // Qty
+        colStyles[colIdx++] = { halign: "right" }; // Rate
+      }
+      colStyles[colIdx++] = { halign: "right", fontStyle: "bold" }; // Gross
+      colStyles[colIdx++] = { halign: "right" }; // Toll
+      colStyles[colIdx++] = { halign: "right" }; // Diesel Cash
+      colStyles[colIdx++] = { halign: "right" }; // Diesel PO
+      colStyles[colIdx++] = { halign: "right" }; // Meals
+      if (!isCpfTab) colStyles[colIdx++] = { halign: "right" }; // Roro
+      colStyles[colIdx++] = { halign: "right" }; // Salary
+      if (!isCpfTab) colStyles[colIdx++] = { halign: "right" }; // Others
+      colStyles[colIdx++] = { halign: "right" }; // Misc
+      colStyles[colIdx++] = { halign: "right", textColor: [225, 29, 72], fontStyle: "bold" }; // Total Exp
+      colStyles[colIdx++] = { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" }; // Net
 
       autoTable(doc, {
         head: [
           [
             "Date",
             "Truck",
-            "Customer",
-            "Farm",
+            ...(isCpfTab ? ["D.O No."] : []),
+            ...(isCpfTab ? [] : ["Customer", "Farm"]),
             "Origin",
             "Destination",
-            "Qty HDS",
-            "Rate",
-            "Collectible",
+            ...(isCpfTab ? [] : ["Qty HDS", "Rate"]),
+            isCpfTab ? "Rate/Trip" : "Collectible",
             "Toll",
             "Diesel(Cash)",
             "Diesel(P.O)",
             "Meals",
-            "Roro",
+            ...(isCpfTab ? [] : ["Roro"]),
             "Salary",
-            "Others",
+            ...(isCpfTab ? [] : ["Others"]),
+            "Misc",
             "Total Exp",
             "Net",
           ],
         ],
         body: tableRows,
-        startY: 145,
+        startY: 160,
         theme: "grid",
         styles: { fontSize: 6.5, cellPadding: 3, overflow: "linebreak" },
         headStyles: { fillColor: [37, 99, 235], fontSize: 7, halign: "center" },
-        columnStyles: {
-          6: { halign: "center" },
-          7: { halign: "right" },
-          8: { halign: "right", fontStyle: "bold" },
-          9: { halign: "right" },
-          10: { halign: "right" },
-          11: { halign: "right" },
-          12: { halign: "right" },
-          13: { halign: "right" },
-          14: { halign: "right" },
-          15: { halign: "right" },
-          16: { halign: "right", textColor: [225, 29, 72], fontStyle: "bold" },
-          17: { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" },
-        },
+        columnStyles: colStyles,
       });
 
       doc.save(`Fhernie_Comprehensive_Ledger_${getFormattedDate()}.pdf`);
@@ -675,6 +728,16 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+            title="First Page"
+          >
+            <ChevronsLeft className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
             className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
@@ -687,11 +750,11 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
               let page = i;
               if (pageCount > 5) {
-                const half = 2;
-                page = Math.min(
-                  Math.max(currentPage - 1 - half, 0) + i,
-                  pageCount - 1,
-                );
+                let startPage = Math.max(0, currentPage - 1 - 2);
+                if (startPage + 4 >= pageCount) {
+                  startPage = Math.max(0, pageCount - 5);
+                }
+                page = startPage + i;
               }
               const isActive = page === currentPage - 1;
               return (
@@ -721,6 +784,16 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             <span className="hidden xs:inline">Next</span>
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+            title="Last Page"
+          >
+            <ChevronsRight className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -731,15 +804,18 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         <DialogContent className="max-w-xl p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-2xl">
           {viewData &&
             (() => {
-              const collectible = viewData.qtyHeads * viewData.rate;
+              const collectible = isCpfTab
+                ? viewData.ratePerTrip || 0
+                : (viewData.qtyHeads || 0) * (viewData.rate || 0);
               const expenses =
-                viewData.tollFees +
-                viewData.dieselCash +
-                viewData.dieselPo +
-                viewData.meals +
-                viewData.roroShip +
-                viewData.salary +
-                viewData.others;
+                (viewData.tollFees || 0) +
+                (viewData.dieselCash || 0) +
+                (viewData.dieselPo || 0) +
+                (viewData.meals || 0) +
+                (viewData.roroShip || 0) +
+                (viewData.salary || 0) +
+                (viewData.others || 0) +
+                (viewData.miscellaneous || 0);
               const net = collectible - expenses;
 
               const ExpenseItem = ({
@@ -748,14 +824,14 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                 note,
               }: {
                 label: string;
-                value: number;
+                value?: number | null;
                 note?: string | null;
               }) => (
                 <div className="flex flex-col">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500">{label}</span>
                     <span className="font-bold text-slate-700 dark:text-slate-300">
-                      ₱{value.toLocaleString()}
+                      ₱{(value || 0).toLocaleString()}
                     </span>
                   </div>
                   {note && (
@@ -815,14 +891,16 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
                     {/* Customer & Route */}
                     <div className="p-5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-950 space-y-4">
-                      <div>
-                        <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5" /> Customer Name
+                      {!isCpfTab && (
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5" /> Customer Name
+                          </div>
+                          <div className="font-black text-blue-600 dark:text-blue-400 uppercase text-lg">
+                            {viewData.customerId}
+                          </div>
                         </div>
-                        <div className="font-black text-blue-600 dark:text-blue-400 uppercase text-lg">
-                          {viewData.customerId}
-                        </div>
-                      </div>
+                      )}
                       <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-slate-800/50">
                         <div>
                           <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
@@ -841,7 +919,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                           </div>
                         </div>
                       </div>
-                      {viewData.farmName && (
+                      {!isCpfTab && viewData.farmName && (
                         <div className="pt-3 border-t border-slate-100 dark:border-slate-800/50">
                           <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
                             <Package className="w-3 h-3" /> Farm / Branch
@@ -851,8 +929,49 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                           </div>
                         </div>
                       )}
+                      <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                        <div>
+                          <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            Trip Type
+                          </div>
+                          <div className="font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            {viewData.tripType || "-"}
+                          </div>
+                        </div>
+                        {!isCpfTab && (
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                              Load Type
+                            </div>
+                            <div className="font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                              {viewData.loadType || "-"}
+                            </div>
+                          </div>
+                        )}
+                        {isCpfTab && (
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                              D.O. No.
+                            </div>
+                            <div className="font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                              {viewData.deliveryOrderNo || "-"}
+                            </div>
+                          </div>
+                        )}
+                        {isCpfTab && (
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1">
+                              Rate / Trip
+                            </div>
+                            <div className="font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
+                              ₱{viewData.ratePerTrip?.toLocaleString() || "0"}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
+                    {/* Financial Overview */}
                     {/* Financial Overview */}
                     <div className="p-5 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-950">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
@@ -864,14 +983,15 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                         <div className="flex flex-col gap-2">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-500">
-                              Gross Collectible ({viewData.qtyHeads} hds × ₱
-                              {viewData.rate})
+                              {isCpfTab
+                                ? `Gross Income (₱${viewData.ratePerTrip?.toLocaleString() || "0"} / Trip)`
+                                : `Gross Collectible (${viewData.qtyHeads} hds × ₱${viewData.rate})`}
                             </span>
                             <span className="font-bold text-slate-700 dark:text-slate-300">
                               ₱{collectible.toLocaleString()}
                             </span>
                           </div>
-                          {viewData.qtyNote && (
+                          {!isCpfTab && viewData.qtyNote && (
                             <div className="flex items-start gap-1.5 p-2.5 rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20">
                               <MessageSquareText className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
                               <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
@@ -926,20 +1046,31 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                           value={viewData.dieselPo}
                         />
                         <ExpenseItem label="Meals" value={viewData.meals} />
-                        <ExpenseItem
-                          label="Roro Ship"
-                          value={viewData.roroShip}
-                        />
+                        {!isCpfTab && (
+                          <ExpenseItem
+                            label="Roro Ship"
+                            value={viewData.roroShip}
+                          />
+                        )}
                         <ExpenseItem
                           label="Salary"
                           value={viewData.salary}
                           note={viewData.salaryNote}
                         />
-                        <ExpenseItem
-                          label="Others"
-                          value={viewData.others}
-                          note={viewData.othersNote}
-                        />
+                        {!isCpfTab && (
+                          <ExpenseItem
+                            label="Others"
+                            value={viewData.others}
+                            note={viewData.othersNote}
+                          />
+                        )}
+                        {isCpfTab && (
+                          <ExpenseItem
+                            label="Miscellaneous"
+                            value={viewData.miscellaneous}
+                            note={viewData.miscellaneousNote}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
