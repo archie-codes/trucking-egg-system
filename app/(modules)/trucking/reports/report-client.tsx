@@ -30,6 +30,7 @@ import {
   FileSpreadsheet,
   X,
   MoreVertical,
+  Filter,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,6 +42,8 @@ import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
+
+import { format, startOfWeek, endOfWeek } from "date-fns";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,21 +78,6 @@ interface ReportClientProps {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-PH", {
     minimumFractionDigits: 2,
@@ -99,14 +87,17 @@ const fmt = (n: number) =>
 // ─── Animated Number ───────────────────────────────────────────────────────────
 
 function AnimatedNumber({ value }: { value: number }) {
-  const [current, setCurrent] = useState(value);
-  const ref = useRef(current);
+  const [current, setCurrent] = useState(0);
+  const ref = useRef(0);
 
   useEffect(() => {
     const start = ref.current;
     const dist = value - start;
     if (dist === 0) return;
+
     let startTime: number;
+    let frameId: number;
+
     const animate = (ts: number) => {
       if (!startTime) startTime = ts;
       const pct = Math.min((ts - startTime) / 900, 1);
@@ -114,14 +105,17 @@ function AnimatedNumber({ value }: { value: number }) {
       const next = start + dist * eased;
       setCurrent(next);
       ref.current = next;
-      if (pct < 1) requestAnimationFrame(animate);
-      else {
+
+      if (pct < 1) {
+        frameId = requestAnimationFrame(animate);
+      } else {
         setCurrent(value);
         ref.current = value;
       }
     };
-    const id = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(id);
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
   }, [value]);
 
   return <>{fmt(current)}</>;
@@ -174,7 +168,7 @@ function StatCard({
   return (
     <div
       className={cn(
-        "rounded-xl border p-4 space-y-3 transition-all duration-200 hover:shadow-sm",
+        "rounded-lg border p-4 space-y-3 transition-all duration-200 hover:shadow-sm",
         c.card,
       )}
     >
@@ -216,6 +210,8 @@ function StatCard({
 export function ReportClient({ trips, trucks }: ReportClientProps) {
   const [selectedTruckId, setSelectedTruckId] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [monthRange, setMonthRange] = useState({ start: "1", end: "12" });
   const [selectedTripType, setSelectedTripType] = useState<string>("rtl_layer");
 
   const { tableData, totals, availableYears } = useMemo(() => {
@@ -239,21 +235,32 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       b.localeCompare(a),
     );
 
-    const isYearly = selectedYear === "all";
-    const byYear = isYearly
-      ? byTripType
-      : byTripType.filter(
-          (t) => new Date(t.date).getFullYear().toString() === selectedYear,
-        );
+    const byYear =
+      selectedYear === "all"
+        ? byTripType
+        : byTripType.filter(
+            (t) => new Date(t.date).getFullYear().toString() === selectedYear,
+          );
 
-    const grouped = byYear.reduce(
+    const byMonth = byYear.filter((t) => {
+      if (selectedYear === "all") return true;
+      if (selectedMonth === "all") return true;
+      const m = (new Date(t.date).getMonth() + 1).toString();
+      if (selectedMonth === "custom") {
+        const start = parseInt(monthRange.start);
+        const end = parseInt(monthRange.end);
+        const monthNum = parseInt(m);
+        return monthNum >= start && monthNum <= end;
+      }
+      return m === selectedMonth;
+    });
+
+    const grouped = byMonth.reduce(
       (acc, trip) => {
         const d = new Date(trip.date);
-        const key = isYearly
-          ? d.getFullYear().toString()
-          : d.getMonth().toString();
-        const label = isYearly ? key : MONTH_NAMES[d.getMonth()];
-        const sort = isYearly ? d.getFullYear() : d.getMonth();
+        let key = format(d, "yyyy-MM");
+        let label = format(d, "MMMM yyyy");
+        let sort = d.getFullYear() * 100 + d.getMonth();
 
         const collectible =
           trip.tripType?.toUpperCase() === "CPF"
@@ -309,8 +316,19 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       { collectible: 0, expenses: 0, netIncome: 0 },
     );
 
-    return { tableData: sorted, totals, availableYears };
-  }, [trips, selectedTruckId, selectedYear, selectedTripType]);
+    return {
+      tableData: sorted,
+      totals,
+      availableYears,
+    };
+  }, [
+    trips,
+    selectedTruckId,
+    selectedYear,
+    selectedMonth,
+    monthRange,
+    selectedTripType,
+  ]);
 
   const [prevYears, setPrevYears] = useState(availableYears);
   if (availableYears !== prevYears) {
@@ -334,6 +352,12 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
 
   const isYearly = selectedYear === "all";
 
+  const periodDescription = isYearly
+    ? "Period: All Years"
+    : `Period: Year ${selectedYear}`;
+
+  const periodTypeLabel = "Month";
+
   const tripTypeName =
     selectedTripType === "all"
       ? "All Trips"
@@ -349,13 +373,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       doc.text(`SUMMARY SALES — ${selectedTruckName.toUpperCase()}`, 40, 50);
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      doc.text(
-        isYearly
-          ? "Yearly Aggregated Summary"
-          : `Monthly Breakdown for ${selectedYear}`,
-        40,
-        70,
-      );
+      doc.text(periodDescription, 40, 70);
       doc.text(`Trip Type: ${tripTypeName}`, 40, 85);
       doc.setFontSize(9);
       doc.setTextColor(100);
@@ -379,7 +397,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       autoTable(doc, {
         head: [
           [
-            isYearly ? "Year" : "Month",
+            periodTypeLabel,
             selectedTripType === "CPF" ? "Rate Per Trip" : "Collectible",
             "Expenses",
             "Net Income",
@@ -417,14 +435,14 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       const metaHeader = [
         `"SUMMARY SALES"`,
         `"Fleet Asset: ${selectedTruckName}"`,
-        `"Period / Year: ${isYearly ? "Yearly Aggregated Summary" : `Monthly Breakdown for ${selectedYear}`}"`,
+        `"Period / Year: ${periodDescription}"`,
         `"Trip Type: ${tripTypeName}"`,
         `"Generated: ${new Date().toLocaleDateString("en-US")}"`,
         `""`,
       ].join("\n");
 
       const headers = [
-        isYearly ? "Year" : "Month",
+        periodTypeLabel,
         selectedTripType === "CPF" ? "Rate Per Trip" : "Collectible",
         "Expenses",
         "Net Income",
@@ -476,26 +494,113 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
 
   return (
     <div className="space-y-3 animate-in fade-in duration-300">
-      {/* ── Filter + Export bar ── */}
-      <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 p-3 rounded-xl shadow-sm relative z-20">
-        <div className="flex flex-col lg:flex-row gap-3 w-full">
-          {/* Left side: Grid of filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto] gap-3 w-full flex-1">
-            {[
-              {
-                label: "Fleet Asset",
-                value: selectedTruckId,
-                setter: setSelectedTruckId,
-                options: [...trucks]
+      {/* ── Filter bar ── */}
+      <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 p-5 rounded-lg shadow-sm relative z-20 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+              <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Report Filters
+            </h3>
+          </div>
+
+          {(selectedTruckId !== "all" ||
+            selectedYear !== "all" ||
+            selectedTripType !== "rtl_layer" ||
+            selectedMonth !== "all") && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSelectedTruckId("all");
+                setSelectedYear("all");
+                setSelectedTripType("rtl_layer");
+                setSelectedMonth("all");
+                setMonthRange({ start: "1", end: "12" });
+              }}
+              className="h-8 px-3 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors font-medium"
+            >
+              <X className="w-3.5 h-3.5 mr-1.5" />
+              Clear All
+            </Button>
+          )}
+        </div>
+
+        {/* 1. Trip Type Filter */}
+        <div className="space-y-1.5 w-full">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
+            Trip Type
+          </p>
+          <Select value={selectedTripType} onValueChange={setSelectedTripType}>
+            <SelectTrigger className="h-11! text-sm rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors">
+              <SelectValue placeholder="Combine RTL & LAYER" />
+            </SelectTrigger>
+            <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
+              <SelectItem
+                value="rtl_layer"
+                className="rounded-xl h-11! mb-1 cursor-pointer"
+              >
+                <div className="flex items-center gap-2 font-semibold text-xs text-purple-600 dark:text-purple-400">
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  Combine RTL & LAYER
+                </div>
+              </SelectItem>
+              <SelectItem value="RTL" className="rounded-xl cursor-pointer">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  RTL Only
+                </div>
+              </SelectItem>
+              <SelectItem value="LAYER" className="rounded-xl cursor-pointer">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  LAYER Only
+                </div>
+              </SelectItem>
+              <SelectItem value="CPF" className="rounded-xl cursor-pointer">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  CPF Only
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full items-start">
+          {/* 2. Fleet Asset Filter */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
+              Fleet Asset
+            </p>
+            <Select value={selectedTruckId} onValueChange={setSelectedTruckId}>
+              <SelectTrigger className="h-11! w-full text-sm rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors">
+                <SelectValue placeholder="Combine Entire Fleet" />
+              </SelectTrigger>
+              <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
+                <SelectItem
+                  value="all"
+                  className="rounded-xl h-11! mb-1 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 font-semibold text-xs text-emerald-600 dark:text-emerald-400">
+                    <PieChart className="w-3.5 h-3.5 shrink-0" />
+                    Combine Entire Fleet
+                  </div>
+                </SelectItem>
+                {[...trucks]
                   .sort((a, b) =>
                     a.fleetCode.localeCompare(b.fleetCode, undefined, {
                       numeric: true,
                       sensitivity: "base",
                     }),
                   )
-                  .map((t) => ({
-                    value: t.id.toString(),
-                    label: (
+                  .map((t) => (
+                    <SelectItem
+                      key={t.id.toString()}
+                      value={t.id.toString()}
+                      className="rounded-xl cursor-pointer"
+                    >
                       <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="truncate">{t.fleetCode}</span>
@@ -503,160 +608,154 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                           ({t.plateNumber})
                         </span>
                       </div>
-                    ),
-                  })),
-                placeholder: "Combine Entire Fleet",
-                placeholderNode: (
-                  <div className="flex items-center gap-2 font-semibold text-xs text-emerald-600 dark:text-emerald-400">
-                    <PieChart className="w-3.5 h-3.5 shrink-0" />
-                    Combine Entire Fleet
-                  </div>
-                ),
-              },
-              {
-                label: "Period / Year",
-                value: selectedYear,
-                setter: setSelectedYear,
-                options: availableYears.map((y) => ({
-                  value: y,
-                  label: (
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      {y}{" "}
-                      <span className="text-[10px] font-normal text-slate-400 ml-1 shrink-0">
-                        (Monthly View)
-                      </span>
-                    </div>
-                  ),
-                })),
-                placeholder: "All Years",
-                placeholderNode: (
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 2. Period / Year Filter */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
+              Period / Year
+            </p>
+            <Select
+              value={selectedYear}
+              onValueChange={(val) => {
+                setSelectedYear(val);
+                if (val === "all") {
+                  setSelectedMonth("all");
+                  setMonthRange({ start: "1", end: "12" });
+                }
+              }}
+            >
+              <SelectTrigger className="h-11! w-full text-sm rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors">
+                <SelectValue placeholder="All Years" />
+              </SelectTrigger>
+              <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
+                <SelectItem
+                  value="all"
+                  className="rounded-xl h-11! mb-1 cursor-pointer"
+                >
                   <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
                     <CalendarDays className="w-3.5 h-3.5 shrink-0" />
-                    All Years{" "}
+                    All Years
                     <span className="text-[10px] font-normal text-blue-500/60 ml-1 shrink-0">
                       (Yearly View)
                     </span>
                   </div>
-                ),
-              },
-              {
-                label: "Trip Type",
-                value: selectedTripType,
-                setter: setSelectedTripType,
-                options: [
-                  {
-                    value: "RTL",
-                    label: (
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        RTL Only
-                      </div>
-                    ),
-                  },
-                  {
-                    value: "LAYER",
-                    label: (
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        LAYER Only
-                      </div>
-                    ),
-                  },
-                  {
-                    value: "CPF",
-                    label: (
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        CPF Only
-                      </div>
-                    ),
-                  },
-                ],
-                placeholder: "Combine RTL & LAYER",
-                placeholderNode: (
-                  <div className="flex items-center gap-2 font-semibold text-xs text-purple-600 dark:text-purple-400">
-                    <FileText className="w-3.5 h-3.5 shrink-0" />
-                    Combine RTL & LAYER
-                  </div>
-                ),
-                placeholderValue: "rtl_layer",
-              },
-            ].map(
-              ({
-                label,
-                value,
-                setter,
-                options,
-                placeholder,
-                placeholderNode,
-                placeholderValue = "all",
-              }) => (
-                <div key={label} className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
-                      {label}
-                    </p>
-                    {label === "Fleet Asset" &&
-                      (selectedTruckId !== "all" ||
-                        selectedYear !== "all" ||
-                        selectedTripType !== "rtl_layer") && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedTruckId("all");
-                            setSelectedYear("all");
-                            setSelectedTripType("rtl_layer");
-                          }}
-                          className="h-5 px-2 text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition-colors sm:hidden"
-                        >
-                          Clear Filter
-                        </Button>
-                      )}
-                  </div>
-                  <Select value={value} onValueChange={setter}>
-                    <SelectTrigger className="h-11! w-full text-sm rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors [&>span]:flex-1 [&>span]:text-left">
-                      <SelectValue placeholder={placeholder} />
-                    </SelectTrigger>
-                    <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1">
-                      <SelectItem
-                        value={placeholderValue}
-                        className="rounded-xl h-11! mb-1 cursor-pointer"
-                      >
-                        {placeholderNode}
-                      </SelectItem>
-                      {options.map((o) => (
-                        <SelectItem
-                          key={o.value}
-                          value={o.value}
-                          className="rounded-xl cursor-pointer"
-                        >
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ),
-            )}
+                </SelectItem>
+                {availableYears.map((y) => (
+                  <SelectItem
+                    key={y}
+                    value={y}
+                    className="rounded-xl cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      {y}
+                      <span className="text-[10px] font-normal text-slate-400 ml-1 shrink-0">
+                        (Monthly View)
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Clear Filter Button - Tablet & Desktop */}
-            {(selectedTruckId !== "all" ||
-              selectedYear !== "all" ||
-              selectedTripType !== "rtl_layer") && (
-              <div className="hidden sm:flex w-full items-end sm:col-start-3 lg:col-start-auto justify-end pb-0.5">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedTruckId("all");
-                    setSelectedYear("all");
-                    setSelectedTripType("rtl_layer");
-                  }}
-                  className="h-10 px-3 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors shrink-0 font-semibold"
+          {/* 3. View By Filter */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 ml-1">
+              View By
+            </p>
+            <Select
+              value={selectedMonth}
+              onValueChange={setSelectedMonth}
+              disabled={selectedYear === "all"}
+            >
+              <SelectTrigger className="h-11! w-full text-sm rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 focus:ring-1 focus:ring-blue-500/40 shadow-sm transition-colors disabled:opacity-50">
+                <SelectValue placeholder="Entire Month" />
+              </SelectTrigger>
+              <SelectContent className="z-110 rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-md p-1 max-h-[300px]">
+                <SelectItem value="all" className="rounded-xl cursor-pointer">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    Entire Month
+                  </div>
+                </SelectItem>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const m = i + 1;
+                  const date = new Date(2000, i, 1);
+                  return (
+                    <SelectItem
+                      key={m}
+                      value={m.toString()}
+                      className="rounded-xl cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        {format(date, "MMMM")}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+                <SelectItem
+                  value="custom"
+                  className="rounded-xl cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5 mr-1.5" />
-                  Clear Filter
-                </Button>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    Choose Range
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedMonth === "custom" && (
+              <div className="flex items-center gap-2 mt-2 w-full">
+                <Select
+                  value={monthRange.start}
+                  onValueChange={(v) =>
+                    setMonthRange((p) => ({ ...p, start: v }))
+                  }
+                >
+                  <SelectTrigger className="h-9 flex-1 text-xs rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[250px] z-110 rounded-xl">
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem
+                        key={i + 1}
+                        value={(i + 1).toString()}
+                        className="text-xs rounded-xl cursor-pointer"
+                      >
+                        {format(new Date(2000, i, 1), "MMM")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs font-medium text-slate-500">to</span>
+                <Select
+                  value={monthRange.end}
+                  onValueChange={(v) =>
+                    setMonthRange((p) => ({ ...p, end: v }))
+                  }
+                >
+                  <SelectTrigger className="h-9 flex-1 text-xs rounded-xl bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[250px] z-110 rounded-xl">
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem
+                        key={i + 1}
+                        value={(i + 1).toString()}
+                        className="text-xs rounded-xl cursor-pointer"
+                      >
+                        {format(new Date(2000, i, 1), "MMM")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -667,22 +766,18 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
       {tableData.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatCard
-            label={
-              selectedTripType === "CPF"
-                ? "Total Rate Per Trip"
-                : "Total Collectible"
-            }
+            label="Total Collectible"
             value={totals.collectible}
             variant="blue"
             icon={<ArrowUpRight className="w-4 h-4" />}
-            note={`${tableData.length} ${isYearly ? "year" : "month"}${tableData.length !== 1 ? "s" : ""} recorded`}
+            note={`${tableData.length} ${periodTypeLabel.toLowerCase()}${tableData.length !== 1 ? "s" : ""} recorded`}
           />
           <StatCard
             label="Total expenses"
             value={totals.expenses}
             variant="rose"
             icon={<TrendingDown className="w-4 h-4" />}
-            note={`${(totals.collectible > 0 ? (totals.expenses / totals.collectible) * 100 : 0).toFixed(1)}% of ${selectedTripType === "CPF" ? "rate per trip" : "collectible"}`}
+            note={`${(totals.collectible > 0 ? (totals.expenses / totals.collectible) * 100 : 0).toFixed(1)}% of collectible`}
           />
           <StatCard
             label="Net income"
@@ -714,9 +809,7 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
                   {selectedTruckName}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isYearly
-                    ? "Aggregated yearly performance"
-                    : `Monthly breakdown — ${selectedYear}`}
+                  {periodDescription}
                 </p>
               </div>
             </div>
