@@ -163,8 +163,8 @@
 
 import { db } from "@/db";
 import { truckingTrips, truckingTripsCpf } from "@/db/schema";
-// ✨ UPDATED: Imported 'and'
-import { eq, and } from "drizzle-orm";
+// ✨ UPDATED: Imported 'and', 'ne'
+import { eq, and, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
@@ -198,6 +198,8 @@ const tripSchema = z.object({
   
   miscellaneous: z.number().min(0),
   miscellaneousNote: z.string().optional(),
+  
+  forceSave: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   if (data.tripType === "CPF") {
     const requiredFields = [
@@ -237,6 +239,22 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
 
   try {
     if (validatedData.data.tripType === "CPF") {
+      // ✨ Duplicate Checker for D.O. No.
+      if (validatedData.data.deliveryOrderNo) {
+        const existingDo = await db
+          .select({ id: truckingTripsCpf.id })
+          .from(truckingTripsCpf)
+          .where(eq(truckingTripsCpf.deliveryOrderNo, validatedData.data.deliveryOrderNo))
+          .limit(1);
+
+        if (existingDo.length > 0) {
+          return {
+            success: false,
+            error: `DUPLICATE DETECTED: D.O. No. ${validatedData.data.deliveryOrderNo} already exists.`,
+          };
+        }
+      }
+
       // ✨ Duplicate Checker for CPF Trips
       const existingTrip = await db
         .select({ id: truckingTripsCpf.id })
@@ -250,9 +268,10 @@ export async function createTripRecord(values: z.infer<typeof tripSchema>) {
         )
         .limit(1);
 
-      if (existingTrip.length > 0) {
+      if (existingTrip.length > 0 && !validatedData.data.forceSave) {
         return {
           success: false,
+          isDuplicateCpf: true,
           error: `DUPLICATE DETECTED: This truck already has a recorded CPF trip to ${validatedData.data.destination} on ${validatedData.data.date}.`,
         };
       }
@@ -366,6 +385,27 @@ export async function updateTripRecord(
 ) {
   try {
     if (data.tripType === "CPF") {
+      // ✨ Duplicate Checker for D.O. No.
+      if (data.deliveryOrderNo) {
+        const existingDo = await db
+          .select({ id: truckingTripsCpf.id })
+          .from(truckingTripsCpf)
+          .where(
+            and(
+              eq(truckingTripsCpf.deliveryOrderNo, data.deliveryOrderNo),
+              ne(truckingTripsCpf.id, tripId)
+            )
+          )
+          .limit(1);
+
+        if (existingDo.length > 0) {
+          return {
+            success: false,
+            error: `DUPLICATE DETECTED: D.O. No. ${data.deliveryOrderNo} already exists.`,
+          };
+        }
+      }
+
       await db
         .update(truckingTripsCpf)
         .set({

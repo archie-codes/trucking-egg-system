@@ -43,7 +43,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 
-import { format, startOfWeek, endOfWeek } from "date-fns";
+import { format } from "date-fns";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -258,9 +258,9 @@ export function ReportClient({ trips, trucks }: ReportClientProps) {
     const grouped = byMonth.reduce(
       (acc, trip) => {
         const d = new Date(trip.date);
-        let key = format(d, "yyyy-MM");
-        let label = format(d, "MMMM yyyy");
-        let sort = d.getFullYear() * 100 + d.getMonth();
+        const key = format(d, "yyyy-MM");
+        const label = format(d, "MMMM yyyy");
+        const sort = d.getFullYear() * 100 + d.getMonth();
 
         const collectible =
           trip.tripType?.toUpperCase() === "CPF"

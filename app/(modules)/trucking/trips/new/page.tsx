@@ -36,6 +36,15 @@ import {
 } from "@/components/ui/popover";
 
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import {
   Command,
   CommandEmpty,
   CommandGroup,
@@ -106,6 +115,8 @@ const tripSchema = z
 
     miscellaneous: numField,
     miscellaneousNote: z.string().optional(),
+
+    forceSave: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.tripType === "CPF") {
@@ -179,6 +190,13 @@ export default function NewTripPage() {
 
   const [dieselMode, setDieselMode] = useState<"cash" | "po">("cash");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const [duplicateCpfWarning, setDuplicateCpfWarning] = useState<string | null>(
+    null,
+  );
+  const [pendingValues, setPendingValues] = useState<z.infer<
+    typeof tripSchema
+  > | null>(null);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -368,10 +386,16 @@ export default function NewTripPage() {
 
         setDieselMode("cash");
       } else {
-        toast.error("Database Error", {
-          id: "trip-save",
-          description: result.error,
-        });
+        if ("isDuplicateCpf" in result && result.isDuplicateCpf) {
+          toast.dismiss("trip-save");
+          setDuplicateCpfWarning(result.error || "Duplicate CPF Trip");
+          setPendingValues(values);
+        } else {
+          toast.error("Database Error", {
+            id: "trip-save",
+            description: result.error,
+          });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -1479,6 +1503,42 @@ export default function NewTripPage() {
           </div>
         </div>
       </form>
+
+      <Dialog
+        open={!!duplicateCpfWarning}
+        onOpenChange={(open) => !open && setDuplicateCpfWarning(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate Trip Detected</DialogTitle>
+            <DialogDescription>
+              {duplicateCpfWarning}
+              <br />
+              <br />
+              Are you sure you want to save another CPF trip for this truck to
+              this destination on this date?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDuplicateCpfWarning(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingValues) {
+                  setDuplicateCpfWarning(null);
+                  onSubmit({ ...pendingValues, forceSave: true });
+                }
+              }}
+            >
+              Proceed & Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

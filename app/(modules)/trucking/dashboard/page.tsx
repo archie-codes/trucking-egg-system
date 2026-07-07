@@ -141,8 +141,13 @@
 //   );
 // }
 import { db } from "@/db";
-import { truckingTrips, truckingFleet, users } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import {
+  truckingTrips,
+  truckingFleet,
+  users,
+  truckingTripsCpf,
+} from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { DashboardHeader } from "./dashboard-header";
 import { StatCards } from "./stat-cards";
 import { RevenueChart, MonthlyData } from "./revenue-chart";
@@ -175,10 +180,42 @@ export default async function TruckingDashboardPage() {
   const avatarUrl = currentUser?.avatarUrl || null;
 
   // 1. Data Fetching
-  const allTrips = await db
-    .select()
-    .from(truckingTrips)
-    .orderBy(desc(truckingTrips.createdAt));
+  const rawNormalTrips = await db.select().from(truckingTrips);
+  const rawCpfTrips = await db.select().from(truckingTripsCpf);
+
+  const allTrips = [
+    ...rawNormalTrips.map((t) => ({
+      ...t,
+      calculatedGross: t.rate * t.qtyHeads,
+      calculatedExpenses:
+        t.tollFees +
+        t.dieselCash +
+        t.dieselPo +
+        t.meals +
+        t.roroShip +
+        t.salary +
+        t.others,
+    })),
+    ...rawCpfTrips.map((t) => ({
+      ...t,
+      // Map CPF fields so RecentTrips can reuse the exact same rendering logic
+      id: t.id + 1000000,
+      qtyHeads: 1,
+      rate: t.ratePerTrip,
+      roroShip: 0,
+      others: t.miscellaneous,
+      calculatedGross: t.ratePerTrip,
+      calculatedExpenses:
+        t.tollFees +
+        t.dieselCash +
+        t.dieselPo +
+        t.meals +
+        t.salary +
+        t.miscellaneous,
+    })),
+  ].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 
   const allTrucks = await db.select().from(truckingFleet);
 
@@ -214,15 +251,8 @@ export default async function TruckingDashboardPage() {
     const m = tripDate.getMonth();
     const y = tripDate.getFullYear();
 
-    const gross = trip.rate * trip.qtyHeads;
-    const expenses =
-      trip.tollFees +
-      trip.dieselCash +
-      trip.dieselPo +
-      trip.meals +
-      trip.roroShip +
-      trip.salary +
-      trip.others;
+    const gross = trip.calculatedGross;
+    const expenses = trip.calculatedExpenses;
 
     // Track ALL TIME metrics regardless of date
     allTimeGross += gross;
@@ -310,15 +340,8 @@ export default async function TruckingDashboardPage() {
         month: "short",
       });
       if (monthMap[monthName]) {
-        const gross = trip.rate * trip.qtyHeads;
-        const expenses =
-          trip.tollFees +
-          trip.dieselCash +
-          trip.dieselPo +
-          trip.meals +
-          trip.roroShip +
-          trip.salary +
-          trip.others;
+        const gross = trip.calculatedGross;
+        const expenses = trip.calculatedExpenses;
         monthMap[monthName].gross += gross;
         monthMap[monthName].expenses += expenses;
         monthMap[monthName].netIncome += gross - expenses;
