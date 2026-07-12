@@ -52,6 +52,7 @@ const numField = z
 const sizeItemSchema = z.object({
   checked: z.boolean().default(false),
   quantityTrays: numField,
+  quantityPieces: numField,
   pricePerTray: numField,
 });
 
@@ -267,27 +268,132 @@ export default function NewSalePage() {
       datePaid: "",
       remarks: "",
       sizes: {
-        PEEWEE: { checked: false, quantityTrays: "", pricePerTray: "" },
-        XS: { checked: false, quantityTrays: "", pricePerTray: "" },
-        SMALL: { checked: false, quantityTrays: "", pricePerTray: "" },
-        MEDIUM: { checked: false, quantityTrays: "", pricePerTray: "" },
-        LARGE: { checked: false, quantityTrays: "", pricePerTray: "" },
-        XL: { checked: false, quantityTrays: "", pricePerTray: "" },
-        XXL: { checked: false, quantityTrays: "", pricePerTray: "" },
-        CRACKED: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROKEN: { checked: false, quantityTrays: "", pricePerTray: "" },
-        DIRTY: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_PEEWEE: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_XS: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_SMALL: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_MEDIUM: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_LARGE: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_XL: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_XXL: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_ASSORTED: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_CRACKED: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_BROKEN: { checked: false, quantityTrays: "", pricePerTray: "" },
-        BROWN_DIRTY: { checked: false, quantityTrays: "", pricePerTray: "" },
+        PEEWEE: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        XS: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        SMALL: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        MEDIUM: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        LARGE: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        XL: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        XXL: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        CRACKED: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROKEN: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        DIRTY: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_PEEWEE: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_XS: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_SMALL: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_MEDIUM: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_LARGE: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_XL: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_XXL: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_ASSORTED: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_CRACKED: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_BROKEN: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
+        BROWN_DIRTY: {
+          checked: false,
+          quantityTrays: "",
+          quantityPieces: "",
+          pricePerTray: "",
+        },
       },
     },
   });
@@ -340,6 +446,7 @@ export default function NewSalePage() {
     ).map((size) => ({
       classification: size.id,
       quantityTrays: Number(values.sizes[size.id].quantityTrays),
+      quantityPieces: Number(values.sizes[size.id].quantityPieces),
       pricePerTray: Number(values.sizes[size.id].pricePerTray),
     }));
 
@@ -373,7 +480,7 @@ export default function NewSalePage() {
     const result = await createEggSale(payload);
 
     if (result.success) {
-      router.push(`/egg-sales/sales/receipt/${result.invoiceId}`);
+      router.push(`/egg-sales/sales/receipt/${result.invoiceId}?from=new-sale`);
       toast.success("Delivery completed & inventory deducted!", {
         id: "sale-save",
       });
@@ -413,11 +520,16 @@ export default function NewSalePage() {
     const availableTrays = Math.floor(stockPieces / 30);
     const looseEggs = stockPieces % 30;
 
-    const rowQty = Number(watchedSizes[size.id]?.quantityTrays) || 0;
+    const rowQtyTrays = Number(watchedSizes[size.id]?.quantityTrays) || 0;
+    const rowQtyPieces = Number(watchedSizes[size.id]?.quantityPieces) || 0;
     const rowPrice = Number(watchedSizes[size.id]?.pricePerTray) || 0;
-    const rowSubtotal = isChecked ? rowQty * rowPrice : 0;
 
-    const rowIsOverselling = isChecked && rowQty > availableTrays;
+    const totalPiecesRequested = rowQtyTrays * 30 + rowQtyPieces;
+    const rowSubtotal = isChecked
+      ? rowQtyTrays * rowPrice + rowQtyPieces * (rowPrice / 30)
+      : 0;
+
+    const rowIsOverselling = isChecked && totalPiecesRequested > stockPieces;
 
     return (
       <div
@@ -460,7 +572,7 @@ export default function NewSalePage() {
         </div>
 
         {/* Available Bodega Stock Level */}
-        <div className="col-span-3 text-center text-xs">
+        <div className="col-span-2 text-center text-xs">
           <span
             className={cn(
               "font-bold px-2.5 py-1 rounded-full text-[11px]",
@@ -474,9 +586,28 @@ export default function NewSalePage() {
         </div>
 
         {/* Quantity Input Form Field */}
-        <div className="col-span-2 px-1">
+        <div className="col-span-3 px-1 grid grid-cols-2 gap-2">
           <Controller
             name={`sizes.${size.id}.quantityTrays`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                disabled={!isChecked}
+                placeholder="0"
+                onClick={(e) => e.currentTarget.select()}
+                className={cn(
+                  "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
+                  rowIsOverselling
+                    ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                    : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                )}
+              />
+            )}
+          />
+          <Controller
+            name={`sizes.${size.id}.quantityPieces`}
             control={control}
             render={({ field }) => (
               <Input
@@ -651,8 +782,11 @@ export default function NewSalePage() {
                 <div className="grid grid-cols-12 bg-slate-50/70 dark:bg-slate-900/40 p-4 font-bold text-xs text-slate-500 uppercase tracking-wider">
                   <div className="col-span-1 text-center">Invoiced</div>
                   <div className="col-span-2">Egg Classification</div>
-                  <div className="col-span-3 text-center">Available Stock</div>
-                  <div className="col-span-2 px-1">Quantity (Trays)</div>
+                  <div className="col-span-2 text-center">Available Stock</div>
+                  <div className="col-span-3 px-1 grid grid-cols-2 gap-2 text-center">
+                    <div>Trays</div>
+                    <div>Pcs</div>
+                  </div>
                   <div className="col-span-2 px-1">Tray Price (₱)</div>
                   <div className="col-span-2 text-right">Subtotal</div>
                 </div>
@@ -792,7 +926,7 @@ export default function NewSalePage() {
                 ) : balance > 0 && totalAmount > 0 ? (
                   <span className="flex items-center text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-md">
                     <AlertCircle className="w-4 h-4 mr-1.5" /> ₱
-                    {balance.toLocaleString()} Owed
+                    {balance.toLocaleString()} Unpaid
                   </span>
                 ) : (
                   <span className="text-sm text-slate-400 font-medium">

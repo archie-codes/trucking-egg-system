@@ -462,6 +462,7 @@ const editSaleSchema = z.object({
   saleDate: z.string().min(1, "Date is required"),
   customerId: z.string().min(1, "Customer name is required").toUpperCase(),
   quantityTrays: z.number(),
+  quantityPieces: z.number().default(0),
   pricePerTray: z.number(),
   amountPaid: z.number(),
   datePaid: z.string().optional().nullable(),
@@ -490,7 +491,7 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
     }
 
     const old = oldSaleResult[0];
-    const totalAmount = data.quantityTrays * data.pricePerTray;
+    const totalAmount = (data.quantityTrays * data.pricePerTray) + (data.quantityPieces * (data.pricePerTray / 30));
     let paymentStatus = "unpaid";
     
     if (data.amountPaid >= totalAmount && totalAmount > 0) {
@@ -504,7 +505,8 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
       // Positive delta means we sold MORE, so we must deduct MORE from stock.
       // Negative delta means we sold LESS, so we must ADD back to stock.
       const deltaTrays = data.quantityTrays - old.quantityTrays;
-      const deltaPieces = deltaTrays * 30;
+      const deltaPiecesExtra = data.quantityPieces - old.quantityPieces;
+      const deltaPieces = (deltaTrays * 30) + deltaPiecesExtra;
 
       if (deltaPieces > 0) {
         // Check if we have enough stock for the additional pieces
@@ -540,6 +542,7 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
           saleDate: data.saleDate,
           customerId: data.customerId,
           quantityTrays: data.quantityTrays,
+          quantityPieces: data.quantityPieces,
           pricePerTray: data.pricePerTray,
           totalAmount: totalAmount,
           amountPaid: data.amountPaid,
@@ -564,7 +567,8 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
 // ✨ RECORD A MULTI-ITEM EGG SALE (Outbound Fulfillment)
 const saleItemSchema = z.object({
   classification: z.string().min(1),
-  quantityTrays: z.number().min(1),
+  quantityTrays: z.number().min(0),
+  quantityPieces: z.number().min(0).default(0),
   pricePerTray: z.number().min(0),
 });
 
@@ -602,11 +606,11 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
           .limit(1);
 
         const availablePieces = stock[0]?.currentStockTrays || 0;
-        const totalPiecesSold = item.quantityTrays * PIECES_PER_TRAY;
+        const totalPiecesSold = (item.quantityTrays * PIECES_PER_TRAY) + item.quantityPieces;
 
         if (stock.length === 0 || availablePieces < totalPiecesSold) {
           throw new Error(
-            `Insufficient stock for ${item.classification}. Need ${item.quantityTrays} trays, but only have ${Math.floor(availablePieces / 30)} left.`,
+            `Insufficient stock for ${item.classification}. Need ${totalPiecesSold} pieces, but only have ${availablePieces} left.`,
           );
         }
       }
@@ -615,8 +619,8 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
       let remainingPayment = data.amountPaid;
 
       for (const item of data.items) {
-        const totalPiecesSold = item.quantityTrays * PIECES_PER_TRAY;
-        const itemTotalAmount = item.quantityTrays * item.pricePerTray;
+        const totalPiecesSold = (item.quantityTrays * PIECES_PER_TRAY) + item.quantityPieces;
+        const itemTotalAmount = (item.quantityTrays * item.pricePerTray) + (item.quantityPieces * (item.pricePerTray / 30));
 
         // Calculate how much of the payment applies to this specific row
         const appliedPayment = Math.min(remainingPayment, itemTotalAmount);
@@ -642,6 +646,7 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
           inventoryId: stock[0].id,
           classification: item.classification,
           quantityTrays: item.quantityTrays,
+          quantityPieces: item.quantityPieces,
           pricePerTray: item.pricePerTray,
           totalAmount: itemTotalAmount,
           amountPaid: appliedPayment,

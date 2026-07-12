@@ -50,15 +50,15 @@ export default async function EggSalesLayout({
 
   return (
     // ✨ FIX 1: Changed to 'h-screen overflow-hidden' to lock the entire window
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <aside className="hidden md:flex w-(--sidebar-width,16rem) flex-col fixed inset-y-0 z-50 bg-slate-900 border-r border-slate-800 transition-[width] duration-300 ease-in-out">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 print:h-auto print:overflow-visible print:bg-white">
+      <aside className="hidden md:flex w-(--sidebar-width,16rem) flex-col fixed inset-y-0 z-50 bg-slate-900 border-r border-slate-800 transition-[width] duration-300 ease-in-out print:hidden">
         <EggSidebar />
       </aside>
 
       {/* ✨ FIX 2: Ensure main stretches full height */}
-      <main className="md:pl-(--sidebar-width,16rem) flex-1 flex flex-col h-screen min-w-0 transition-[padding] duration-300 ease-in-out">
+      <main className="md:pl-(--sidebar-width,16rem) flex-1 flex flex-col h-screen min-w-0 transition-[padding] duration-300 ease-in-out print:pl-0 print:h-auto">
         {/* ✨ FIX 3: Removed 'sticky top-0' and added 'shrink-0' so it locks in place without letting the page scroll behind it */}
-        <header className="h-16 shrink-0 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-4 sm:px-6 z-40 shadow-lg">
+        <header className="h-16 shrink-0 border-b border-slate-800 bg-slate-900 backdrop-blur-xl text-white flex items-center justify-between px-4 sm:px-6 z-40 shadow-lg print:hidden">
           <div className="flex items-center gap-3">
             {/* Mobile Sidebar Trigger */}
             <div className="md:hidden">
@@ -117,7 +117,7 @@ export default async function EggSalesLayout({
         </header>
 
         {/* ✨ FIX 4: Added 'overflow-y-auto custom-scrollbar' so ONLY the content area scrolls */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 min-w-0 overflow-x-hidden">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 min-w-0 overflow-x-hidden print:overflow-visible print:h-auto print:p-0 print:block">
           {children}
         </div>
       </main>

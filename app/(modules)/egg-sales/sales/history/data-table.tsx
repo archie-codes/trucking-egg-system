@@ -106,6 +106,8 @@ export function DataTable({
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
   const [viewData, setViewData] = React.useState<EggSaleRecord | null>(null);
+  const [dateFilter, setDateFilter] = React.useState<{ type: "all" | "today" | "custom"; date?: Date }>({ type: "all" });
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   const [paymentAmount, setPaymentAmount] = React.useState<number | "">("");
   const [paymentDate, setPaymentDate] = React.useState<string>("");
@@ -146,6 +148,7 @@ export function DataTable({
       saleDate: viewData.saleDate,
       customerId: viewData.customerId,
       quantityTrays: viewData.quantityTrays,
+      quantityPieces: viewData.quantityPieces,
       pricePerTray: viewData.pricePerTray,
       amountPaid: newTotalPaid,
       datePaid: paymentDate,
@@ -177,6 +180,18 @@ export function DataTable({
     state: { sorting, columnFilters, globalFilter },
     initialState: { pagination: { pageSize: 20 } },
   });
+
+  React.useEffect(() => {
+    const col = table.getColumn("saleDate");
+    if (!col) return;
+    if (dateFilter.type === "all") {
+      col.setFilterValue(undefined);
+    } else if (dateFilter.type === "today") {
+      col.setFilterValue(format(new Date(), "yyyy-MM-dd"));
+    } else if (dateFilter.type === "custom" && dateFilter.date) {
+      col.setFilterValue(format(dateFilter.date, "yyyy-MM-dd"));
+    }
+  }, [dateFilter, table]);
 
   const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
     textSize
@@ -334,12 +349,15 @@ export function DataTable({
       const tableRows = rows.map((row: { original: EggSaleRecord }) => {
         const d = row.original;
         const balance = d.totalAmount - d.amountPaid;
+        const totalPcs = d.quantityTrays * 30 + d.quantityPieces;
 
         return [
           new Date(d.saleDate).toLocaleDateString(),
           d.customerId,
           d.classification,
           d.quantityTrays.toLocaleString(),
+          d.quantityPieces > 0 ? `+${d.quantityPieces}` : "-",
+          totalPcs.toLocaleString(),
           d.pricePerTray.toLocaleString(),
           d.totalAmount.toLocaleString(),
           d.amountPaid.toLocaleString(),
@@ -355,6 +373,8 @@ export function DataTable({
             "Customer Name",
             "Size",
             "Trays",
+            "Pcs",
+            "Total Pcs",
             "Price",
             "Total",
             "Paid",
@@ -374,10 +394,12 @@ export function DataTable({
         columnStyles: {
           3: { halign: "right" },
           4: { halign: "right" },
-          5: { halign: "right", fontStyle: "bold", textColor: [15, 23, 42] },
-          6: { halign: "right", textColor: [16, 185, 129] }, // emerald
-          7: { halign: "right", fontStyle: "bold", textColor: [225, 29, 72] }, // rose
-          8: { halign: "center", fontStyle: "bold" },
+          5: { halign: "right" },
+          6: { halign: "right" },
+          7: { halign: "right", fontStyle: "bold", textColor: [15, 23, 42] },
+          8: { halign: "right", textColor: [16, 185, 129] }, // emerald
+          9: { halign: "right", fontStyle: "bold", textColor: [225, 29, 72] }, // rose
+          10: { halign: "center", fontStyle: "bold" },
         },
       });
 
@@ -468,6 +490,74 @@ export function DataTable({
 
           {/* Font Size, Density Controller and Export */}
           <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs",
+                    dateFilter.type !== "all" && "text-emerald-600 dark:text-emerald-500 font-medium"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {dateFilter.type === "all"
+                      ? "View All Dates"
+                      : dateFilter.type === "today"
+                      ? "Today"
+                      : dateFilter.date
+                      ? format(dateFilter.date, "MMM dd, yyyy")
+                      : "Custom Date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-110" align="end">
+                <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
+                  <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
+                    <Button
+                      variant={dateFilter.type === "all" ? "secondary" : "ghost"}
+                      className="w-full justify-start text-xs h-8"
+                      onClick={() => {
+                        setDateFilter({ type: "all" });
+                        setIsDatePickerOpen(false);
+                      }}
+                    >
+                      View All
+                    </Button>
+                    <Button
+                      variant={dateFilter.type === "today" ? "secondary" : "ghost"}
+                      className="w-full justify-start text-xs h-8"
+                      onClick={() => {
+                        setDateFilter({ type: "today" });
+                        setIsDatePickerOpen(false);
+                      }}
+                    >
+                      Today
+                    </Button>
+                  </div>
+                  <div className="p-2 border-t sm:border-t-0 border-border">
+                    <Calendar
+                      mode="single"
+                      selected={dateFilter.date}
+                      defaultMonth={dateFilter.date}
+                      captionLayout="dropdown"
+                      fromYear={2020}
+                      toYear={new Date().getFullYear() + 1}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDateFilter({ type: "custom", date });
+                          setIsDatePickerOpen(false);
+                        }
+                      }}
+                      disabled={(date) => date > new Date()}
+                      className="rounded-md border-0"
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
             <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
               <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
               <div className="flex items-center gap-0.5">
@@ -834,6 +924,16 @@ export function DataTable({
                           <span className="text-sm text-blue-600/70 dark:text-blue-400/70 mr-2">
                             trays
                           </span>
+                          {viewData.quantityPieces > 0 && (
+                            <>
+                              <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
+                                + {viewData.quantityPieces}
+                              </span>{" "}
+                              <span className="text-sm text-blue-600/70 dark:text-blue-400/70 mr-2">
+                                pcs
+                              </span>
+                            </>
+                          )}
                           <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
                             @ ₱{viewData.pricePerTray.toLocaleString()}
                           </span>{" "}

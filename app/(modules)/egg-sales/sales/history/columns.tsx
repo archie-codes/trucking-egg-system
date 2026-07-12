@@ -199,6 +199,32 @@ export const getColumns = (
     ),
   },
   {
+    accessorKey: "quantityPieces",
+    header: () => <div className="text-right">Extra Pcs</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("quantityPieces") as number;
+      return (
+        <div className="text-right font-black text-amber-600 dark:text-amber-500">
+          {val > 0 ? `+${val}` : "-"}
+        </div>
+      );
+    },
+  },
+  {
+    id: "totalEggs",
+    header: () => <div className="text-right">Total Pcs</div>,
+    cell: ({ row }) => {
+      const trays = row.original.quantityTrays;
+      const pcs = row.original.quantityPieces;
+      const total = trays * 30 + pcs;
+      return (
+        <div className="text-right font-bold text-emerald-600 dark:text-emerald-500">
+          {total.toLocaleString()}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "pricePerTray",
     header: () => <div className="text-right">Price (₱)</div>,
     cell: ({ row }) => (
@@ -332,11 +358,12 @@ const ActionCell = ({
   const [isSaleCalendarOpen, setIsSaleCalendarOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    saleDate: sale.saleDate,
-    customerId: sale.customerId,
-    quantityTrays: sale.quantityTrays,
-    pricePerTray: sale.pricePerTray,
-    amountPaid: sale.amountPaid,
+    saleDate: sale.saleDate || "",
+    customerId: sale.customerId || "",
+    quantityTrays: sale.quantityTrays ?? 0,
+    quantityPieces: sale.quantityPieces ?? 0,
+    pricePerTray: sale.pricePerTray ?? 0,
+    amountPaid: sale.amountPaid ?? 0,
     datePaid: sale.datePaid || "",
     remarks: sale.remarks || "",
   });
@@ -362,7 +389,9 @@ const ActionCell = ({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const gross = formData.quantityTrays * formData.pricePerTray;
+    const gross =
+      formData.quantityTrays * formData.pricePerTray +
+      formData.quantityPieces * (formData.pricePerTray / 30);
     if (formData.amountPaid > gross) {
       toast.error("Invalid Payment Amount", {
         description: `Amount paid (₱${formData.amountPaid.toLocaleString()}) cannot exceed the total gross amount (₱${gross.toLocaleString()}).`,
@@ -378,6 +407,7 @@ const ActionCell = ({
       saleDate: formData.saleDate,
       customerId: formData.customerId,
       quantityTrays: formData.quantityTrays,
+      quantityPieces: formData.quantityPieces,
       pricePerTray: formData.pricePerTray,
       amountPaid: formData.amountPaid,
       datePaid: formData.datePaid || null,
@@ -418,7 +448,7 @@ const ActionCell = ({
           <DropdownMenuItem
             className="gap-2 font-medium cursor-pointer text-slate-700 dark:text-slate-300"
             onClick={() =>
-              router.push(`/egg-sales/sales/receipt/${sale.invoiceId}`)
+              router.push(`/egg-sales/sales/receipt/${sale.invoiceId}?from=history`)
             }
           >
             <Printer className="w-4 h-4" /> View Receipt
@@ -439,11 +469,12 @@ const ActionCell = ({
                 return;
               }
               setFormData({
-                saleDate: sale.saleDate,
-                customerId: sale.customerId,
-                quantityTrays: sale.quantityTrays,
-                pricePerTray: sale.pricePerTray,
-                amountPaid: sale.amountPaid,
+                saleDate: sale.saleDate || "",
+                customerId: sale.customerId || "",
+                quantityTrays: sale.quantityTrays ?? 0,
+                quantityPieces: sale.quantityPieces ?? 0,
+                pricePerTray: sale.pricePerTray ?? 0,
+                amountPaid: sale.amountPaid ?? 0,
                 datePaid: sale.datePaid || "",
                 remarks: sale.remarks || "",
               });
@@ -659,6 +690,32 @@ const ActionCell = ({
                       }
                       className={cn(
                         "h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-blue-50 dark:bg-blue-950/30 text-blue-600 font-bold",
+                        isPaidOrPartial && "opacity-50 cursor-not-allowed",
+                      )}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                      Quantity Pieces
+                    </Label>
+                    <Input
+                      type="number"
+                      disabled={isPaidOrPartial}
+                      value={
+                        formData.quantityPieces === 0 &&
+                        formData.quantityPieces.toString() !== "0"
+                          ? ""
+                          : formData.quantityPieces
+                      }
+                      onChange={(e) =>
+                        handleNumChange("quantityPieces", e.target.value)
+                      }
+                      onClick={(e) =>
+                        !isPaidOrPartial && e.currentTarget.select()
+                      }
+                      className={cn(
+                        "h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 font-bold",
                         isPaidOrPartial && "opacity-50 cursor-not-allowed",
                       )}
                       required

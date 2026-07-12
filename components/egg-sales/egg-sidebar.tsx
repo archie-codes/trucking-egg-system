@@ -66,6 +66,10 @@ const routes: Route[] = [
         label: "History",
         href: "/egg-sales/sales/history",
       },
+      {
+        label: "Summary",
+        href: "/egg-sales/sales/summary",
+      },
     ],
   },
 ];

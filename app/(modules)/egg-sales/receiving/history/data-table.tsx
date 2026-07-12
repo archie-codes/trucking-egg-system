@@ -44,6 +44,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import {
   Search,
   ChevronLeft,
   ChevronRight,
@@ -55,6 +62,8 @@ import {
   Type,
   X,
   PackageOpen,
+  CalendarIcon,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -87,6 +96,11 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
   const [viewData, setViewData] = React.useState<EggBatchRecord | null>(null);
+  const [dateFilter, setDateFilter] = React.useState<{
+    type: "all" | "today" | "custom";
+    date?: Date;
+  }>({ type: "all" });
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -102,6 +116,18 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     state: { sorting, columnFilters, globalFilter },
     initialState: { pagination: { pageSize: 20 } },
   });
+
+  React.useEffect(() => {
+    const col = table.getColumn("arrivalDate");
+    if (!col) return;
+    if (dateFilter.type === "all") {
+      col.setFilterValue(undefined);
+    } else if (dateFilter.type === "today") {
+      col.setFilterValue(format(new Date(), "yyyy-MM-dd"));
+    } else if (dateFilter.type === "custom" && dateFilter.date) {
+      col.setFilterValue(format(dateFilter.date, "yyyy-MM-dd"));
+    }
+  }, [dateFilter, table]);
 
   const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
     textSize
@@ -125,7 +151,14 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
     rows.forEach((r) => {
       const d = r.original;
-      totalGood += d.qtyPeewee + d.qtyXs + d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+      totalGood +=
+        d.qtyPeewee +
+        d.qtyXs +
+        d.qtySmall +
+        d.qtyMedium +
+        d.qtyLarge +
+        d.qtyXl +
+        d.qtyXxl;
       totalLosses += d.qtyCracked + d.qtyBroken + d.qtyDirty;
     });
 
@@ -187,7 +220,13 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       const csvData = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
         const totalGood =
-          d.qtyPeewee + d.qtyXs + d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+          d.qtyPeewee +
+          d.qtyXs +
+          d.qtySmall +
+          d.qtyMedium +
+          d.qtyLarge +
+          d.qtyXl +
+          d.qtyXxl;
         const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
 
         return [
@@ -282,7 +321,13 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       const tableRows = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
         const totalGood =
-          d.qtyPeewee + d.qtyXs + d.qtySmall + d.qtyMedium + d.qtyLarge + d.qtyXl + d.qtyXxl;
+          d.qtyPeewee +
+          d.qtyXs +
+          d.qtySmall +
+          d.qtyMedium +
+          d.qtyLarge +
+          d.qtyXl +
+          d.qtyXxl;
         const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
 
         return [
@@ -367,7 +412,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const hasFilter = globalFilter.length > 0;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-3">
+    <>
+      <div className="flex flex-col flex-1 min-h-0 gap-3 print:hidden">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {/* Search Bar - Animated Expand (Laptop+ Only) */}
         <div
@@ -419,6 +465,77 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
         {/* Font Size, Density Controller and Export PDF */}
         <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs",
+                  dateFilter.type !== "all" &&
+                    "text-amber-600 dark:text-amber-500 font-medium",
+                )}
+              >
+                <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  {dateFilter.type === "all"
+                    ? "View All Dates"
+                    : dateFilter.type === "today"
+                      ? "Today"
+                      : dateFilter.date
+                        ? format(dateFilter.date, "MMM dd, yyyy")
+                        : "Custom Date"}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 z-110" align="end">
+              <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
+                <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
+                  <Button
+                    variant={dateFilter.type === "all" ? "secondary" : "ghost"}
+                    className="w-full justify-start text-xs h-8"
+                    onClick={() => {
+                      setDateFilter({ type: "all" });
+                      setIsDatePickerOpen(false);
+                    }}
+                  >
+                    View All
+                  </Button>
+                  <Button
+                    variant={
+                      dateFilter.type === "today" ? "secondary" : "ghost"
+                    }
+                    className="w-full justify-start text-xs h-8"
+                    onClick={() => {
+                      setDateFilter({ type: "today" });
+                      setIsDatePickerOpen(false);
+                    }}
+                  >
+                    Today
+                  </Button>
+                </div>
+                <div className="p-2 border-t sm:border-t-0 border-border">
+                  <Calendar
+                    mode="single"
+                    selected={dateFilter.date}
+                    defaultMonth={dateFilter.date}
+                    captionLayout="dropdown"
+                    fromYear={2020}
+                    toYear={new Date().getFullYear() + 1}
+                    onSelect={(date) => {
+                      if (date) {
+                        setDateFilter({ type: "custom", date });
+                        setIsDatePickerOpen(false);
+                      }
+                    }}
+                    disabled={(date) => date > new Date()}
+                    className="rounded-md border-0"
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
             <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
             <div className="flex items-center gap-0.5">
@@ -558,23 +675,23 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           <TableBody className="group/tbody">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row, i) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    style={{
-                      animationFillMode: "both",
-                      animationDelay: `${i * 40}ms`,
-                    }}
-                    className={cn(
-                      "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
-                      "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
-                      "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-amber-400 dark:hover:ring-amber-600",
-                      i % 2 === 0
-                        ? "bg-card hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
-                        : "bg-muted hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
-                    )}
-                    onClick={() => setViewData(row.original as EggBatchRecord)}
-                  >
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  style={{
+                    animationFillMode: "both",
+                    animationDelay: `${i * 40}ms`,
+                  }}
+                  className={cn(
+                    "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
+                    "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
+                    "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-amber-400 dark:hover:ring-amber-600",
+                    i % 2 === 0
+                      ? "bg-card hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
+                      : "bg-muted hover:bg-amber-50/80 dark:hover:bg-amber-900/30",
+                  )}
+                  onClick={() => setViewData(row.original as EggBatchRecord)}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
@@ -642,26 +759,26 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         </p>
 
         <div className="flex items-center gap-2 order-1 sm:order-2 justify-center sm:justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-              className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
-              title="First Page"
-            >
-              <ChevronsLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              <span className="hidden xs:inline">Prev</span>
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+            title="First Page"
+          >
+            <ChevronsLeft className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+            className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            <span className="hidden xs:inline">Prev</span>
+          </Button>
 
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
@@ -691,28 +808,29 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             })}
           </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
-            >
-              <span className="hidden xs:inline">Next</span>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-              className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
-              title="Last Page"
-            >
-              <ChevronsRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+            className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
+          >
+            <span className="hidden xs:inline">Next</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+            title="Last Page"
+          >
+            <ChevronsRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
+    </div>
       {/* View Details Modal */}
       <Dialog
         open={!!viewData}
@@ -720,7 +838,13 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           if (!open) setViewData(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-xl border-0 shadow-2xl flex flex-col max-h-[90vh]">
+        <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-xl border-0 shadow-2xl flex flex-col max-h-[90vh] print:hidden">
+          <style>{`
+            @media print {
+              [data-slot="dialog-overlay"] { display: none !important; }
+              body { background-color: white !important; }
+            }
+          `}</style>
           <div className="absolute top-0 left-0 w-full h-1.5 bg-linear-to-r from-amber-500 to-orange-500" />
 
           <DialogHeader className="px-6 pt-6 pb-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
@@ -923,7 +1047,10 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                           { label: "Small", value: viewData.brownQtySmall },
                           { label: "XS", value: viewData.brownQtyXs },
                           { label: "Peewee", value: viewData.brownQtyPeewee },
-                          { label: "Assorted", value: viewData.brownQtyAssorted },
+                          {
+                            label: "Assorted",
+                            value: viewData.brownQtyAssorted,
+                          },
                         ].map((item, idx) => (
                           <div
                             key={idx}
@@ -973,17 +1100,220 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               );
             })()}
 
-          <div className="px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+          <div className="px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-t border-slate-200/60 dark:border-slate-800 flex justify-end gap-2">
+            <Button
+              onClick={() => window.print()}
+              variant="outline"
+              className="h-9 rounded-xl font-medium shadow-xs print:hidden"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Summary
+            </Button>
             <Button
               variant="outline"
               onClick={() => setViewData(null)}
-              className="h-9 rounded-xl font-medium shadow-xs"
+              className="h-9 rounded-xl font-medium shadow-xs print:hidden"
             >
               Close
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {viewData && (
+        <div
+          className="hidden print:block fixed inset-0 bg-white z-99999 p-8 text-black w-full h-full text-sm font-sans"
+          style={{ background: "white", color: "black" }}
+        >
+          <div className="text-center mb-8 border-b-2 border-black pb-4">
+            <h1 className="text-2xl font-black uppercase tracking-wider">
+              Otso Dragon Corp
+            </h1>
+            <p className="text-lg font-semibold text-gray-700">
+              Batch Receiving Report
+            </p>
+          </div>
+
+          <div className="flex justify-between mb-8">
+            <div className="space-y-1">
+              <div>
+                <strong>Batch ID:</strong> {viewData.batchId}
+              </div>
+              <div>
+                <strong>Arrival Date:</strong> {viewData.arrivalDate}
+              </div>
+              <div>
+                <strong>Farm Origin:</strong> {viewData.farmName}
+              </div>
+            </div>
+            <div className="space-y-1 text-right">
+              <div className="text-xl font-bold">
+                {viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp}{" "}
+                trays
+              </div>
+              <div className="text-gray-500">
+                {(viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp) *
+                  30}{" "}
+                total eggs
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            {/* White Eggs */}
+            <div>
+              <h3 className="font-bold border-b border-black mb-2 pb-1 text-lg">
+                White Eggs Breakdown
+              </h3>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Jumbo (XXL)</span>
+                <span>{viewData.qtyXxl}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Extra Large</span>
+                <span>{viewData.qtyXl}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Large</span>
+                <span>{viewData.qtyLarge}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Medium</span>
+                <span>{viewData.qtyMedium}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Small</span>
+                <span>{viewData.qtySmall}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>XS</span>
+                <span>{viewData.qtyXs}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-300">
+                <span>Peewee</span>
+                <span>{viewData.qtyPeewee}</span>
+              </div>
+
+              <h4 className="font-semibold text-xs text-gray-500 mt-3 mb-1 uppercase">
+                Spoiled
+              </h4>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Cracked</span>
+                <span>{viewData.qtyCracked}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Broken</span>
+                <span>{viewData.qtyBroken}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Dirty</span>
+                <span>{viewData.qtyDirty}</span>
+              </div>
+
+              <div className="flex justify-between font-bold mt-2 pt-2 border-t-2 border-black text-base">
+                <span>Total White</span>
+                <span>
+                  {viewData.qtyXxl +
+                    viewData.qtyXl +
+                    viewData.qtyLarge +
+                    viewData.qtyMedium +
+                    viewData.qtySmall +
+                    viewData.qtyXs +
+                    viewData.qtyPeewee +
+                    viewData.qtyCracked +
+                    viewData.qtyBroken +
+                    viewData.qtyDirty}
+                </span>
+              </div>
+            </div>
+            {/* Brown Eggs */}
+            <div>
+              <h3 className="font-bold border-b border-black mb-2 pb-1 text-lg">
+                Brown Eggs Breakdown
+              </h3>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Jumbo (XXL)</span>
+                <span>{viewData.brownQtyXxl}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Extra Large</span>
+                <span>{viewData.brownQtyXl}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Large</span>
+                <span>{viewData.brownQtyLarge}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Medium</span>
+                <span>{viewData.brownQtyMedium}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Small</span>
+                <span>{viewData.brownQtySmall}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>XS</span>
+                <span>{viewData.brownQtyXs}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Peewee</span>
+                <span>{viewData.brownQtyPeewee}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-300">
+                <span>Assorted</span>
+                <span>{viewData.brownQtyAssorted}</span>
+              </div>
+
+              <h4 className="font-semibold text-xs text-gray-500 mt-3 mb-1 uppercase">
+                Spoiled
+              </h4>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Cracked</span>
+                <span>{viewData.brownQtyCracked}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Broken</span>
+                <span>{viewData.brownQtyBroken}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-100">
+                <span>Dirty</span>
+                <span>{viewData.brownQtyDirty}</span>
+              </div>
+
+              <div className="flex justify-between font-bold mt-2 pt-2 border-t-2 border-black text-base">
+                <span>Total Brown</span>
+                <span>
+                  {viewData.brownQtyXxl +
+                    viewData.brownQtyXl +
+                    viewData.brownQtyLarge +
+                    viewData.brownQtyMedium +
+                    viewData.brownQtySmall +
+                    viewData.brownQtyXs +
+                    viewData.brownQtyPeewee +
+                    viewData.brownQtyAssorted +
+                    viewData.brownQtyCracked +
+                    viewData.brownQtyBroken +
+                    viewData.brownQtyDirty}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-4 border-t border-gray-300 text-xs text-gray-500 flex justify-between">
+            <span>
+              Generated on{" "}
+              {new Date().toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            <span>Otso Dragon Corp - Receiving Department</span>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

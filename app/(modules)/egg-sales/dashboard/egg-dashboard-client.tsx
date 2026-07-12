@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { useState, useEffect, useMemo, useRef } from "react";
+import Image from "next/image";
+import { format, parseISO, subDays } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -27,53 +28,39 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Egg, Users, DollarSign, Activity } from "lucide-react";
+import {
+  Egg,
+  Users,
+  PhilippinePeso,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Globe,
+  Wallet,
+  DollarSign,
+} from "lucide-react";
 
-// Mock Data
-const salesData = [
-  { name: "Mon", sales: 4000, revenue: 2400 },
-  { name: "Tue", sales: 3000, revenue: 1398 },
-  { name: "Wed", sales: 2000, revenue: 9800 },
-  { name: "Thu", sales: 2780, revenue: 3908 },
-  { name: "Fri", sales: 1890, revenue: 4800 },
-  { name: "Sat", sales: 2390, revenue: 3800 },
-  { name: "Sun", sales: 3490, revenue: 4300 },
-];
-
-const recentTransactions = [
-  {
-    id: "INV001",
-    customer: "John Doe",
-    amount: "$250.00",
-    status: "Paid",
-    date: "Today",
-  },
-  {
-    id: "INV002",
-    customer: "Jane Smith",
-    amount: "$150.00",
-    status: "Pending",
-    date: "Yesterday",
-  },
-  {
-    id: "INV003",
-    customer: "Bob Johnson",
-    amount: "$350.00",
-    status: "Paid",
-    date: "2 days ago",
-  },
-  {
-    id: "INV004",
-    customer: "Alice Brown",
-    amount: "$120.00",
-    status: "Failed",
-    date: "3 days ago",
-  },
-];
+type EggSale = {
+  id: number;
+  invoiceId: string | null;
+  saleDate: string;
+  customerId: string;
+  inventoryId: number;
+  classification: string;
+  quantityTrays: number;
+  pricePerTray: number;
+  totalAmount: number;
+  amountPaid: number;
+  paymentStatus: string;
+  datePaid: string | null;
+  remarks: string | null;
+  createdAt: Date;
+};
 
 interface EggDashboardClientProps {
   userName: string;
   avatarUrl?: string | null;
+  sales?: EggSale[];
 }
 
 const MONTHS = [
@@ -91,12 +78,289 @@ const MONTHS = [
   "DEC",
 ];
 
+const formatPHP = (value: number) =>
+  new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+function AnimatedNumber({
+  value,
+  isCurrency = false,
+}: {
+  value: number;
+  isCurrency?: boolean;
+}) {
+  const [current, setCurrent] = useState(0);
+  const currentRef = useRef(0);
+
+  useEffect(() => {
+    let startTime: number;
+    const startValue = currentRef.current;
+    const distance = value - startValue;
+    if (distance === 0) return;
+
+    let rafId: number;
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = timestamp - startTime;
+      const percentage = Math.min(progress / 1000, 1);
+      const easeOut = 1 - Math.pow(1 - percentage, 4);
+      const nextValue = startValue + distance * easeOut;
+      currentRef.current = nextValue;
+      setCurrent(nextValue);
+      if (percentage < 1) {
+        rafId = requestAnimationFrame(animate);
+      } else {
+        currentRef.current = value;
+        setCurrent(value);
+      }
+    };
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, [value]);
+
+  if (isCurrency) {
+    return <>{formatPHP(current)}</>;
+  }
+  return <>{Math.round(current)}</>;
+}
+
+// ✨ TREND LOGIC HELPER
+const renderTrend = (
+  trend: number,
+  invertColors = false,
+  suffix = "vs last mo.",
+) => {
+  if (trend === 0) {
+    return (
+      <span className="flex items-center gap-1 text-slate-500 font-medium">
+        <Minus size={12} /> 0%{" "}
+        {suffix === "vs last mo." ? "this month" : "today"}
+      </span>
+    );
+  }
+
+  const isUp = trend > 0;
+  const isGood = invertColors ? !isUp : isUp;
+  const TrendIcon = isUp ? TrendingUp : TrendingDown;
+  const colorClass = isGood
+    ? "text-emerald-600 dark:text-[#3dff9a]"
+    : "text-rose-600 dark:text-[#ff5c8a]";
+
+  return (
+    <span className={`flex items-center gap-1 font-bold ${colorClass}`}>
+      <TrendIcon size={12} strokeWidth={3} />
+      {Math.abs(trend).toFixed(1)}%{" "}
+      <span className="text-slate-500 font-medium ml-1">{suffix}</span>
+    </span>
+  );
+};
+
 export function EggDashboardClient({
   userName,
   avatarUrl,
+  sales = [],
 }: EggDashboardClientProps) {
   const [mounted, setMounted] = useState(false);
   const [time, setTime] = useState<Date>(new Date());
+
+  // ✨ Compute trends and metrics in client via sales array (Self-contained)
+  const metrics = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const todayStr = format(now, "yyyy-MM-dd");
+    const yesterdayStr = format(subDays(now, 1), "yyyy-MM-dd");
+
+    let tdGross = 0,
+      tdPaid = 0;
+    let ydGross = 0,
+      ydPaid = 0;
+
+    let tdWhiteTrays = 0,
+      tdBrownTrays = 0;
+    let ydWhiteTrays = 0,
+      ydBrownTrays = 0;
+
+    let cmGross = 0,
+      cmPaid = 0,
+      cmCount = 0;
+    let pmGross = 0,
+      pmPaid = 0,
+      pmCount = 0;
+    let allTimeGross = 0,
+      allTimePaid = 0,
+      allTimeCount = 0;
+
+    let cmWhiteTrays = 0,
+      cmBrownTrays = 0;
+    let pmWhiteTrays = 0,
+      pmBrownTrays = 0;
+    let allTimeWhiteTrays = 0,
+      allTimeBrownTrays = 0;
+
+    const cmCustomers = new Set<string>();
+    const allTimeCustomers = new Set<string>();
+
+    sales.forEach((s) => {
+      const saleDate = new Date(s.saleDate);
+      const m = saleDate.getMonth();
+      const y = saleDate.getFullYear();
+
+      const gross = s.totalAmount;
+      const paid = s.amountPaid;
+
+      allTimeGross += gross;
+      allTimePaid += paid;
+      allTimeCount += 1;
+      allTimeCustomers.add(s.customerId);
+
+      const isBrown = s.classification.toUpperCase().startsWith("BROWN");
+      if (isBrown) {
+        allTimeBrownTrays += s.quantityTrays;
+      } else {
+        allTimeWhiteTrays += s.quantityTrays;
+      }
+
+      const dStr = format(saleDate, "yyyy-MM-dd");
+      if (dStr === todayStr) {
+        tdGross += gross;
+        tdPaid += paid;
+        if (isBrown) tdBrownTrays += s.quantityTrays;
+        else tdWhiteTrays += s.quantityTrays;
+      } else if (dStr === yesterdayStr) {
+        ydGross += gross;
+        ydPaid += paid;
+        if (isBrown) ydBrownTrays += s.quantityTrays;
+        else ydWhiteTrays += s.quantityTrays;
+      }
+
+      if (y === currentYear && m === currentMonth) {
+        cmGross += gross;
+        cmPaid += paid;
+        cmCount += 1;
+        cmCustomers.add(s.customerId);
+        if (isBrown) {
+          cmBrownTrays += s.quantityTrays;
+        } else {
+          cmWhiteTrays += s.quantityTrays;
+        }
+      } else if (y === prevYear && m === prevMonth) {
+        pmGross += gross;
+        pmPaid += paid;
+        pmCount += 1;
+        if (isBrown) {
+          pmBrownTrays += s.quantityTrays;
+        } else {
+          pmWhiteTrays += s.quantityTrays;
+        }
+      }
+    });
+
+    const calcTrend = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    };
+
+    const cmTotalTrays = cmWhiteTrays + cmBrownTrays;
+    const pmTotalTrays = pmWhiteTrays + pmBrownTrays;
+    const allTimeTotalTrays = allTimeWhiteTrays + allTimeBrownTrays;
+
+    const tdTotalTrays = tdWhiteTrays + tdBrownTrays;
+    const ydTotalTrays = ydWhiteTrays + ydBrownTrays;
+
+    return {
+      dailyNetIncome: tdPaid,
+      dailyNetIncomeTrend: calcTrend(tdPaid, ydPaid),
+      dailyGross: tdGross,
+      dailyGrossTrend: calcTrend(tdGross, ydGross),
+      dailyEggs: tdTotalTrays * 30,
+      dailyEggsTrend: calcTrend(tdTotalTrays, ydTotalTrays),
+      tdWhiteEggs: tdWhiteTrays * 30,
+      tdBrownEggs: tdBrownTrays * 30,
+
+      netIncome: cmPaid, // Collected (This Mo.)
+      netIncomeTrend: calcTrend(cmPaid, pmPaid),
+      allTimeNet: allTimePaid, // Overall Collected
+
+      totalGross: cmGross, // Gross (This Mo.)
+      grossTrend: calcTrend(cmGross, pmGross),
+      allTimeGross: allTimeGross, // Overall Gross
+
+      totalEggs: cmTotalTrays * 30, // Actual combined eggs sold (This Mo.)
+      eggsTrend: calcTrend(cmTotalTrays, pmTotalTrays),
+      cmWhiteEggs: cmWhiteTrays * 30,
+      cmBrownEggs: cmBrownTrays * 30,
+
+      allTimeEggs: allTimeTotalTrays * 30, // Overall actual eggs sold
+      allTimeWhiteEggs: allTimeWhiteTrays * 30,
+      allTimeBrownEggs: allTimeBrownTrays * 30,
+
+      activeCustomers: cmCustomers.size,
+      totalCustomers: allTimeCustomers.size || 1,
+      totalTrips: cmCount,
+      tripsTrend: calcTrend(cmCount, pmCount),
+      allTimeTrips: allTimeCount,
+    };
+  }, [sales]);
+
+  const salesOverviewData = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = subDays(new Date(), 6 - i);
+      return format(d, "yyyy-MM-dd");
+    });
+
+    const map = new Map<
+      string,
+      { name: string; sales: number; revenue: number }
+    >();
+    last7Days.forEach((dateStr) => {
+      map.set(dateStr, {
+        name: format(parseISO(dateStr), "EEE"), // Mon, Tue...
+        sales: 0, // Trays sold
+        revenue: 0, // Amount
+      });
+    });
+
+    sales.forEach((s) => {
+      if (map.has(s.saleDate)) {
+        const entry = map.get(s.saleDate)!;
+        entry.sales += s.quantityTrays;
+        entry.revenue += s.totalAmount;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [sales]);
+
+  const recentTransactions = useMemo(() => {
+    return sales.slice(0, 5).map((s) => {
+      let statusStr = "Pending";
+      if (s.paymentStatus === "paid") statusStr = "Paid";
+      else if (s.paymentStatus === "unpaid") statusStr = "Unpaid";
+      else if (s.paymentStatus === "partial") statusStr = "Partial";
+
+      const balanceAmount = s.totalAmount - s.amountPaid;
+
+      return {
+        id: s.id,
+        invoiceStr: s.invoiceId || `INV-${s.id}`,
+        customer: s.customerId,
+        amount: `₱${s.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        formattedPaid: `₱${s.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        balanceAmount,
+        formattedBalance: `₱${balanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        status: statusStr,
+        date: s.saleDate,
+      };
+    });
+  }, [sales]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -111,13 +375,323 @@ export function EggDashboardClient({
   const displayMin = String(time.getMinutes()).padStart(2, "0");
   const displaySec = String(time.getSeconds()).padStart(2, "0");
 
+  const overallCards = [
+    {
+      key: "allTimeNet" as const,
+      label: "Overall Collected",
+      isCurrency: true,
+      bg: "bg-emerald-50/50 dark:bg-[#0a2e1a]/40",
+      border: "border-emerald-200/40 dark:border-white/5",
+      accentText: "text-emerald-700 dark:text-[#3dff9a]",
+      accentBg: "bg-emerald-600/10 dark:bg-[#3dff9a]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-emerald-500 dark:bg-[#3dff9a]",
+      hideIconBg: "responsive" as const,
+      icon: ({
+        size,
+        isTabletIcon,
+      }: {
+        size?: number;
+        isTabletIcon?: boolean;
+        isDesktopIcon?: boolean;
+      }) => {
+        if (isTabletIcon) return <Wallet size={size} />;
+        return (
+          <Image
+            src="/3dicon/onetincome.png"
+            alt="Overall Collected"
+            width={130}
+            height={130}
+            className="absolute max-w-none object-contain drop-shadow-xl opacity-90 z-0 pointer-events-none transition-transform hover:scale-110
+                       w-[85px] h-[85px] top-[-20px] right-[-20px] 
+                       lg:w-[100px] lg:h-[100px] lg:top-[-20px] lg:right-[-20px]"
+          />
+        );
+      },
+      footer: () => (
+        <span className="text-slate-500 font-medium flex items-center gap-1.5">
+          <Globe size={12} /> All-time record
+        </span>
+      ),
+    },
+    {
+      key: "allTimeGross" as const,
+      label: "Overall Gross Sales",
+      isCurrency: true,
+      bg: "bg-blue-50/50 dark:bg-[#0d1f3c]/40",
+      border: "border-blue-200/40 dark:border-white/5",
+      accentText: "text-blue-700 dark:text-[#5cabff]",
+      accentBg: "bg-blue-600/10 dark:bg-[#5cabff]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-blue-500 dark:bg-[#5cabff]",
+      hideIconBg: "responsive" as const,
+      icon: ({
+        size,
+        isTabletIcon,
+      }: {
+        size?: number;
+        isTabletIcon?: boolean;
+        isDesktopIcon?: boolean;
+      }) => {
+        if (isTabletIcon) return <DollarSign size={size} />;
+        return (
+          <Image
+            src="/3dicon/o-gross.png"
+            alt="Overall Gross"
+            width={130}
+            height={130}
+            className="absolute max-w-none object-contain drop-shadow-xl opacity-90 z-0 pointer-events-none transition-transform hover:scale-110
+                       w-[85px] h-[85px] top-[-20px] right-[-20px] 
+                       lg:w-[100px] lg:h-[100px] lg:top-[-20px] lg:right-[-20px]"
+          />
+        );
+      },
+      footer: () => (
+        <span className="text-slate-500 font-medium flex items-center gap-1.5">
+          <Globe size={12} /> All-time record
+        </span>
+      ),
+    },
+    {
+      key: "allTimeEggs" as const,
+      label: "Overall Eggs Sold",
+      isCurrency: false,
+      bg: "bg-rose-50/50 dark:bg-[#2d0d1a]/40",
+      border: "border-rose-200/40 dark:border-white/5",
+      accentText: "text-rose-700 dark:text-[#ff5c8a]",
+      accentBg: "bg-rose-600/10 dark:bg-[#ff5c8a]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-rose-500 dark:bg-[#ff5c8a]",
+      hideIconBg: "responsive" as const,
+      icon: ({
+        size,
+        isTabletIcon,
+      }: {
+        size?: number;
+        isTabletIcon?: boolean;
+        isDesktopIcon?: boolean;
+      }) => {
+        if (isTabletIcon) return <Egg size={size} />;
+        return (
+          <Image
+            src="/3dicon/egg-tray.png"
+            alt="Overall Eggs Sold"
+            width={130}
+            height={130}
+            className="absolute max-w-none object-contain drop-shadow-xl opacity-90 z-0 pointer-events-none transition-transform hover:scale-110
+                       w-[85px] h-[85px] top-[-20px] right-[-20px] 
+                       lg:w-[100px] lg:h-[100px] lg:top-[-20px] lg:right-[-20px]"
+          />
+        );
+      },
+      footer: (m: typeof metrics) => (
+        <span className="text-slate-500 font-medium">
+          White: {m.allTimeWhiteEggs.toLocaleString()} | Brown:{" "}
+          {m.allTimeBrownEggs.toLocaleString()} pcs
+        </span>
+      ),
+    },
+  ];
+
+  const thisMonthCards = [
+    {
+      key: "netIncome" as const,
+      label: "Monthly Collected",
+      isCurrency: true,
+      bg: "bg-emerald-50 dark:bg-[#0a2e1a]",
+      border: "border-emerald-200/60 dark:border-white/10",
+      accentText: "text-emerald-700 dark:text-[#3dff9a]",
+      accentBg: "bg-emerald-600/10 dark:bg-[#3dff9a]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-emerald-500 dark:bg-[#3dff9a]",
+      icon: Wallet,
+      footer: (m: typeof metrics) => renderTrend(m.netIncomeTrend, false),
+    },
+    {
+      key: "totalGross" as const,
+      label: "Monthly Gross",
+      isCurrency: true,
+      bg: "bg-blue-50 dark:bg-[#0d1f3c]",
+      border: "border-blue-200/60 dark:border-white/10",
+      accentText: "text-blue-700 dark:text-[#5cabff]",
+      accentBg: "bg-blue-600/10 dark:bg-[#5cabff]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-blue-500 dark:bg-[#5cabff]",
+      icon: PhilippinePeso,
+      footer: (m: typeof metrics) => renderTrend(m.grossTrend, false),
+    },
+    {
+      key: "totalEggs" as const,
+      label: "Monthly Eggs Sold",
+      isCurrency: false,
+      bg: "bg-rose-50 dark:bg-[#2d0d1a]",
+      border: "border-rose-200/60 dark:border-white/10",
+      accentText: "text-rose-700 dark:text-[#ff5c8a]",
+      accentBg: "bg-rose-600/10 dark:bg-[#ff5c8a]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-rose-500 dark:bg-[#ff5c8a]",
+      icon: Egg,
+      footer: (m: typeof metrics) => (
+        <div className="flex flex-col gap-1.5">
+          {renderTrend(m.eggsTrend, false)}
+          <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+            White: {m.cmWhiteEggs.toLocaleString()} | Brown:{" "}
+            {m.cmBrownEggs.toLocaleString()} pcs
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  const dailyCards = [
+    {
+      key: "dailyNetIncome" as const,
+      label: "Daily Collected",
+      isCurrency: true,
+      bg: "bg-emerald-50 dark:bg-[#0a2e1a]",
+      border: "border-emerald-200/60 dark:border-white/10",
+      accentText: "text-emerald-700 dark:text-[#3dff9a]",
+      accentBg: "bg-emerald-600/10 dark:bg-[#3dff9a]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-emerald-500 dark:bg-[#3dff9a]",
+      icon: Wallet,
+      footer: (m: typeof metrics) =>
+        renderTrend(m.dailyNetIncomeTrend, false, "vs yesterday"),
+    },
+    {
+      key: "dailyGross" as const,
+      label: "Daily Gross",
+      isCurrency: true,
+      bg: "bg-blue-50 dark:bg-[#0d1f3c]",
+      border: "border-blue-200/60 dark:border-white/10",
+      accentText: "text-blue-700 dark:text-[#5cabff]",
+      accentBg: "bg-blue-600/10 dark:bg-[#5cabff]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-blue-500 dark:bg-[#5cabff]",
+      icon: PhilippinePeso,
+      footer: (m: typeof metrics) =>
+        renderTrend(m.dailyGrossTrend, false, "vs yesterday"),
+    },
+    {
+      key: "dailyEggs" as const,
+      label: "Daily Eggs Sold",
+      isCurrency: false,
+      bg: "bg-rose-50 dark:bg-[#2d0d1a]",
+      border: "border-rose-200/60 dark:border-white/10",
+      accentText: "text-rose-700 dark:text-[#ff5c8a]",
+      accentBg: "bg-rose-600/10 dark:bg-[#ff5c8a]/12",
+      amountText: "text-slate-900 dark:text-white",
+      glow: "bg-rose-500 dark:bg-[#ff5c8a]",
+      icon: Egg,
+      footer: (m: typeof metrics) => (
+        <div className="flex flex-col gap-1.5">
+          {renderTrend(m.dailyEggsTrend, false, "vs yesterday")}
+          <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+            White: {m.tdWhiteEggs.toLocaleString()} | Brown:{" "}
+            {m.tdBrownEggs.toLocaleString()} pcs
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  const renderCard = ({
+    key,
+    label,
+    isCurrency,
+    bg,
+    border,
+    accentText,
+    accentBg,
+    amountText,
+    glow,
+    icon: Icon,
+    footer,
+    hideIconBg,
+  }: {
+    key: string;
+    label: string;
+    isCurrency: boolean;
+    bg: string;
+    border: string;
+    accentText: string;
+    accentBg: string;
+    amountText: string;
+    glow: string;
+    icon: React.ElementType;
+    footer: (m: typeof metrics) => React.ReactNode;
+    hideIconBg?: boolean | "responsive";
+  }) => (
+    <div
+      key={key}
+      className={`rounded-lg p-5 flex flex-col justify-between relative overflow-hidden border ${bg} ${border} transition-transform duration-200 hover:translate-y-[-3px] min-h-[160px] cursor-default`}
+    >
+      <div
+        className={`absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full opacity-10 dark:opacity-12 pointer-events-none ${glow}`}
+      />
+
+      <div className="relative z-10 font-sans">
+        <p
+          className={`text-[10px] font-bold tracking-[0.12em] uppercase mb-2.5 relative z-10 ${accentText}`}
+        >
+          {label}
+        </p>
+        {(!hideIconBg || hideIconBg === "responsive") && (
+          <div
+            className={`absolute -top-0.5 right-0 w-[38px] h-[38px] rounded-xl flex items-center justify-center z-10 ${accentBg} ${accentText} ${
+              hideIconBg === "responsive" ? "hidden md:flex lg:hidden" : ""
+            }`}
+          >
+            {hideIconBg === "responsive" ? (
+              <Icon size={18} isTabletIcon={true} />
+            ) : (
+              <Icon size={18} />
+            )}
+          </div>
+        )}
+
+        {(hideIconBg === true || hideIconBg === "responsive") && (
+          <div
+            className={`absolute right-0 top-0 z-0 ${
+              hideIconBg === "responsive" ? "block md:hidden lg:block" : ""
+            }`}
+          >
+            {hideIconBg === "responsive" ? (
+              <Icon size={18} isDesktopIcon={true} />
+            ) : (
+              <Icon size={18} />
+            )}
+          </div>
+        )}
+        <div
+          className={`font-mono text-[17px] font-medium tracking-tight leading-none relative z-10 truncate ${amountText}`}
+          title={
+            isCurrency
+              ? formatPHP(metrics[key as keyof typeof metrics])
+              : String(Math.round(metrics[key as keyof typeof metrics]))
+          }
+        >
+          <AnimatedNumber
+            value={metrics[key as keyof typeof metrics]}
+            isCurrency={isCurrency}
+          />
+        </div>
+      </div>
+
+      <div className="relative z-10 mt-auto pt-4 font-sans">
+        <div className={`w-full h-[0.5px] mb-2.5 ${accentBg}`} />
+        <div className="text-[10px] tracking-[0.04em]">{footer(metrics)}</div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 animate-in fade-in duration-300">
       {/* Header Section */}
       <div className="bg-white dark:bg-[#0d1117] rounded-lg p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5 border border-slate-200 dark:border-white/10 dark:shadow-none relative overflow-hidden mb-3">
         {/* Background glows */}
-        <div className="absolute -top-16 -left-10 w-[220px] h-[220px] rounded-full bg-orange-500 dark:bg-amber-400 opacity-5 pointer-events-none" />
-        <div className="absolute -bottom-20 right-10 w-[180px] h-[180px] rounded-full bg-yellow-500 dark:bg-yellow-400 opacity-5 pointer-events-none" />
+        <div className="absolute -top-16 -left-10 w-[220px] h-[220px] rounded-full bg-emerald-500 dark:bg-[#3dff9a] opacity-5 pointer-events-none" />
+        <div className="absolute -bottom-20 right-10 w-[180px] h-[180px] rounded-full bg-blue-500 dark:bg-[#5cabff] opacity-5 pointer-events-none" />
 
         {/* Left — Avatar + Greeting */}
         <div className="flex items-center gap-3.5 relative z-10">
@@ -127,7 +701,7 @@ export function EggDashboardClient({
               alt={userName}
               className="object-cover"
             />
-            <AvatarFallback className="bg-linear-to-br from-orange-100 to-yellow-100 dark:from-amber-400/15 dark:to-yellow-400/20 text-slate-800 dark:text-white font-sans text-xl font-extrabold">
+            <AvatarFallback className="bg-linear-to-br from-emerald-100 to-blue-100 dark:from-[#3dff9a]/15 dark:to-[#5cabff]/20 text-slate-800 dark:text-white font-sans text-xl font-extrabold">
               {userName ? userName.charAt(0).toUpperCase() : ""}
             </AvatarFallback>
           </Avatar>
@@ -135,7 +709,7 @@ export function EggDashboardClient({
           <div>
             <h1 className="font-sans text-[clamp(17px,2.5vw,20px)] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight mb-1">
               Welcome ,{" "}
-              <span className="text-orange-600 dark:text-amber-400">
+              <span className="text-emerald-600 dark:text-[#3dff9a]">
                 {userName}
               </span>
             </h1>
@@ -148,8 +722,8 @@ export function EggDashboardClient({
         {/* Right — Date + Clock (Desktop) */}
         <div className="hidden md:flex items-center justify-center md:justify-start gap-4 sm:gap-6 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[14px] px-4 sm:px-6 py-3 relative z-10 shrink-0 shadow-inner dark:shadow-none w-full md:w-auto">
           {/* Calendar tile */}
-          <div className="flex flex-col items-center bg-orange-50 dark:bg-[#2e1a0a] border border-orange-200/60 dark:border-amber-400/15 rounded-[10px] overflow-hidden w-11 shrink-0">
-            <div className="text-[9px] font-bold tracking-[0.12em] uppercase text-orange-700 dark:text-amber-400 bg-orange-100/80 dark:bg-amber-400/10 w-full text-center py-[3px]">
+          <div className="flex flex-col items-center bg-emerald-50 dark:bg-[#0a2e1a] border border-emerald-200/60 dark:border-[#3dff9a]/15 rounded-[10px] overflow-hidden w-11 shrink-0">
+            <div className="text-[9px] font-bold tracking-[0.12em] uppercase text-emerald-700 dark:text-[#3dff9a] bg-emerald-100/80 dark:bg-[#3dff9a]/10 w-full text-center py-[3px]">
               {mounted ? MONTHS[time.getMonth()] : "---"}
             </div>
             <div className="font-mono text-[22px] font-medium text-slate-800 dark:text-white pt-1 pb-[5px] leading-none">
@@ -180,7 +754,7 @@ export function EggDashboardClient({
 
         {/* Mobile/Tablet Simple Date + Clock (Bottom Right) */}
         <div className="md:hidden w-full text-right relative z-10 -mt-2">
-          <span className="text-[11px] sm:text-[12px] font-bold text-orange-600 dark:text-amber-400">
+          <span className="text-[11px] sm:text-[12px] font-bold text-emerald-600 dark:text-[#3dff9a]">
             {mounted ? format(time, "MMM d, yyyy") : "---"}
           </span>
           <span className="mx-1.5 text-slate-300 dark:text-slate-700">|</span>
@@ -190,59 +764,57 @@ export function EggDashboardClient({
         </div>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          {
-            title: "Total Revenue",
-            value: "$45,231.89",
-            icon: DollarSign,
-            trend: "+20.1% from last month",
-          },
-          {
-            title: "Eggs Sold (Trays)",
-            value: "12,450",
-            icon: Egg,
-            trend: "+15% from last week",
-          },
-          {
-            title: "Active Customers",
-            value: "342",
-            icon: Users,
-            trend: "+12 new today",
-          },
-          {
-            title: "Sales Activity",
-            value: "+573",
-            icon: Activity,
-            trend: "+201 since last hour",
-          },
-        ].map((metric, idx) => (
-          <Card
-            key={idx}
-            className="border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm shadow-sm dark:shadow-none rounded-lg"
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                {metric.title}
-              </CardTitle>
-              <metric.icon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                {metric.value}
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {metric.trend}
+      {/* Metrics Cards — Double Row Layout (Ported from Trucking StatCards) */}
+      <div className="space-y-3 font-sans mb-3">
+        {/* ROW 2: OVERALL METRICS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {overallCards.map(renderCard)}
+        </div>
+        {/* ROW 1: THIS MONTH METRICS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {thisMonthCards.map(renderCard)}
+
+          {/* Active Customers Card (Included in Row 1 for Balance) */}
+          <div className="rounded-lg p-5 flex flex-col justify-between relative overflow-hidden border bg-purple-50 dark:bg-[#160b2e] border-purple-200/60 dark:border-white/10 transition-transform duration-200 hover:translate-y-[-3px] min-h-[160px] cursor-default">
+            <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full opacity-10 dark:opacity-12 pointer-events-none bg-purple-500 dark:bg-[#b97aff]" />
+
+            <div className="relative z-10 font-sans">
+              <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2.5 text-purple-700 dark:text-[#b97aff]">
+                Active Customers
               </p>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="absolute -top-0.5 right-0 w-[38px] h-[38px] rounded-xl flex items-center justify-center bg-purple-600/10 dark:bg-[#b97aff]/12 text-purple-700 dark:text-[#b97aff]">
+                <Users size={18} />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <div className="font-mono text-[17px] font-medium tracking-tight leading-none text-slate-900 dark:text-white">
+                  <AnimatedNumber value={metrics.activeCustomers} />
+                </div>
+                <div className="font-mono text-[14px] font-medium text-slate-400 dark:text-white/30 ml-0.5">
+                  / {metrics.totalCustomers}
+                </div>
+              </div>
+            </div>
+
+            <div className="relative z-10 mt-auto pt-4 font-sans">
+              <div className="w-full h-[0.5px] mb-2.5 bg-purple-600/10 dark:bg-[#b97aff]/12" />
+              <div className="text-[10px] tracking-[0.04em] text-slate-500 font-medium">
+                Overall Sales:{" "}
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  {metrics.allTimeTrips}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* ROW 3: DAILY METRICS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {dailyCards.map(renderCard)}
+        </div>
       </div>
 
       {/* Charts and Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
-        <Card className="rounded-lg lg:col-span-4 border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 shadow-sm dark:shadow-none">
+        <Card className="rounded-lg lg:col-span-3 border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 shadow-sm dark:shadow-none">
           <CardHeader>
             <CardTitle>Sales Overview</CardTitle>
             <CardDescription>Weekly revenue and sales volume.</CardDescription>
@@ -255,7 +827,7 @@ export function EggDashboardClient({
               minHeight={0}
             >
               <BarChart
-                data={salesData}
+                data={salesOverviewData}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <CartesianGrid
@@ -292,7 +864,7 @@ export function EggDashboardClient({
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg lg:col-span-3 border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 shadow-sm dark:shadow-none">
+        <Card className="rounded-lg lg:col-span-4 border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 shadow-sm dark:shadow-none">
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
             <CardDescription>Latest egg sales records.</CardDescription>
@@ -303,6 +875,7 @@ export function EggDashboardClient({
                 <TableRow className="border-slate-200 dark:border-white/10">
                   <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
@@ -323,7 +896,7 @@ export function EggDashboardClient({
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           tx.status === "Paid"
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-400"
-                            : tx.status === "Pending"
+                            : tx.status === "Partial"
                               ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-400"
                               : "bg-red-100 text-red-800 dark:bg-red-400/10 dark:text-red-400"
                         }`}
@@ -332,7 +905,21 @@ export function EggDashboardClient({
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium text-slate-900 dark:text-white">
-                      {tx.amount}
+                      {tx.balanceAmount > 0 ? (
+                        <div className="text-rose-500 font-bold">
+                          {tx.formattedBalance}
+                        </div>
+                      ) : (
+                        <div className="text-slate-400 dark:text-slate-500 font-normal">
+                          —
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-slate-900 dark:text-white">
+                      <div>{tx.amount}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                        Paid: {tx.formattedPaid}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

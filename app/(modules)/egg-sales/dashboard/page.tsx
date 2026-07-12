@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
 import { EggDashboardClient } from "./egg-dashboard-client";
+import { getEggSalesHistory } from "@/app/actions/egg-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,5 +29,14 @@ export default async function EggDashboardPage() {
   const userName = currentUser?.name || "User";
   const avatarUrl = currentUser?.avatarUrl || null;
 
-  return <EggDashboardClient userName={userName} avatarUrl={avatarUrl} />;
+  const res = await getEggSalesHistory();
+  const sales = res.success && res.data ? res.data : [];
+
+  return (
+    <EggDashboardClient
+      userName={userName}
+      avatarUrl={avatarUrl}
+      sales={sales}
+    />
+  );
 }
