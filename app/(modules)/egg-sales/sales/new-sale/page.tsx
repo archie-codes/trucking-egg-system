@@ -594,8 +594,17 @@ export default function NewSalePage() {
               <Input
                 {...field}
                 type="number"
+                min="0"
+                step="1"
                 disabled={!isChecked}
                 placeholder="0"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[-.]/g, "");
+                  field.onChange(val);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "-" || e.key === ".") e.preventDefault();
+                }}
                 onClick={(e) => e.currentTarget.select()}
                 className={cn(
                   "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
@@ -613,8 +622,17 @@ export default function NewSalePage() {
               <Input
                 {...field}
                 type="number"
+                min="0"
+                step="1"
                 disabled={!isChecked}
                 placeholder="0"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[-.]/g, "");
+                  field.onChange(val);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "-" || e.key === ".") e.preventDefault();
+                }}
                 onClick={(e) => e.currentTarget.select()}
                 className={cn(
                   "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
@@ -636,8 +654,17 @@ export default function NewSalePage() {
               <Input
                 {...field}
                 type="number"
+                min="0"
+                step="1"
                 disabled={!isChecked}
                 placeholder="₱0"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[-.]/g, "");
+                  field.onChange(val);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "-" || e.key === ".") e.preventDefault();
+                }}
                 onClick={(e) => e.currentTarget.select()}
                 className="h-9 font-black rounded-lg text-sm text-center bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500 text-emerald-600"
               />
@@ -823,7 +850,16 @@ export default function NewSalePage() {
                       <Input
                         {...field}
                         type="number"
+                        min="0"
+                        step="1"
                         placeholder="0"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[-.]/g, "");
+                          field.onChange(val);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "-" || e.key === ".") e.preventDefault();
+                        }}
                         onClick={(e) => e.currentTarget.select()}
                         className="h-11 rounded-xl font-black bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                       />
@@ -865,6 +901,7 @@ export default function NewSalePage() {
                             selected={
                               field.value ? new Date(field.value) : undefined
                             }
+                            disabled={(date) => date > new Date()}
                             onSelect={(date) => {
                               if (date) {
                                 field.onChange(format(date, "yyyy-MM-dd"));

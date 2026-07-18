@@ -696,8 +696,11 @@ export default function NewTripPage() {
                             {...field}
                             value={field.value || ""}
                             onChange={(e) =>
-                              field.onChange(e.target.value.toUpperCase())
+                              field.onChange(e.target.value.toUpperCase().replace(/-/g, ""))
                             }
+                            onKeyDown={(e) => {
+                              if (e.key === "-") e.preventDefault();
+                            }}
                             placeholder="E.g., 123456"
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md uppercase disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
                             disabled={tripType !== "CPF"}
@@ -1023,10 +1026,17 @@ export default function NewTripPage() {
                               {...field}
                               id="qtyHeads"
                               type="number"
-                              step="0.01"
+                              step="1"
+                              min="0"
                               placeholder="0"
                               className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
-                              onChange={(e) => field.onChange(e.target.value)}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[-.]/g, "");
+                                field.onChange(val);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "-" || e.key === ".") e.preventDefault();
+                              }}
                               onClick={(e) => e.currentTarget.select()}
                               aria-invalid={fieldState.invalid}
                               disabled={tripType === "CPF"}
@@ -1067,9 +1077,16 @@ export default function NewTripPage() {
                             id="rate"
                             type="number"
                             step="0.01"
+                            min="0"
                             placeholder="0.00"
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-emerald-600 dark:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
-                            onChange={(e) => field.onChange(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/-/g, "");
+                              field.onChange(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "-") e.preventDefault();
+                            }}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
                             disabled={tripType === "CPF"}
@@ -1116,9 +1133,16 @@ export default function NewTripPage() {
                           id="ratePerTrip"
                           type="number"
                           step="0.01"
+                          min="0"
                           placeholder="0.00"
                           className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-bold text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
-                          onChange={(e) => field.onChange(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/-/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                           disabled={tripType !== "CPF"}
@@ -1148,9 +1172,16 @@ export default function NewTripPage() {
                           id="tollFees"
                           type="number"
                           step="0.01"
+                          min="0"
                           placeholder="0.00"
                           className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) => field.onChange(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/-/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -1194,9 +1225,16 @@ export default function NewTripPage() {
                                 id="dieselCash"
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 placeholder="Cash Amount"
                                 className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-blue-600 dark:text-blue-400 w-full pl-4 transition-all focus-visible:ring-blue-500"
-                                onChange={(e) => field.onChange(e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/-/g, "");
+                                  field.onChange(val);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "-") e.preventDefault();
+                                }}
                                 onClick={(e) => e.currentTarget.select()}
                                 aria-invalid={fieldState.invalid}
                               />
@@ -1218,9 +1256,16 @@ export default function NewTripPage() {
                                 id="dieselPo"
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 placeholder="P.O. Amount"
                                 className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-emerald-600 dark:text-emerald-400 w-full pl-4 transition-all focus-visible:ring-emerald-500"
-                                onChange={(e) => field.onChange(e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/-/g, "");
+                                  field.onChange(val);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "-") e.preventDefault();
+                                }}
                                 onClick={(e) => e.currentTarget.select()}
                                 aria-invalid={fieldState.invalid}
                               />
@@ -1250,9 +1295,16 @@ export default function NewTripPage() {
                           id="meals"
                           type="number"
                           step="0.01"
+                          min="0"
                           placeholder="0.00"
                           className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400"
-                          onChange={(e) => field.onChange(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/-/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -1275,10 +1327,17 @@ export default function NewTripPage() {
                           id="roroShip"
                           type="number"
                           step="0.01"
+                          min="0"
                           placeholder="0.00"
                           disabled={tripType === "CPF"}
                           className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
-                          onChange={(e) => field.onChange(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/-/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           aria-invalid={fieldState.invalid}
                         />
@@ -1307,9 +1366,16 @@ export default function NewTripPage() {
                             id="salary"
                             type="number"
                             step="0.01"
+                            min="0"
                             placeholder="0.00"
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400"
-                            onChange={(e) => field.onChange(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/-/g, "");
+                              field.onChange(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "-") e.preventDefault();
+                            }}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
                           />
@@ -1347,9 +1413,16 @@ export default function NewTripPage() {
                             id="others"
                             type="number"
                             step="0.01"
+                            min="0"
                             placeholder="0.00"
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
-                            onChange={(e) => field.onChange(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/-/g, "");
+                              field.onChange(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "-") e.preventDefault();
+                            }}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
                             disabled={tripType === "CPF"}
@@ -1392,9 +1465,16 @@ export default function NewTripPage() {
                             id="miscellaneous"
                             type="number"
                             step="0.01"
+                            min="0"
                             placeholder="0.00"
                             className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-slate-100 dark:disabled:bg-slate-900/50"
-                            onChange={(e) => field.onChange(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/-/g, "");
+                              field.onChange(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "-") e.preventDefault();
+                            }}
                             onClick={(e) => e.currentTarget.select()}
                             aria-invalid={fieldState.invalid}
                             disabled={tripType !== "CPF"}

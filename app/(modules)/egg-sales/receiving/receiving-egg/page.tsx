@@ -602,7 +602,16 @@ export default function ReceivingPage() {
                           <Input
                             {...field}
                             type="number"
+                            min="0"
+                            step="1"
                             placeholder="0"
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[-.]/g, "");
+                              field.onChange(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "-" || e.key === ".") e.preventDefault();
+                            }}
                             onClick={(e) => e.currentTarget.select()}
                             className={cn(
                               "h-11 rounded-xl font-mono font-bold",
@@ -633,7 +642,16 @@ export default function ReceivingPage() {
                         <Input
                           {...field}
                           type="number"
+                          min="0"
+                          step="1"
                           placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-fuchsia-600 bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border-fuchsia-200 dark:border-fuchsia-900/50"
                         />
@@ -651,7 +669,16 @@ export default function ReceivingPage() {
                         <Input
                           {...field}
                           type="number"
+                          min="0"
+                          step="1"
                           placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50"
                         />
@@ -670,7 +697,16 @@ export default function ReceivingPage() {
                         <Input
                           {...field}
                           type="number"
+                          min="0"
+                          step="1"
                           placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-stone-600 dark:text-stone-400 bg-stone-50/50 dark:bg-stone-900/40 border-stone-200 dark:border-stone-800"
                         />
@@ -768,7 +804,16 @@ export default function ReceivingPage() {
                           <Input
                             {...field}
                             type="number"
+                            min="0"
+                            step="1"
                             placeholder="0"
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[-.]/g, "");
+                              field.onChange(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "-" || e.key === ".") e.preventDefault();
+                            }}
                             onClick={(e) => e.currentTarget.select()}
                             className={cn(
                               "h-11 rounded-xl font-mono font-bold",
@@ -799,7 +844,16 @@ export default function ReceivingPage() {
                         <Input
                           {...field}
                           type="number"
+                          min="0"
+                          step="1"
                           placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-fuchsia-600 bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border-fuchsia-200 dark:border-fuchsia-900/50"
                         />
@@ -817,7 +871,16 @@ export default function ReceivingPage() {
                         <Input
                           {...field}
                           type="number"
+                          min="0"
+                          step="1"
                           placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50"
                         />
@@ -835,7 +898,16 @@ export default function ReceivingPage() {
                         <Input
                           {...field}
                           type="number"
+                          min="0"
+                          step="1"
                           placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                          }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-stone-600 dark:text-stone-400 bg-stone-50/50 dark:bg-stone-900/40 border-stone-200 dark:border-stone-800"
                         />

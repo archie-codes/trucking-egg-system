@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 import {
   deleteStaffAccount,
   restoreStaffAccount,
@@ -150,8 +151,15 @@ export const columns: ColumnDef<StaffRecord>[] = [
                   </TooltipProvider>
                 )}
               </p>
+              {user.isActive && user.lastActiveAt ? (
+                <span className="block text-[11px] font-medium text-muted-foreground mt-0.5 truncate">
+                  {new Date().getTime() - new Date(user.lastActiveAt).getTime() < 5 * 60 * 1000
+                    ? "Active now"
+                    : `Active ${formatDistanceToNow(new Date(user.lastActiveAt), { addSuffix: true })}`}
+                </span>
+              ) : null}
               {!user.isActive && (
-                <span className="block items-center text-[10px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md mt-0.5">
+                <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md mt-0.5">
                   Disabled
                 </span>
               )}
