@@ -230,6 +230,8 @@ export function DataTable<TData>({
         "Plate No.",
         ...(isCpfTab ? ["D.O No."] : []),
         ...(isCpfTab ? [] : ["Customer", "Farm Name"]),
+        "Trip Type",
+        "Trip Load",
         "Origin",
         "Destination",
         ...(isCpfTab ? [] : ["Qty (Heads)", "Qty Note", "Rate"]),
@@ -266,6 +268,8 @@ export function DataTable<TData>({
           d.plateNumber || "N/A",
           ...(isCpfTab ? [`"${d.deliveryOrderNo || ""}"`] : []),
           ...(isCpfTab ? [] : [`"${d.customerId}"`, `"${d.farmName || ""}"`]),
+          `"${d.tripType || ""}"`,
+          `"${d.loadType || ""}"`,
           `"${d.origin}"`,
           `"${d.destination}"`,
           ...(isCpfTab ? [] : [d.qtyHeads, `"${d.qtyNote || ""}"`, d.rate]),
@@ -373,6 +377,8 @@ export function DataTable<TData>({
           `${d.fleetCode || "N/A"}\n${d.plateNumber || ""}`,
           ...(isCpfTab ? [d.deliveryOrderNo || "-"] : []),
           ...(isCpfTab ? [] : [d.customerId, d.farmName || "-"]),
+          d.tripType || "-",
+          d.loadType || "-",
           d.origin,
           d.destination,
           ...(isCpfTab ? [] : [d.qtyHeads.toString(), fmt(d.rate)]),
@@ -398,7 +404,7 @@ export function DataTable<TData>({
           textColor?: [number, number, number];
         }
       > = {};
-      let colIdx = isCpfTab ? 5 : 6;
+      let colIdx = isCpfTab ? 7 : 8;
       if (!isCpfTab) {
         colStyles[colIdx++] = { halign: "center" }; // Qty
         colStyles[colIdx++] = { halign: "right" }; // Rate
@@ -430,6 +436,8 @@ export function DataTable<TData>({
             "Truck",
             ...(isCpfTab ? ["D.O No."] : []),
             ...(isCpfTab ? [] : ["Customer", "Farm"]),
+            "Trip Type",
+            "Trip Load",
             "Origin",
             "Destination",
             ...(isCpfTab ? [] : ["Qty HDS", "Rate"]),

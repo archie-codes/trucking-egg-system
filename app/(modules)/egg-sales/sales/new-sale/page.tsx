@@ -43,6 +43,7 @@ import {
   AlertCircle,
   Banknote,
   CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
 
 const numField = z
@@ -732,14 +733,17 @@ export default function NewSalePage() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11 hover:bg-slate-50",
+                            "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11 hover:bg-slate-50",
                             !field.value && "text-slate-500",
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-500" />
-                          {field.value
-                            ? format(new Date(field.value), "PPP")
-                            : "Select date"}
+                          <div className="flex items-center">
+                            <CalendarIcon className="mr-2 h-4 w-4 text-emerald-500" />
+                            {field.value
+                              ? format(new Date(field.value), "PPP")
+                              : "Select date"}
+                          </div>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent
@@ -751,6 +755,7 @@ export default function NewSalePage() {
                           selected={
                             field.value ? new Date(field.value) : undefined
                           }
+                          disabled={(date) => date > new Date()}
                           onSelect={(date) => {
                             if (date) {
                               field.onChange(format(date, "yyyy-MM-dd"));
@@ -882,14 +887,17 @@ export default function NewSalePage() {
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-start font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11",
+                              "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11",
                               !field.value && "text-slate-400",
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
-                            {field.value
-                              ? format(new Date(field.value), "PPP")
-                              : "Optional (If unpaid)"}
+                            <div className="flex items-center">
+                              <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                              {field.value
+                                ? format(new Date(field.value), "PPP")
+                                : "Optional (If unpaid)"}
+                            </div>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent

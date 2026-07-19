@@ -43,6 +43,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 
 // Standard Constants
@@ -355,14 +356,17 @@ export default function ReceivingPage() {
                             variant="outline"
                             id="arrivalDate"
                             className={cn(
-                              "w-full justify-start font-normal border-amber-200 dark:border-amber-900/50 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 text-md h-11 hover:bg-amber-100 dark:hover:bg-amber-900/40",
+                              "w-full justify-between font-normal border-amber-200 dark:border-amber-900/50 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 text-md h-11 hover:bg-amber-100 dark:hover:bg-amber-900/40",
                               !field.value && "text-amber-700/50",
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-amber-500" />
-                            {field.value
-                              ? format(new Date(field.value), "PPP")
-                              : "Select date"}
+                            <div className="flex items-center">
+                              <CalendarIcon className="mr-2 h-4 w-4 text-amber-500" />
+                              {field.value
+                                ? format(new Date(field.value), "PPP")
+                                : "Select date"}
+                            </div>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent

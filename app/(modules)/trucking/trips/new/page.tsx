@@ -66,6 +66,7 @@ import {
   CalendarIcon,
   Check,
   ChevronsUpDown,
+  ChevronDown,
 } from "lucide-react";
 
 // Helper to accept empty strings but transform to numbers safely for DB insertion
@@ -478,16 +479,19 @@ export default function NewTripPage() {
                                 variant="outline"
                                 id="date"
                                 className={cn(
-                                  "w-full justify-start font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md h-11 hover:bg-slate-50 dark:hover:bg-slate-900",
+                                  "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md h-11 hover:bg-slate-50 dark:hover:bg-slate-900",
                                   !field.value && "text-slate-500",
                                 )}
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                                {field.value ? (
-                                  format(new Date(field.value), "PPP")
-                                ) : (
-                                  <span>Select date</span>
-                                )}
+                                <div className="flex items-center">
+                                  <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+                                  {field.value ? (
+                                    format(new Date(field.value), "PPP")
+                                  ) : (
+                                    <span>Select date</span>
+                                  )}
+                                </div>
+                                <ChevronDown className="h-4 w-4 opacity-50" />
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent
