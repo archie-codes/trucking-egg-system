@@ -552,7 +552,14 @@ export default function NewSalePage() {
                 id={`check-${size.id}`}
                 checked={field.value}
                 disabled={availableTrays <= 0}
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => {
+                  field.onChange(checked);
+                  if (!checked) {
+                    setValue(`sizes.${size.id}.quantityTrays`, "");
+                    setValue(`sizes.${size.id}.quantityPieces`, "");
+                    setValue(`sizes.${size.id}.pricePerTray`, "");
+                  }
+                }}
                 className="h-5 w-5 rounded-md border-slate-300 dark:border-slate-700 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             )}
@@ -582,7 +589,8 @@ export default function NewSalePage() {
                 : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
             )}
           >
-            {availableTrays} Trays {looseEggs > 0 ? `(+${looseEggs} pcs)` : ""}
+            {availableTrays} Trays{" "}
+            {looseEggs > 0 ? `(+${looseEggs} peaces)` : ""}
           </span>
         </div>
 
@@ -812,12 +820,12 @@ export default function NewSalePage() {
               <div className="min-w-[750px] divide-y divide-slate-100 dark:divide-slate-800/60">
                 {/* Table Header Row */}
                 <div className="grid grid-cols-12 bg-slate-50/70 dark:bg-slate-900/40 p-4 font-bold text-xs text-slate-500 uppercase tracking-wider">
-                  <div className="col-span-1 text-center">Invoiced</div>
+                  <div className="col-span-1 text-center">Selected</div>
                   <div className="col-span-2">Egg Classification</div>
                   <div className="col-span-2 text-center">Available Stock</div>
                   <div className="col-span-3 px-1 grid grid-cols-2 gap-2 text-center">
                     <div>Trays</div>
-                    <div>Pcs</div>
+                    <div>Pieces</div>
                   </div>
                   <div className="col-span-2 px-1">Tray Price (₱)</div>
                   <div className="col-span-2 text-right">Subtotal</div>
@@ -863,7 +871,8 @@ export default function NewSalePage() {
                           field.onChange(val);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "-" || e.key === ".") e.preventDefault();
+                          if (e.key === "-" || e.key === ".")
+                            e.preventDefault();
                         }}
                         onClick={(e) => e.currentTarget.select()}
                         className="h-11 rounded-xl font-black bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"

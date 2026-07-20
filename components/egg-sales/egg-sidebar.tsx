@@ -13,6 +13,7 @@ import {
   X,
   ShoppingBag,
   PackageOpen,
+  Tractor,
 } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
 
@@ -20,6 +21,8 @@ type Route = {
   label: string;
   icon: React.ElementType;
   href: string;
+  isComingSoon?: boolean;
+  divider?: boolean;
   subRoutes?: {
     label: string;
     icon?: React.ElementType;
@@ -34,12 +37,42 @@ const routes: Route[] = [
     href: "/egg-sales/dashboard",
   },
   {
-    label: "Inventory",
-    icon: PackageOpen,
-    href: "/egg-sales/inventory",
+    label: "Farm Operations",
+    icon: Tractor,
+    href: "/egg-sales/farm-operations",
+    isComingSoon: true,
+    divider: true,
+    subRoutes: [
+      {
+        label: "Flock / Batch Management",
+        href: "/egg-sales/farm-operations/flocks",
+      },
+      {
+        label: "Daily Farm Records",
+        href: "/egg-sales/farm-operations/daily-records",
+      },
+      {
+        label: "Feed Management",
+        href: "/egg-sales/farm-operations/feed-management",
+      },
+      {
+        label: "Health & Medication",
+        href: "/egg-sales/farm-operations/health-medication",
+      },
+      {
+        label: "Farm Reports",
+        href: "/egg-sales/farm-operations/reports",
+      },
+    ],
   },
   {
-    label: "Receiving",
+    label: "Egg Inventory",
+    icon: PackageOpen,
+    href: "/egg-sales/inventory",
+    divider: true,
+  },
+  {
+    label: "Egg Receiving",
     icon: Egg,
     href: "/egg-sales/receiving",
     subRoutes: [
@@ -54,7 +87,7 @@ const routes: Route[] = [
     ],
   },
   {
-    label: "Sales",
+    label: "Egg Sales",
     icon: ShoppingBag,
     href: "/egg-sales/sales",
     subRoutes: [
@@ -207,6 +240,11 @@ export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
 
           const LinkContent = (
             <div key={route.href} className="flex flex-col">
+              {route.divider && (
+                <div className="my-2 px-2">
+                  <div className="h-px bg-slate-800/80 w-full rounded-full" />
+                </div>
+              )}
               <Link
                 href={hasSubRoutes ? "#" : route.href}
                 onClick={handleRouteClick}
@@ -228,9 +266,19 @@ export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
                     } ${isActive ? "text-amber-500" : ""}`}
                   />
                   {(!isCollapsed || isMobile) && (
-                    <span className="transition-all duration-300 origin-left group-hover:scale-[1.02] group-hover:translate-x-1 group-hover:text-amber-400 inline-block">
-                      {route.label}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="transition-all duration-300 origin-left group-hover:scale-[1.02] group-hover:translate-x-1 group-hover:text-amber-400 inline-block">
+                        {route.label}
+                      </span>
+                      {route.isComingSoon && (
+                        <div className="relative flex items-center justify-center ml-1">
+                          <div className="absolute inset-0 bg-amber-500 blur-[4px] opacity-40 animate-pulse rounded-full" />
+                          <span className="relative z-10 px-[4px] py-[1px] rounded-[4px] text-[7px] font-black tracking-widest uppercase bg-amber-950/40 text-amber-400 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.5)]">
+                            Soon
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
                 {hasSubRoutes && (!isCollapsed || isMobile) && (
