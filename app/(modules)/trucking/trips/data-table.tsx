@@ -194,13 +194,25 @@ export function DataTable<TData>({
 
   const exportToCSV = () => {
     try {
-      const rows = table.getFilteredRowModel().rows as unknown as {
+      const rawRows = table.getSortedRowModel().rows as unknown as {
         original: TripRecord;
       }[];
-      if (!rows.length) {
+      if (!rawRows.length) {
         toast.error("No data to export.");
         return;
       }
+      const rows =
+        sorting.length > 0
+          ? rawRows
+          : [...rawRows].sort((a, b) => {
+              const dateA = new Date(a.original.date).getTime();
+              const dateB = new Date(b.original.date).getTime();
+              if (dateB !== dateA) return dateB - dateA;
+              return (
+                new Date(b.original.createdAt || 0).getTime() -
+                new Date(a.original.createdAt || 0).getTime()
+              );
+            });
       const meta = extractReportMetadata(rows);
       const isCpfTab = meta.isCpfTab;
 
@@ -311,9 +323,25 @@ export function DataTable<TData>({
 
   const exportToPDF = () => {
     try {
-      const rows = table.getFilteredRowModel().rows as unknown as {
+      const rawRows = table.getSortedRowModel().rows as unknown as {
         original: TripRecord;
       }[];
+      if (!rawRows.length) {
+        toast.error("No data to export.");
+        return;
+      }
+      const rows =
+        sorting.length > 0
+          ? rawRows
+          : [...rawRows].sort((a, b) => {
+              const dateA = new Date(a.original.date).getTime();
+              const dateB = new Date(b.original.date).getTime();
+              if (dateB !== dateA) return dateB - dateA;
+              return (
+                new Date(b.original.createdAt || 0).getTime() -
+                new Date(a.original.createdAt || 0).getTime()
+              );
+            });
       if (!rows.length) {
         toast.error("No data to export.");
         return;
