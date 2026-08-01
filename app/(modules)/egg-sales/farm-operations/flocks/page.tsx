@@ -34,8 +34,8 @@ export default function FlocksPage() {
             Coming Soon
           </h2>
           <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto font-medium">
-            This module is currently under development. We're building something
-            awesome for your farm operations!
+            This module is currently under development. We&apos;re building
+            something awesome for your farm operations!
           </p>
         </CardContent>
       </Card>

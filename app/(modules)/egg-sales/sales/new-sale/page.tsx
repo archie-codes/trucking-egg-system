@@ -59,7 +59,7 @@ const sizeItemSchema = z.object({
 
 const saleSchema = z.object({
   saleDate: z.string().min(1, "Date is required"),
-  customerId: z.string().min(1, "Customer name is required").toUpperCase(),
+  customerId: z.string().trim().min(1, "Customer name is required").toUpperCase(),
   amountPaid: numField,
   datePaid: z.string().optional().nullable(),
   remarks: z.string().optional(),
@@ -242,6 +242,10 @@ export default function NewSalePage() {
   const router = useRouter();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isDatePaidOpen, setIsDatePaidOpen] = useState(false);
+  const [isCustomerShaking, setIsCustomerShaking] = useState(false);
+  const [errorFields, setErrorFields] = useState<{
+    [sizeId: string]: { qty?: boolean; price?: boolean };
+  }>({});
 
   const [customerSuggestions, setCustomerSuggestions] = useState<string[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -440,7 +444,29 @@ export default function NewSalePage() {
     }
   }, [paid, totalAmount, setValue, form]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleFormError = (errors: any) => {
+    if (errors.customerId) {
+      setIsCustomerShaking(true);
+      form.setFocus("customerId");
+      setTimeout(() => setIsCustomerShaking(false), 600);
+      toast.error("Missing Customer / Address", {
+        description: "Please enter or select a customer name before saving.",
+      });
+    }
+  };
+
   async function onSubmit(values: z.infer<typeof saleSchema>) {
+    if (!values.customerId || values.customerId.trim() === "") {
+      setIsCustomerShaking(true);
+      form.setFocus("customerId");
+      setTimeout(() => setIsCustomerShaking(false), 600);
+      toast.error("Missing Customer / Address", {
+        description: "Please enter or select a customer name before saving.",
+      });
+      return;
+    }
+
     // 1. Extract only the dimensions the user actually toggled on
     const outboundItems = EGG_SIZES.filter(
       (size) => values.sizes[size.id]?.checked,
@@ -457,6 +483,46 @@ export default function NewSalePage() {
           "Please toggle at least one egg size to record a delivery.",
       });
       return;
+    }
+
+    // Validate that every selected egg size has valid quantity and price
+    for (const item of outboundItems) {
+      const sizeInfo = EGG_SIZES.find((s) => s.id === item.classification);
+      const label = sizeInfo ? sizeInfo.label : item.classification;
+      const hasQty = item.quantityTrays > 0 || item.quantityPieces > 0;
+      const hasPrice = item.pricePerTray > 0;
+
+      if (!hasQty || !hasPrice) {
+        setErrorFields({
+          [item.classification]: { qty: !hasQty, price: !hasPrice },
+        });
+        setTimeout(() => setErrorFields({}), 600);
+
+        if (!hasQty) {
+          form.setFocus(`sizes.${item.classification as keyof typeof values.sizes}.quantityTrays` as any);
+        } else {
+          form.setFocus(`sizes.${item.classification as keyof typeof values.sizes}.pricePerTray` as any);
+        }
+
+        if (!hasQty && !hasPrice) {
+          toast.error("Incomplete Egg Size Entry", {
+            description: `Oops! You selected "${label}", but forgot to put values for Quantity (Trays/Pieces) and Tray Price. Please enter values or uncheck it before saving.`,
+          });
+          return;
+        }
+        if (!hasQty) {
+          toast.error("Missing Quantity", {
+            description: `Oops! You selected "${label}", but forgot to put how many Trays or Pieces. Please enter a quantity or uncheck it before saving.`,
+          });
+          return;
+        }
+        if (!hasPrice) {
+          toast.error("Missing Tray Price", {
+            description: `Oops! You selected "${label}", but forgot to put the Price Per Tray. Please enter the price before saving.`,
+          });
+          return;
+        }
+      }
     }
 
     if (isOverSelling) {
@@ -531,6 +597,8 @@ export default function NewSalePage() {
       : 0;
 
     const rowIsOverselling = isChecked && totalPiecesRequested > stockPieces;
+    const isQtyError = !!errorFields[size.id]?.qty;
+    const isPriceError = !!errorFields[size.id]?.price;
 
     return (
       <div
@@ -616,10 +684,12 @@ export default function NewSalePage() {
                 }}
                 onClick={(e) => e.currentTarget.select()}
                 className={cn(
-                  "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
-                  rowIsOverselling
+                  "h-9 font-black rounded-lg text-sm text-center transition-all",
+                  isQtyError
+                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                    : rowIsOverselling
                     ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                    : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                    : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
                 )}
               />
             )}
@@ -644,10 +714,12 @@ export default function NewSalePage() {
                 }}
                 onClick={(e) => e.currentTarget.select()}
                 className={cn(
-                  "h-9 font-black rounded-lg text-sm text-center bg-transparent transition-all",
-                  rowIsOverselling
+                  "h-9 font-black rounded-lg text-sm text-center transition-all",
+                  isQtyError
+                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                    : rowIsOverselling
                     ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                    : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                    : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
                 )}
               />
             )}
@@ -675,7 +747,12 @@ export default function NewSalePage() {
                   if (e.key === "-" || e.key === ".") e.preventDefault();
                 }}
                 onClick={(e) => e.currentTarget.select()}
-                className="h-9 font-black rounded-lg text-sm text-center bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500 text-emerald-600"
+                className={cn(
+                  "h-9 font-black rounded-lg text-sm text-center transition-all",
+                  isPriceError
+                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                    : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500 text-emerald-600",
+                )}
               />
             )}
           />
@@ -697,7 +774,18 @@ export default function NewSalePage() {
   };
 
   return (
-    <div className="w-full mx-auto space-y-4 animate-in fade-in duration-300 pb-16">
+    <>
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px); }
+          75% { transform: translateX(4px); }
+        }
+        .animate-shake {
+          animation: shake 0.2s ease-in-out 3;
+        }
+      `}</style>
+      <div className="w-full mx-auto space-y-4 animate-in fade-in duration-300 pb-16">
       <div className="space-y-1 relative">
         <div className="absolute -left-4 top-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl -z-10" />
         <h1 className="text-lg lg:text-xl font-black tracking-tight text-slate-900 dark:text-white">
@@ -712,7 +800,7 @@ export default function NewSalePage() {
 
       <form
         id="sale-form"
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onSubmit, handleFormError)}
         className="space-y-4"
       >
         {/* LOGISTICS MANIFEST CONTEXT */}
@@ -788,7 +876,12 @@ export default function NewSalePage() {
                     <Input
                       {...field}
                       placeholder="e.g. ALING NENA - MARKET"
-                      className="h-11 rounded-xl uppercase font-semibold border-slate-200 dark:border-slate-800/80"
+                      className={cn(
+                        "h-11 rounded-xl uppercase font-semibold transition-all duration-300",
+                        isCustomerShaking || fieldState.invalid
+                          ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                          : "border-slate-200 dark:border-slate-800/80",
+                      )}
                       list="customer-suggestions"
                       onChange={(e) =>
                         field.onChange(e.target.value.toUpperCase())
@@ -1016,5 +1109,6 @@ export default function NewSalePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

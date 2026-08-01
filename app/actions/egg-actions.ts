@@ -479,6 +479,13 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
 
   const data = validatedData.data;
 
+  if (data.quantityTrays <= 0 && data.quantityPieces <= 0) {
+    return { success: false, error: "Quantity (Trays or Pieces) must be greater than zero." };
+  }
+  if (data.pricePerTray <= 0) {
+    return { success: false, error: "Price per tray must be greater than zero." };
+  }
+
   try {
     const oldSaleResult = await db
       .select()
@@ -596,6 +603,17 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
     await db.transaction(async (tx) => {
       // 1. Guard: Check Live Inventory for ALL items first
       for (const item of data.items) {
+        if (item.quantityTrays <= 0 && item.quantityPieces <= 0) {
+          throw new Error(
+            `Invalid quantity for ${item.classification}. Please enter at least 1 tray or piece.`,
+          );
+        }
+        if (item.pricePerTray <= 0) {
+          throw new Error(
+            `Invalid price for ${item.classification}. Price per tray must be greater than zero.`,
+          );
+        }
+
         const stock = await tx
           .select({
             currentStockTrays: eggInventory.currentStockTrays,

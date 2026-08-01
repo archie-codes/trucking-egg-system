@@ -272,8 +272,8 @@ export function EggSidebar({ isMobile = false }: { isMobile?: boolean }) {
                       </span>
                       {route.isComingSoon && (
                         <div className="relative flex items-center justify-center ml-1">
-                          <div className="absolute inset-0 bg-amber-500 blur-[4px] opacity-40 animate-pulse rounded-full" />
-                          <span className="relative z-10 px-[4px] py-[1px] rounded-[4px] text-[7px] font-black tracking-widest uppercase bg-amber-950/40 text-amber-400 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.5)]">
+                          <div className="absolute inset-0 bg-amber-500 blur-4px opacity-40 animate-pulse rounded-full" />
+                          <span className="relative z-10 px-[4px] py-1px rounded-[4px] text-[7px] font-black tracking-widest uppercase bg-amber-950/40 text-amber-400 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.5)]">
                             Soon
                           </span>
                         </div>
