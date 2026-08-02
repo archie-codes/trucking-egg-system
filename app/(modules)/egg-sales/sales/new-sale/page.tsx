@@ -4,7 +4,7 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { useForm, useWatch, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
@@ -60,7 +60,11 @@ const sizeItemSchema = z.object({
 
 const saleSchema = z.object({
   saleDate: z.string().min(1, "Date is required"),
-  customerId: z.string().trim().min(1, "Customer name is required").toUpperCase(),
+  customerId: z
+    .string()
+    .trim()
+    .min(1, "Customer name is required")
+    .toUpperCase(),
   amountPaid: numField,
   datePaid: z.string().optional().nullable(),
   remarks: z.string().optional(),
@@ -453,7 +457,8 @@ export default function NewSalePage() {
     const requestedTrays = Number(data.quantityTrays) || 0;
     const requestedPalitBasag = Number(data.palitBasag) || 0;
     const requestedPieces = Number(data.quantityPieces) || 0;
-    const totalPiecesRequested = (requestedTrays + requestedPalitBasag) * 30 + requestedPieces;
+    const totalPiecesRequested =
+      (requestedTrays + requestedPalitBasag) * 30 + requestedPieces;
 
     return totalPiecesRequested > stockPieces;
   });
@@ -514,7 +519,10 @@ export default function NewSalePage() {
     for (const item of outboundItems) {
       const sizeInfo = EGG_SIZES.find((s) => s.id === item.classification);
       const label = sizeInfo ? sizeInfo.label : item.classification;
-      const hasQty = item.quantityTrays > 0 || item.quantityPieces > 0 || item.palitBasag > 0;
+      const hasQty =
+        item.quantityTrays > 0 ||
+        item.quantityPieces > 0 ||
+        item.palitBasag > 0;
       const hasPrice = item.pricePerTray > 0 || item.palitBasag > 0;
 
       if (!hasQty || (!hasPrice && item.palitBasag <= 0)) {
@@ -524,9 +532,17 @@ export default function NewSalePage() {
         setTimeout(() => setErrorFields({}), 600);
 
         if (!hasQty) {
-          form.setFocus(`sizes.${item.classification as keyof typeof values.sizes}.quantityTrays` as any);
+          form.setFocus(
+            `sizes.${item.classification as keyof typeof values.sizes}.quantityTrays` as Path<
+              z.input<typeof saleSchema>
+            >,
+          );
         } else {
-          form.setFocus(`sizes.${item.classification as keyof typeof values.sizes}.pricePerTray` as any);
+          form.setFocus(
+            `sizes.${item.classification as keyof typeof values.sizes}.pricePerTray` as Path<
+              z.input<typeof saleSchema>
+            >,
+          );
         }
 
         if (!hasQty && !hasPrice) {
@@ -585,7 +601,8 @@ export default function NewSalePage() {
       setInventory((prev) => {
         const updated = [...prev];
         outboundItems.forEach((item) => {
-          const piecesSold = (item.quantityTrays + item.palitBasag) * 30 + item.quantityPieces;
+          const piecesSold =
+            (item.quantityTrays + item.palitBasag) * 30 + item.quantityPieces;
           const matchIdx = updated.findIndex(
             (i) => i.classification === item.classification,
           );
@@ -617,7 +634,8 @@ export default function NewSalePage() {
     const rowPalitBasag = Number(watchedSizes[size.id]?.palitBasag) || 0;
     const rowPrice = Number(watchedSizes[size.id]?.pricePerTray) || 0;
 
-    const totalPiecesRequested = (rowQtyTrays + rowPalitBasag) * 30 + rowQtyPieces;
+    const totalPiecesRequested =
+      (rowQtyTrays + rowPalitBasag) * 30 + rowQtyPieces;
     const rowSubtotal = isChecked
       ? rowQtyTrays * rowPrice + rowQtyPieces * (rowPrice / 30)
       : 0;
@@ -715,8 +733,8 @@ export default function NewSalePage() {
                   isQtyError
                     ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
                     : rowIsOverselling
-                    ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                    : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                      ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                      : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
                 )}
               />
             )}
@@ -745,8 +763,8 @@ export default function NewSalePage() {
                   isQtyError
                     ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
                     : rowIsOverselling
-                    ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                    : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                      ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                      : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
                 )}
               />
             )}
@@ -775,8 +793,8 @@ export default function NewSalePage() {
                   isQtyError
                     ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
                     : rowIsOverselling
-                    ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                    : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                      ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                      : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
                 )}
               />
             )}
@@ -843,219 +861,58 @@ export default function NewSalePage() {
         }
       `}</style>
       <div className="w-full mx-auto space-y-4 animate-in fade-in duration-300 pb-16">
-      <div className="space-y-1 relative">
-        <div className="absolute -left-4 top-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl -z-10" />
-        <h1 className="text-lg lg:text-xl font-black tracking-tight text-slate-900 dark:text-white">
-          <span className="bg-clip-text text-transparent bg-linear-to-r from-emerald-600 to-teal-500">
-            Egg Sales & Delivery Matrix
-          </span>
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium text-base ml-1">
-          Outbound client fulfillment and Accounts Receivable
-        </p>
-      </div>
+        <div className="space-y-1 relative">
+          <div className="absolute -left-4 top-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl -z-10" />
+          <h1 className="text-lg lg:text-xl font-black tracking-tight text-slate-900 dark:text-white">
+            <span className="bg-clip-text text-transparent bg-linear-to-r from-emerald-600 to-teal-500">
+              Egg Sales & Delivery Matrix
+            </span>
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-base ml-1">
+            Outbound client fulfillment and Accounts Receivable
+          </p>
+        </div>
 
-      <form
-        id="sale-form"
-        onSubmit={form.handleSubmit(onSubmit, handleFormError)}
-        className="space-y-4"
-      >
-        {/* LOGISTICS MANIFEST CONTEXT */}
-        <Card className="shadow-sm border-slate-200 dark:border-slate-800/80 rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
-          <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4 px-6">
-            <CardTitle className="text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
-              <ShoppingBag className="w-5 h-5 text-emerald-500" />
-              Delivery Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 px-6">
-            <FieldGroup className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Controller
-                name="saleDate"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
-                      Date Delivered
-                    </FieldLabel>
-                    <Popover
-                      open={isCalendarOpen}
-                      onOpenChange={setIsCalendarOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11 hover:bg-slate-50",
-                            !field.value && "text-slate-500",
-                          )}
-                        >
-                          <div className="flex items-center">
-                            <CalendarIcon className="mr-2 h-4 w-4 text-emerald-500" />
-                            {field.value
-                              ? format(new Date(field.value), "PPP")
-                              : "Select date"}
-                          </div>
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-auto p-0 rounded-xl z-200"
-                        align="start"
-                      >
-                        <Calendar
-                          mode="single"
-                          selected={
-                            field.value ? new Date(field.value) : undefined
-                          }
-                          disabled={(date) => date > new Date()}
-                          onSelect={(date) => {
-                            if (date) {
-                              field.onChange(format(date, "yyyy-MM-dd"));
-                              setIsCalendarOpen(false);
-                            }
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </Field>
-                )}
-              />
-
-              <Controller
-                name="customerId"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
-                      Customer Name / Address
-                    </FieldLabel>
-                    <Input
-                      {...field}
-                      placeholder="e.g. ALING NENA - MARKET"
-                      className={cn(
-                        "h-11 rounded-xl uppercase font-semibold transition-all duration-300",
-                        isCustomerShaking || fieldState.invalid
-                          ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                          : "border-slate-200 dark:border-slate-800/80",
-                      )}
-                      list="customer-suggestions"
-                      onChange={(e) =>
-                        field.onChange(e.target.value.toUpperCase())
-                      }
-                    />
-                    <datalist id="customer-suggestions">
-                      {customerSuggestions.map((c, i) => (
-                        <option key={i} value={c} />
-                      ))}
-                    </datalist>
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
-            </FieldGroup>
-          </CardContent>
-        </Card>
-
-        {/* HIGH DENSITY CHECKLIST GRID */}
-        <Card className="shadow-sm border-slate-200 dark:border-slate-800/80 rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
-          <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4 px-6">
-            <CardTitle className="text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
-              <Banknote className="w-5 h-5 text-emerald-500" />
-              Egg Size Selection Ledger
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <div className="min-w-[750px] divide-y divide-slate-100 dark:divide-slate-800/60">
-                {/* Table Header Row */}
-                <div className="grid grid-cols-12 bg-slate-50/70 dark:bg-slate-900/40 p-4 font-bold text-xs text-slate-500 uppercase tracking-wider">
-                  <div className="col-span-1 text-center">Selected</div>
-                  <div className="col-span-2">Egg Classification</div>
-                  <div className="col-span-2 text-center">Available Stock</div>
-                  <div className="col-span-4 px-1 grid grid-cols-3 gap-2 text-center">
-                    <div>Trays</div>
-                    <div>Pieces</div>
-                    <div className="text-purple-600 dark:text-purple-400 font-black">Palit Basag</div>
-                  </div>
-                  <div className="col-span-2 px-1">Tray Price (₱)</div>
-                  <div className="col-span-1 text-right">Subtotal</div>
-                </div>
-
-                {/* WHITE EGGS CATEGORY */}
-                <div className="bg-slate-100/60 dark:bg-slate-800/40 p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest border-y border-slate-200 dark:border-slate-800/60 pl-6">
-                  White Eggs Category
-                </div>
-                {EGG_SIZES.filter((s) => !s.id.startsWith("BROWN_")).map(
-                  renderEggRow,
-                )}
-
-                {/* BROWN EGGS CATEGORY */}
-                <div className="bg-amber-50/60 dark:bg-amber-900/10 p-3 text-[10px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-widest border-y border-slate-200 dark:border-slate-800/60 pl-6">
-                  Brown Eggs Category
-                </div>
-                {EGG_SIZES.filter((s) => s.id.startsWith("BROWN_")).map(
-                  renderEggRow,
-                )}
-              </div>
-            </div>
-
-            {/* LOWER FINANCIAL DETAILS CONTEXT */}
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/20 dark:bg-black/10">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <form
+          id="sale-form"
+          onSubmit={form.handleSubmit(onSubmit, handleFormError)}
+          className="space-y-4"
+        >
+          {/* LOGISTICS MANIFEST CONTEXT */}
+          <Card className="shadow-sm border-slate-200 dark:border-slate-800/80 rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4 px-6">
+              <CardTitle className="text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
+                <ShoppingBag className="w-5 h-5 text-emerald-500" />
+                Delivery Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 px-6">
+              <FieldGroup className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Controller
-                  name="amountPaid"
+                  name="saleDate"
                   control={form.control}
-                  render={({ field }) => (
-                    <Field>
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
                       <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
-                        Total Amount Paid (₱)
-                      </FieldLabel>
-                      <Input
-                        {...field}
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[-.]/g, "");
-                          field.onChange(val);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "-" || e.key === ".")
-                            e.preventDefault();
-                        }}
-                        onClick={(e) => e.currentTarget.select()}
-                        className="h-11 rounded-xl font-black bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
-                      />
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="datePaid"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Field>
-                      <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
-                        Date Paid
+                        Date Delivered
                       </FieldLabel>
                       <Popover
-                        open={isDatePaidOpen}
-                        onOpenChange={setIsDatePaidOpen}
+                        open={isCalendarOpen}
+                        onOpenChange={setIsCalendarOpen}
                       >
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             className={cn(
-                              "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11",
-                              !field.value && "text-slate-400",
+                              "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11 hover:bg-slate-50",
+                              !field.value && "text-slate-500",
                             )}
                           >
                             <div className="flex items-center">
-                              <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                              <CalendarIcon className="mr-2 h-4 w-4 text-emerald-500" />
                               {field.value
                                 ? format(new Date(field.value), "PPP")
-                                : "Optional (If unpaid)"}
+                                : "Select date"}
                             </div>
                             <ChevronDown className="h-4 w-4 opacity-50" />
                           </Button>
@@ -1073,7 +930,7 @@ export default function NewSalePage() {
                             onSelect={(date) => {
                               if (date) {
                                 field.onChange(format(date, "yyyy-MM-dd"));
-                                setIsDatePaidOpen(false);
+                                setIsCalendarOpen(false);
                               }
                             }}
                           />
@@ -1082,91 +939,259 @@ export default function NewSalePage() {
                     </Field>
                   )}
                 />
+
                 <Controller
-                  name="remarks"
+                  name="customerId"
                   control={form.control}
-                  render={({ field }) => (
-                    <Field>
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
                       <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
-                        Remarks / Notes
+                        Customer Name / Address
                       </FieldLabel>
                       <Input
                         {...field}
-                        placeholder="e.g. Paid via GCash"
-                        className="h-11 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                        placeholder="e.g. ALING NENA - MARKET"
+                        className={cn(
+                          "h-11 rounded-xl uppercase font-semibold transition-all duration-300",
+                          isCustomerShaking || fieldState.invalid
+                            ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                            : "border-slate-200 dark:border-slate-800/80",
+                        )}
+                        list="customer-suggestions"
+                        onChange={(e) =>
+                          field.onChange(e.target.value.toUpperCase())
+                        }
                       />
+                      <datalist id="customer-suggestions">
+                        {customerSuggestions.map((c, i) => (
+                          <option key={i} value={c} />
+                        ))}
+                      </datalist>
+                      <FieldError errors={[fieldState.error]} />
                     </Field>
                   )}
                 />
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* HIGH DENSITY CHECKLIST GRID */}
+          <Card className="shadow-sm border-slate-200 dark:border-slate-800/80 rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4 px-6">
+              <CardTitle className="text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
+                <Banknote className="w-5 h-5 text-emerald-500" />
+                Egg Size Selection Ledger
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <div className="min-w-[750px] divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {/* Table Header Row */}
+                  <div className="grid grid-cols-12 bg-slate-50/70 dark:bg-slate-900/40 p-4 font-bold text-xs text-slate-500 uppercase tracking-wider">
+                    <div className="col-span-1 text-center">Selected</div>
+                    <div className="col-span-2">Egg Classification</div>
+                    <div className="col-span-2 text-center">
+                      Available Stock
+                    </div>
+                    <div className="col-span-4 px-1 grid grid-cols-3 gap-2 text-center">
+                      <div>Trays</div>
+                      <div>Pieces</div>
+                      <div className="text-purple-600 dark:text-purple-400 font-black">
+                        Palit Basag
+                      </div>
+                    </div>
+                    <div className="col-span-2 px-1">Tray Price (₱)</div>
+                    <div className="col-span-1 text-right">Subtotal</div>
+                  </div>
+
+                  {/* WHITE EGGS CATEGORY */}
+                  <div className="bg-slate-100/60 dark:bg-slate-800/40 p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest border-y border-slate-200 dark:border-slate-800/60 pl-6">
+                    White Eggs Category
+                  </div>
+                  {EGG_SIZES.filter((s) => !s.id.startsWith("BROWN_")).map(
+                    renderEggRow,
+                  )}
+
+                  {/* BROWN EGGS CATEGORY */}
+                  <div className="bg-amber-50/60 dark:bg-amber-900/10 p-3 text-[10px] font-black text-amber-700 dark:text-amber-500 uppercase tracking-widest border-y border-slate-200 dark:border-slate-800/60 pl-6">
+                    Brown Eggs Category
+                  </div>
+                  {EGG_SIZES.filter((s) => s.id.startsWith("BROWN_")).map(
+                    renderEggRow,
+                  )}
+                </div>
+              </div>
+
+              {/* LOWER FINANCIAL DETAILS CONTEXT */}
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/20 dark:bg-black/10">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Controller
+                    name="amountPaid"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
+                          Total Amount Paid (₱)
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[-.]/g, "");
+                            field.onChange(val);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "-" || e.key === ".")
+                              e.preventDefault();
+                          }}
+                          onClick={(e) => e.currentTarget.select()}
+                          className="h-11 rounded-xl font-black bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="datePaid"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
+                          Date Paid
+                        </FieldLabel>
+                        <Popover
+                          open={isDatePaidOpen}
+                          onOpenChange={setIsDatePaidOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-between font-normal border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950 text-md h-11",
+                                !field.value && "text-slate-400",
+                              )}
+                            >
+                              <div className="flex items-center">
+                                <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                                {field.value
+                                  ? format(new Date(field.value), "PPP")
+                                  : "Optional (If unpaid)"}
+                              </div>
+                              <ChevronDown className="h-4 w-4 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-auto p-0 rounded-xl z-200"
+                            align="start"
+                          >
+                            <Calendar
+                              mode="single"
+                              selected={
+                                field.value ? new Date(field.value) : undefined
+                              }
+                              disabled={(date) => date > new Date()}
+                              onSelect={(date) => {
+                                if (date) {
+                                  field.onChange(format(date, "yyyy-MM-dd"));
+                                  setIsDatePaidOpen(false);
+                                }
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="remarks"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
+                          Remarks / Notes
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          placeholder="e.g. Paid via GCash"
+                          className="h-11 rounded-xl bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                        />
+                      </Field>
+                    )}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </form>
+
+        {/* STICKY BOTTOM ACTION BAR */}
+        <div className="fixed bottom-0 right-0 left-0 md:left-(--sidebar-width,16rem) transition-[left] duration-300 ease-in-out bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 sm:gap-8 w-full sm:w-auto">
+              <div className="text-center sm:text-left flex-1 sm:flex-none">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                  Grand Total Amount
+                </p>
+                <p className="text-lg sm:text-xl font-mono font-black text-slate-900 dark:text-white leading-none">
+                  ₱<NumberTicker value={totalAmount} />
+                </p>
+              </div>
+
+              <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 shrink-0 hidden sm:block" />
+
+              <div className="text-center sm:text-left flex-1 sm:flex-none">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                  A/R Balance
+                </p>
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  {balance <= 0 && totalAmount > 0 ? (
+                    <span className="flex items-center text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-md">
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fully Paid
+                    </span>
+                  ) : balance > 0 && totalAmount > 0 ? (
+                    <span className="flex items-center text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-md">
+                      <AlertCircle className="w-4 h-4 mr-1.5" /> ₱
+                      {balance.toLocaleString()} Unpaid
+                    </span>
+                  ) : (
+                    <span className="text-sm text-slate-400 font-medium">
+                      Awaiting inputs...
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </form>
 
-      {/* STICKY BOTTOM ACTION BAR */}
-      <div className="fixed bottom-0 right-0 left-0 md:left-(--sidebar-width,16rem) transition-[left] duration-300 ease-in-out bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 sm:gap-8 w-full sm:w-auto">
-            <div className="text-center sm:text-left flex-1 sm:flex-none">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
-                Grand Total Amount
-              </p>
-              <p className="text-lg sm:text-xl font-mono font-black text-slate-900 dark:text-white leading-none">
-                ₱<NumberTicker value={totalAmount} />
-              </p>
-            </div>
-
-            <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 shrink-0 hidden sm:block" />
-
-            <div className="text-center sm:text-left flex-1 sm:flex-none">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                A/R Balance
-              </p>
-              <div className="flex items-center justify-center sm:justify-start gap-2">
-                {balance <= 0 && totalAmount > 0 ? (
-                  <span className="flex items-center text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-md">
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fully Paid
-                  </span>
-                ) : balance > 0 && totalAmount > 0 ? (
-                  <span className="flex items-center text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50 dark:bg-rose-950/30 px-2.5 py-1 rounded-md">
-                    <AlertCircle className="w-4 h-4 mr-1.5" /> ₱
-                    {balance.toLocaleString()} Unpaid
-                  </span>
-                ) : (
-                  <span className="text-sm text-slate-400 font-medium">
-                    Awaiting inputs...
-                  </span>
-                )}
-              </div>
-            </div>
+            <Button
+              type="submit"
+              form="sale-form"
+              disabled={
+                form.formState.isSubmitting ||
+                totalAmount === 0 ||
+                isOverSelling
+              }
+              className="h-11 px-8 rounded-xl bg-linear-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg font-semibold w-full sm:w-auto shrink-0"
+            >
+              {form.formState.isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
+                  Processing...
+                </>
+              ) : isOverSelling ? (
+                <>
+                  <AlertCircle className="w-4 h-4 mr-2" /> Insufficient Stock
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" /> Record Delivery
+                </>
+              )}
+            </Button>
           </div>
-
-          <Button
-            type="submit"
-            form="sale-form"
-            disabled={
-              form.formState.isSubmitting || totalAmount === 0 || isOverSelling
-            }
-            className="h-11 px-8 rounded-xl bg-linear-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg font-semibold w-full sm:w-auto shrink-0"
-          >
-            {form.formState.isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
-              </>
-            ) : isOverSelling ? (
-              <>
-                <AlertCircle className="w-4 h-4 mr-2" /> Insufficient Stock
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" /> Record Delivery
-              </>
-            )}
-          </Button>
         </div>
       </div>
-    </div>
     </>
   );
 }
