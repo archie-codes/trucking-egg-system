@@ -61,12 +61,22 @@ import {
   Banknote,
   Loader2,
   CalendarIcon,
+  LayoutList,
+  LayoutGrid,
+  Printer,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { type EggSaleRecord, getColumns } from "./columns";
+import {
+  type EggSaleRecord,
+  getColumns,
+  ActionCell,
+  RemarksCell,
+} from "./columns";
+import { getInvoiceTheme } from "./invoice-theme";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { RowInput } from "jspdf-autotable";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -88,6 +98,9 @@ export function DataTable({
   "use no memo";
 
   const [glowingRowId, setGlowingRowId] = React.useState<number | null>(null);
+  const [viewMode, setViewMode] = React.useState<"table" | "grouped">(
+    "grouped",
+  );
 
   const handleRowUpdate = React.useCallback((id: number) => {
     setGlowingRowId(id);
@@ -106,7 +119,13 @@ export function DataTable({
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
   const [viewData, setViewData] = React.useState<EggSaleRecord | null>(null);
-  const [dateFilter, setDateFilter] = React.useState<{ type: "all" | "today" | "custom"; date?: Date }>({ type: "all" });
+  const [dateFilter, setDateFilter] = React.useState<{
+    type: "all" | "today" | "custom";
+    date?: Date;
+  }>({ type: "all" });
+  const [statusFilter, setStatusFilter] = React.useState<
+    "all" | "paid" | "partial" | "unpaid"
+  >("all");
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   const [paymentAmount, setPaymentAmount] = React.useState<number | "">("");
@@ -149,6 +168,7 @@ export function DataTable({
       customerId: viewData.customerId,
       quantityTrays: viewData.quantityTrays,
       quantityPieces: viewData.quantityPieces,
+      palitBasag: viewData.palitBasag || 0,
       pricePerTray: viewData.pricePerTray,
       amountPaid: newTotalPaid,
       datePaid: paymentDate,
@@ -193,6 +213,119 @@ export function DataTable({
     }
   }, [dateFilter, table]);
 
+  React.useEffect(() => {
+    const col = table.getColumn("paymentStatus");
+    if (!col) return;
+    if (statusFilter === "all") {
+      col.setFilterValue(undefined);
+    } else {
+      col.setFilterValue(statusFilter);
+    }
+  }, [statusFilter, table]);
+
+  const filteredTableRows = table.getFilteredRowModel().rows;
+
+  const groupedInvoices = React.useMemo(() => {
+    const filteredRows = filteredTableRows.map(
+      (r) => r.original as EggSaleRecord,
+    );
+    const groupsMap = new Map<string, EggSaleRecord[]>();
+
+    filteredRows.forEach((item) => {
+      const key = item.invoiceId || `NO_INV_${item.id}`;
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, []);
+      }
+      groupsMap.get(key)!.push(item);
+    });
+
+    const allGroups = Array.from(groupsMap.entries()).map(([key, items]) => {
+      const isNoInvoice = key.startsWith("NO_INV_");
+      const invoiceId = isNoInvoice ? null : key;
+      const first = items[0];
+
+      const totalAmount = items.reduce(
+        (acc, curr) => acc + curr.totalAmount,
+        0,
+      );
+      const amountPaid = items.reduce((acc, curr) => acc + curr.amountPaid, 0);
+      const rawBalance = totalAmount - amountPaid;
+      const balance = Math.max(0, Math.round(rawBalance * 100) / 100);
+      const totalTrays = items.reduce(
+        (acc, curr) => acc + curr.quantityTrays,
+        0,
+      );
+      const totalPieces = items.reduce(
+        (acc, curr) => acc + curr.quantityPieces,
+        0,
+      );
+      const totalPalitBasag = items.reduce(
+        (acc, curr) => acc + (curr.palitBasag || 0),
+        0,
+      );
+      const totalEggs = (totalTrays + totalPalitBasag) * 30 + totalPieces;
+
+      let paymentStatus: "paid" | "partial" | "unpaid" = "unpaid";
+      if (
+        balance <= 0.01 ||
+        items.every(
+          (i) =>
+            i.paymentStatus === "paid" || i.totalAmount - i.amountPaid <= 0.01,
+        )
+      ) {
+        paymentStatus = "paid";
+      } else if (amountPaid > 0) {
+        paymentStatus = "partial";
+      }
+
+      const paidDates = items
+        .map((i) => i.datePaid)
+        .filter((d): d is string => Boolean(d));
+      const latestDatePaid =
+        paidDates.length > 0
+          ? paidDates.sort(
+              (a, b) => new Date(b).getTime() - new Date(a).getTime(),
+            )[0]
+          : first.datePaid;
+
+      return {
+        groupKey: key,
+        invoiceId,
+        customerId: first.customerId,
+        saleDate: first.saleDate,
+        datePaid: latestDatePaid,
+        paymentStatus,
+        totalAmount,
+        amountPaid,
+        balance,
+        totalTrays,
+        totalPieces,
+        totalPalitBasag,
+        totalEggs,
+        items,
+        theme: getInvoiceTheme(invoiceId),
+      };
+    });
+
+    if (statusFilter !== "all") {
+      return allGroups.filter((g) => g.paymentStatus === statusFilter);
+    }
+
+    return allGroups;
+  }, [filteredTableRows, statusFilter]);
+
+  const pageIndex = table.getState().pagination.pageIndex;
+  const pageSize = table.getState().pagination.pageSize;
+  const totalGroupedCount = groupedInvoices.length;
+  const groupedPageCount = Math.ceil(totalGroupedCount / pageSize) || 1;
+
+  const paginatedGroups = React.useMemo(() => {
+    return groupedInvoices.slice(
+      pageIndex * pageSize,
+      (pageIndex + 1) * pageSize,
+    );
+  }, [groupedInvoices, pageIndex, pageSize]);
+
   const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
     textSize
   ];
@@ -234,7 +367,7 @@ export function DataTable({
       const meta = extractReportMetadata(rows);
 
       const metaHeader = [
-        `"Otso Dragon - Sales Ledger"`,
+        `"Otso Dragon - Sales Ledger (${viewMode === "grouped" ? "Grouped View" : "Table View"})"`,
         `"Customer: ${meta.customerName}"`,
         `"Generated on: ${new Date().toLocaleDateString("en-US")}"`,
         `""`,
@@ -247,10 +380,13 @@ export function DataTable({
       ].join("\n");
 
       const headers = [
+        "Invoice No.",
         "Date Delivered",
         "Customer Name",
         "Size",
         "Trays Sold",
+        "Extra Pcs",
+        "Palit Basag",
         "Price Per Tray",
         "Total Amount",
         "Amount Paid",
@@ -264,10 +400,13 @@ export function DataTable({
         const balance = d.totalAmount - d.amountPaid;
 
         return [
+          `"${d.invoiceId || "-"}"`,
           new Date(d.saleDate).toLocaleDateString(),
           `"${d.customerId}"`,
           `"${d.classification}"`,
           d.quantityTrays,
+          d.quantityPieces,
+          d.palitBasag || 0,
           d.pricePerTray,
           d.totalAmount,
           d.amountPaid,
@@ -286,7 +425,7 @@ export function DataTable({
       link.setAttribute("href", url);
       link.setAttribute(
         "download",
-        `Bodega_Sales_Export_${getFormattedDate()}.csv`,
+        `Bodega_Sales_Export_${viewMode}_${getFormattedDate()}.csv`,
       );
       document.body.appendChild(link);
       link.click();
@@ -313,7 +452,11 @@ export function DataTable({
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(16, 185, 129); // Emerald 500
-      doc.text("Otso Dragon - Sales Ledger", 40, 40);
+      doc.text(
+        `Otso Dragon - ${viewMode === "grouped" ? "Grouped Invoice Sales Ledger" : "Sales Ledger"}`,
+        40,
+        40,
+      );
 
       doc.setTextColor(51, 65, 85); // Slate 700
       doc.setFontSize(14);
@@ -321,7 +464,7 @@ export function DataTable({
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text(
-        `Generated on: ${new Date().toLocaleDateString("en-US")}`,
+        `Generated on: ${new Date().toLocaleDateString("en-US")} (${viewMode === "grouped" ? "Grouped Invoice View" : "Standard Table View"})`,
         40,
         80,
       );
@@ -346,64 +489,155 @@ export function DataTable({
       });
       doc.setTextColor(51, 65, 85); // Reset
 
-      const tableRows = rows.map((row: { original: EggSaleRecord }) => {
-        const d = row.original;
-        const balance = d.totalAmount - d.amountPaid;
-        const totalPcs = d.quantityTrays * 30 + d.quantityPieces;
+      if (viewMode === "grouped") {
+        // Grouped View PDF Export
+        const pdfBody: RowInput[] = [];
+        groupedInvoices.forEach((group) => {
+          const formattedDate = format(
+            new Date(group.saleDate),
+            "MMM dd, yyyy",
+          );
+          // Group Section Header
+          pdfBody.push([
+            {
+              content: `INVOICE #${group.invoiceId || "NO-INV"}   |   Customer: ${group.customerId}   |   Date: ${formattedDate}   |   Status: ${group.paymentStatus === "paid" ? "FULLY PAID" : group.paymentStatus.toUpperCase()}   |   Gross: P${group.totalAmount.toLocaleString()}   |   Paid: P${group.amountPaid.toLocaleString()}   |   Balance: P${group.balance.toLocaleString()}`,
+              colSpan: 11,
+              styles: {
+                fillColor: [230, 242, 238],
+                textColor: [15, 23, 42],
+                fontStyle: "bold",
+                fontSize: 8.5,
+              },
+            },
+          ]);
 
-        return [
-          new Date(d.saleDate).toLocaleDateString(),
-          d.customerId,
-          d.classification,
-          d.quantityTrays.toLocaleString(),
-          d.quantityPieces > 0 ? `+${d.quantityPieces}` : "-",
-          totalPcs.toLocaleString(),
-          d.pricePerTray.toLocaleString(),
-          d.totalAmount.toLocaleString(),
-          d.amountPaid.toLocaleString(),
-          balance > 0 ? balance.toLocaleString() : "-",
-          d.paymentStatus.toUpperCase(),
-        ];
-      });
+          // Itemized rows
+          group.items.forEach((d) => {
+            const itemTotalPcs =
+              (d.quantityTrays + (d.palitBasag || 0)) * 30 + d.quantityPieces;
 
-      autoTable(doc, {
-        head: [
-          [
-            "Date",
-            "Customer Name",
-            "Size",
-            "Trays",
-            "Pcs",
-            "Total Pcs",
-            "Price",
-            "Total",
-            "Paid",
-            "Balance",
-            "Status",
+            pdfBody.push([
+              d.invoiceId || "-",
+              format(new Date(d.saleDate), "MM/dd/yyyy"),
+              d.customerId,
+              d.classification.toUpperCase(),
+              d.quantityTrays.toLocaleString(),
+              d.quantityPieces > 0 ? `+${d.quantityPieces}` : "-",
+              d.palitBasag ? `${d.palitBasag}` : "-",
+              itemTotalPcs.toLocaleString(),
+              d.pricePerTray.toLocaleString(),
+              d.totalAmount.toLocaleString(),
+              d.paymentStatus.toUpperCase(),
+            ]);
+          });
+        });
+
+        autoTable(doc, {
+          head: [
+            [
+              "Invoice No.",
+              "Date",
+              "Customer Name",
+              "Size",
+              "Trays",
+              "Pcs",
+              "Palit Basag",
+              "Total Pcs",
+              "Price (P)",
+              "Total (P)",
+              "Status",
+            ],
           ],
-        ],
-        body: tableRows,
-        startY: 145,
-        theme: "grid",
-        styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
-        headStyles: {
-          fillColor: [16, 185, 129], // Emerald 500
-          fontSize: 9,
-          halign: "center",
-        },
-        columnStyles: {
-          3: { halign: "right" },
-          4: { halign: "right" },
-          5: { halign: "right" },
-          6: { halign: "right" },
-          7: { halign: "right", fontStyle: "bold", textColor: [15, 23, 42] },
-          8: { halign: "right", textColor: [16, 185, 129] }, // emerald
-          9: { halign: "right", fontStyle: "bold", textColor: [225, 29, 72] }, // rose
-          10: { halign: "center", fontStyle: "bold" },
-        },
-      });
+          body: pdfBody,
+          startY: 145,
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
+          headStyles: {
+            fillColor: [16, 185, 129], // Emerald 500
+            fontSize: 8.5,
+            halign: "center",
+          },
+          columnStyles: {
+            4: { halign: "right" },
+            5: { halign: "right" },
+            6: { halign: "right" },
+            7: { halign: "right" },
+            8: { halign: "right" },
+            9: { halign: "right", fontStyle: "bold", textColor: [15, 23, 42] },
+            10: { halign: "center", fontStyle: "bold" },
+          },
+        });
+      } else {
+        // Standard Table View PDF Export
+        const tableRows = rows.map((row: { original: EggSaleRecord }) => {
+          const d = row.original;
+          const balance = d.totalAmount - d.amountPaid;
+          const totalPcs =
+            (d.quantityTrays + (d.palitBasag || 0)) * 30 + d.quantityPieces;
 
-      doc.save(`Bodega_Sales_Ledger_${getFormattedDate()}.pdf`);
+          return [
+            d.invoiceId || "-",
+            new Date(d.saleDate).toLocaleDateString(),
+            d.customerId,
+            d.classification.toUpperCase(),
+            d.quantityTrays.toLocaleString(),
+            d.quantityPieces > 0 ? `+${d.quantityPieces}` : "-",
+            d.palitBasag ? `${d.palitBasag}` : "-",
+            totalPcs.toLocaleString(),
+            d.pricePerTray.toLocaleString(),
+            d.totalAmount.toLocaleString(),
+            d.amountPaid.toLocaleString(),
+            balance > 0 ? balance.toLocaleString() : "-",
+            d.paymentStatus.toUpperCase(),
+          ];
+        });
+
+        autoTable(doc, {
+          head: [
+            [
+              "Invoice No.",
+              "Date",
+              "Customer Name",
+              "Size",
+              "Trays",
+              "Pcs",
+              "Palit Basag",
+              "Total Pcs",
+              "Price (P)",
+              "Total (P)",
+              "Paid (P)",
+              "Balance (P)",
+              "Status",
+            ],
+          ],
+          body: tableRows,
+          startY: 145,
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
+          headStyles: {
+            fillColor: [16, 185, 129], // Emerald 500
+            fontSize: 8.5,
+            halign: "center",
+          },
+          columnStyles: {
+            4: { halign: "right" },
+            5: { halign: "right" },
+            6: { halign: "right" },
+            7: { halign: "right" },
+            8: { halign: "right" },
+            9: { halign: "right", fontStyle: "bold", textColor: [15, 23, 42] },
+            10: { halign: "right", textColor: [16, 185, 129] }, // emerald
+            11: {
+              halign: "right",
+              fontStyle: "bold",
+              textColor: [225, 29, 72],
+            }, // rose
+            12: { halign: "center", fontStyle: "bold" },
+          },
+        });
+      }
+
+      doc.save(`Bodega_Sales_Ledger_${viewMode}_${getFormattedDate()}.pdf`);
       toast.success("PDF downloaded successfully.");
     } catch (e) {
       console.error(e);
@@ -490,6 +724,30 @@ export function DataTable({
 
           {/* Font Size, Density Controller and Export */}
           <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+            {/* Status Filter Dropdown */}
+            <Select
+              value={statusFilter}
+              onValueChange={(val: "all" | "paid" | "partial" | "unpaid") =>
+                setStatusFilter(val)
+              }
+            >
+              <SelectTrigger
+                className={cn(
+                  "h-8 sm:h-9 w-[130px] sm:w-[140px] text-[10px] sm:text-xs rounded-lg border-border/60 bg-background font-normal",
+                  statusFilter !== "all" &&
+                    "text-emerald-600 dark:text-emerald-500 font-semibold",
+                )}
+              >
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent align="end" className="z-110">
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="paid">Fully Paid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -497,7 +755,8 @@ export function DataTable({
                   size="sm"
                   className={cn(
                     "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs",
-                    dateFilter.type !== "all" && "text-emerald-600 dark:text-emerald-500 font-medium"
+                    dateFilter.type !== "all" &&
+                      "text-emerald-600 dark:text-emerald-500 font-medium",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
@@ -505,10 +764,10 @@ export function DataTable({
                     {dateFilter.type === "all"
                       ? "View All Dates"
                       : dateFilter.type === "today"
-                      ? "Today"
-                      : dateFilter.date
-                      ? format(dateFilter.date, "MMM dd, yyyy")
-                      : "Custom Date"}
+                        ? "Today"
+                        : dateFilter.date
+                          ? format(dateFilter.date, "MMM dd, yyyy")
+                          : "Custom Date"}
                   </span>
                 </Button>
               </PopoverTrigger>
@@ -516,7 +775,9 @@ export function DataTable({
                 <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
                   <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
                     <Button
-                      variant={dateFilter.type === "all" ? "secondary" : "ghost"}
+                      variant={
+                        dateFilter.type === "all" ? "secondary" : "ghost"
+                      }
                       className="w-full justify-start text-xs h-8"
                       onClick={() => {
                         setDateFilter({ type: "all" });
@@ -526,7 +787,9 @@ export function DataTable({
                       View All
                     </Button>
                     <Button
-                      variant={dateFilter.type === "today" ? "secondary" : "ghost"}
+                      variant={
+                        dateFilter.type === "today" ? "secondary" : "ghost"
+                      }
                       className="w-full justify-start text-xs h-8"
                       onClick={() => {
                         setDateFilter({ type: "today" });
@@ -557,6 +820,37 @@ export function DataTable({
                 </div>
               </PopoverContent>
             </Popover>
+
+            <div className="flex items-center rounded-lg border border-border/60 bg-background p-0.5 h-8 sm:h-9">
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-md text-[10px] sm:text-xs font-medium transition-all cursor-pointer",
+                  viewMode === "table"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                )}
+                title="Standard Table View"
+              >
+                <LayoutList className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden xs:inline">Table</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grouped")}
+                className={cn(
+                  "flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-md text-[10px] sm:text-xs font-medium transition-all cursor-pointer",
+                  viewMode === "grouped"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                )}
+                title="Group by Invoice View"
+              >
+                <LayoutGrid className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden xs:inline font-semibold">Grouped</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
               <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
@@ -666,121 +960,191 @@ export function DataTable({
         )}
 
         <div className="rounded-lg border border-border/60 bg-card flex flex-col flex-1 min-h-0 overflow-hidden [&>div]:flex-1 [&>div]:overflow-auto [&>div]:custom-scrollbar">
-          <Table className={cn(textSizeClass, "w-full min-w-[640px]")}>
-            <TableHeader className="sticky top-0 z-20 bg-card">
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow
-                  key={hg.id}
-                  className="bg-muted/40 hover:bg-muted/40 border-b border-border/60"
-                >
-                  {hg.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        textSizeClass,
-                        "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
-                        header.id === "actions" &&
-                          "sticky right-0 bg-card dark:bg-slate-900 z-30 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
-                      )}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody className="group/tbody">
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row, i) => (
+          {viewMode === "table" ? (
+            <Table className={cn(textSizeClass, "w-full min-w-[640px]")}>
+              <TableHeader className="sticky top-0 z-20 bg-card">
+                {table.getHeaderGroups().map((hg) => (
                   <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    style={{
-                      animationFillMode: "both",
-                      animationDelay: `${i * 40}ms`,
-                    }}
-                    className={cn(
-                      "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
-                      "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
-                      "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-emerald-400 dark:hover:ring-emerald-600",
-                      glowingRowId === row.original.id
-                        ? "animate-glow-pulse ring-1 ring-blue-400 dark:ring-blue-600 z-10"
-                        : i % 2 === 0
-                          ? "bg-card hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30"
-                          : "bg-muted hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30"
-                    )}
-                    onClick={() => setViewData(row.original as EggSaleRecord)}
+                    key={hg.id}
+                    className="bg-muted/40 hover:bg-muted/40 border-b border-border/60"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
+                    {hg.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
                         className={cn(
                           textSizeClass,
-                          "py-2.5 transition-colors duration-300",
-                          cell.column.id === "actions" &&
-                            "sticky right-0 z-20 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
-                          cell.column.id === "actions" &&
-                            (i % 2 === 0
-                              ? "bg-card group-hover/row:bg-emerald-50/80 dark:group-hover/row:bg-emerald-900/30"
-                              : "bg-muted dark:bg-slate-900/50 group-hover/row:bg-emerald-50/80 dark:group-hover/row:bg-emerald-900/30"),
+                          "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
+                          header.id === "actions" &&
+                            "sticky right-0 bg-card dark:bg-slate-900 z-30 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
                         )}
-                        onClick={(e) => {
-                          if (cell.column.id === "actions") {
-                            e.stopPropagation();
-                          }
-                        }}
                       >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                      </TableHead>
                     ))}
                   </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody className="group/tbody">
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row, i) => {
+                    const currentInvoiceId = row.original.invoiceId;
+                    const prevInvoiceId =
+                      i > 0
+                        ? table.getRowModel().rows[i - 1].original.invoiceId
+                        : null;
+                    const isNewInvoiceGroup =
+                      i > 0 &&
+                      currentInvoiceId &&
+                      currentInvoiceId !== prevInvoiceId;
+                    const theme = getInvoiceTheme(currentInvoiceId);
+
+                    return (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                        style={{
+                          animationFillMode: "both",
+                          animationDelay: `${i * 40}ms`,
+                        }}
+                        className={cn(
+                          "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
+                          "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
+                          "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-emerald-400 dark:hover:ring-emerald-600",
+                          currentInvoiceId && `border-l-4 ${theme.border}`,
+                          isNewInvoiceGroup && `${theme.borderTop} border-t-2`,
+                          glowingRowId === row.original.id
+                            ? "animate-glow-pulse ring-1 ring-blue-400 dark:ring-blue-600 z-10"
+                            : i % 2 === 0
+                              ? "bg-card hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30"
+                              : "bg-muted hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30",
+                        )}
+                        onClick={() =>
+                          setViewData(row.original as EggSaleRecord)
+                        }
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            className={cn(
+                              textSizeClass,
+                              "py-2.5 transition-colors duration-300",
+                              cell.column.id === "actions" &&
+                                "sticky right-0 z-20 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
+                              cell.column.id === "actions" &&
+                                (i % 2 === 0
+                                  ? "bg-card group-hover/row:bg-emerald-50/80 dark:group-hover/row:bg-emerald-900/30"
+                                  : "bg-muted dark:bg-slate-900/50 group-hover/row:bg-emerald-50/80 dark:group-hover/row:bg-emerald-900/30"),
+                            )}
+                            onClick={(e) => {
+                              if (cell.column.id === "actions") {
+                                e.stopPropagation();
+                              }
+                            }}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-40 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <PackageOpen className="h-8 w-8 opacity-20" />
+                        <p className="text-sm font-medium">
+                          No sales records found
+                        </p>
+                        <p className="text-xs opacity-70">
+                          {hasFilter
+                            ? "Try adjusting your search."
+                            : "Start selling eggs to see your data."}
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="p-3 sm:p-4 space-y-4 overflow-auto custom-scrollbar flex-1 min-h-0">
+              {paginatedGroups.length ? (
+                paginatedGroups.map((group) => (
+                  <InvoiceGroupCard
+                    key={group.groupKey}
+                    group={group}
+                    isAdmin={isAdmin}
+                    onRowClick={(item) => setViewData(item)}
+                    onRowUpdate={handleRowUpdate}
+                    glowingRowId={glowingRowId}
+                    textSizeClass={textSizeClass}
+                  />
                 ))
               ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-40 text-center"
-                  >
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <PackageOpen className="h-8 w-8 opacity-20" />
-                      <p className="text-sm font-medium">
-                        No sales records found
-                      </p>
-                      <p className="text-xs opacity-70">
-                        {hasFilter
-                          ? "Try adjusting your search."
-                          : "Start selling eggs to see your data."}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <div className="h-40 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                  <PackageOpen className="h-8 w-8 opacity-20" />
+                  <p className="text-sm font-medium">No sales records found</p>
+                  <p className="text-xs opacity-70">
+                    {hasFilter
+                      ? "Try adjusting your search."
+                      : "Start selling eggs to see your data."}
+                  </p>
+                </div>
               )}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
-            Showing{" "}
-            <span className="font-medium text-foreground">
-              {table.getRowModel().rows.length}
-            </span>{" "}
-            of{" "}
-            <span className="font-medium text-foreground">{filteredCount}</span>{" "}
-            record{filteredCount !== 1 ? "s" : ""}
-            {pageCount > 1 && (
-              <span className="text-muted-foreground/60">
-                {" "}
-                · page {currentPage} of {pageCount}
-              </span>
+            {viewMode === "table" ? (
+              <>
+                Showing{" "}
+                <span className="font-medium text-foreground">
+                  {table.getRowModel().rows.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium text-foreground">
+                  {filteredCount}
+                </span>{" "}
+                record{filteredCount !== 1 ? "s" : ""}
+                {pageCount > 1 && (
+                  <span className="text-muted-foreground/60">
+                    {" "}
+                    · page {currentPage} of {pageCount}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                Showing{" "}
+                <span className="font-medium text-foreground">
+                  {paginatedGroups.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium text-foreground">
+                  {totalGroupedCount}
+                </span>{" "}
+                invoice transaction{totalGroupedCount !== 1 ? "s" : ""} (
+                {filteredCount} total records)
+                {groupedPageCount > 1 && (
+                  <span className="text-muted-foreground/60">
+                    {" "}
+                    · page {currentPage} of {groupedPageCount}
+                  </span>
+                )}
+              </>
             )}
           </p>
 
@@ -789,7 +1153,11 @@ export function DataTable({
               variant="outline"
               size="sm"
               onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
+              disabled={
+                viewMode === "table"
+                  ? !table.getCanPreviousPage()
+                  : pageIndex === 0
+              }
               className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
               title="First Page"
             >
@@ -798,8 +1166,12 @@ export function DataTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => table.setPageIndex(Math.max(0, pageIndex - 1))}
+              disabled={
+                viewMode === "table"
+                  ? !table.getCanPreviousPage()
+                  : pageIndex === 0
+              }
               className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -807,38 +1179,52 @@ export function DataTable({
             </Button>
 
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
-                let page = i;
-                if (pageCount > 5) {
-                  let startPage = Math.max(0, currentPage - 1 - 2);
-                  if (startPage + 4 >= pageCount) {
-                    startPage = Math.max(0, pageCount - 5);
+              {Array.from(
+                {
+                  length: Math.min(
+                    viewMode === "table" ? pageCount : groupedPageCount,
+                    5,
+                  ),
+                },
+                (_, i) => {
+                  const activePageCount =
+                    viewMode === "table" ? pageCount : groupedPageCount;
+                  let page = i;
+                  if (activePageCount > 5) {
+                    let startPage = Math.max(0, currentPage - 1 - 2);
+                    if (startPage + 4 >= activePageCount) {
+                      startPage = Math.max(0, activePageCount - 5);
+                    }
+                    page = startPage + i;
                   }
-                  page = startPage + i;
-                }
-                const isActive = page === currentPage - 1;
-                return (
-                  <button
-                    key={page}
-                    onClick={() => table.setPageIndex(page)}
-                    className={cn(
-                      "w-7 h-8 rounded-lg text-xs font-medium transition-colors",
-                      isActive
-                        ? "bg-emerald-600 text-white"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    {page + 1}
-                  </button>
-                );
-              })}
+                  const isActive = page === currentPage - 1;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => table.setPageIndex(page)}
+                      className={cn(
+                        "w-7 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer",
+                        isActive
+                          ? "bg-emerald-600 text-white"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      {page + 1}
+                    </button>
+                  );
+                },
+              )}
             </div>
 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => table.setPageIndex(pageIndex + 1)}
+              disabled={
+                viewMode === "table"
+                  ? !table.getCanNextPage()
+                  : pageIndex >= groupedPageCount - 1
+              }
               className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
             >
               <span className="hidden xs:inline">Next</span>
@@ -847,8 +1233,16 @@ export function DataTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
+              onClick={() =>
+                table.setPageIndex(
+                  (viewMode === "table" ? pageCount : groupedPageCount) - 1,
+                )
+              }
+              disabled={
+                viewMode === "table"
+                  ? !table.getCanNextPage()
+                  : pageIndex >= groupedPageCount - 1
+              }
               className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
               title="Last Page"
             >
@@ -922,7 +1316,7 @@ export function DataTable({
                             {viewData.quantityTrays}
                           </span>{" "}
                           <span className="text-sm text-blue-600/70 dark:text-blue-400/70 mr-2">
-                            trays
+                            {viewData.quantityTrays === 1 ? "tray" : "trays"}
                           </span>
                           {viewData.quantityPieces > 0 && (
                             <>
@@ -934,12 +1328,22 @@ export function DataTable({
                               </span>
                             </>
                           )}
+                          {(viewData.palitBasag || 0) > 0 && (
+                            <>
+                              <span className="font-mono font-bold text-purple-700 dark:text-purple-300">
+                                + {viewData.palitBasag}
+                              </span>{" "}
+                              <span className="text-sm text-purple-600/70 dark:text-purple-400/70 mr-2 font-bold">
+                                free (palit basag)
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1.5 flex items-center justify-center sm:justify-start gap-1">
                           <span className="font-mono font-bold text-blue-700 dark:text-blue-300">
                             @ ₱{viewData.pricePerTray.toLocaleString()}
                           </span>{" "}
-                          <span className="text-sm text-blue-600/70 dark:text-blue-400/70">
-                            / tray
-                          </span>
+                          <span>/ tray</span>
                         </div>
                       </div>
                       <div className="hidden sm:block w-px h-10 bg-blue-200/60 dark:bg-blue-800/60"></div>
@@ -1159,5 +1563,335 @@ export function DataTable({
         </Dialog>
       </div>
     </>
+  );
+}
+
+interface InvoiceGroupCardProps {
+  group: {
+    groupKey: string;
+    invoiceId: string | null;
+    customerId: string;
+    saleDate: string;
+    datePaid: string | null;
+    paymentStatus: "paid" | "partial" | "unpaid";
+    totalAmount: number;
+    amountPaid: number;
+    balance: number;
+    totalTrays: number;
+    totalPieces: number;
+    totalPalitBasag: number;
+    totalEggs: number;
+    items: EggSaleRecord[];
+    theme: ReturnType<typeof getInvoiceTheme>;
+  };
+  isAdmin: boolean;
+  onRowClick: (record: EggSaleRecord) => void;
+  onRowUpdate?: (id: number) => void;
+  glowingRowId: number | null;
+  textSizeClass: string;
+}
+
+function InvoiceGroupCard({
+  group,
+  isAdmin,
+  onRowClick,
+  onRowUpdate,
+  glowingRowId,
+  textSizeClass,
+}: InvoiceGroupCardProps) {
+  const router = useRouter();
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border bg-card shadow-xs transition-all duration-300 overflow-hidden flex flex-col",
+        group.theme.cardBorder,
+        group.theme.border,
+        "border-l-4",
+      )}
+    >
+      {/* Card Header */}
+      <div
+        className={cn(
+          "flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 border-b",
+          group.theme.cardHeaderBg,
+          group.theme.cardBorder,
+        )}
+      >
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div
+              className={cn(
+                "font-mono text-xs font-bold px-2.5 py-1 rounded-md border shadow-2xs whitespace-nowrap",
+                group.theme.badgeBg,
+                group.theme.badgeText,
+                group.theme.badgeBorder,
+              )}
+            >
+              {group.invoiceId ? `# ${group.invoiceId}` : "No Invoice No."}
+            </div>
+
+            <div className="flex items-center gap-1.5 font-black uppercase text-slate-800 dark:text-slate-100 text-sm">
+              <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span>{group.customerId}</span>
+            </div>
+
+            {/* Payment Status Badge */}
+            {group.paymentStatus === "paid" ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                <CheckCircle2
+                  className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400"
+                  strokeWidth={3}
+                />{" "}
+                Fully Paid
+              </span>
+            ) : group.paymentStatus === "partial" ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50">
+                <Clock
+                  className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"
+                  strokeWidth={3}
+                />{" "}
+                Partial
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800/50 animate-pulse">
+                <AlertCircle
+                  className="w-3.5 h-3.5 text-red-600 dark:text-red-400"
+                  strokeWidth={3}
+                />{" "}
+                Unpaid
+              </span>
+            )}
+          </div>
+
+          {/* Dates Subtitle: Delivered Date | Paid Date */}
+          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <span className="flex items-center gap-1">
+              <CalendarIcon className="h-3.5 w-3.5 opacity-70" />
+              Delivered: {format(new Date(group.saleDate), "MMM dd, yyyy")}
+            </span>
+            <span className="text-slate-300 dark:text-slate-700 font-bold">
+              |
+            </span>
+            <span className="flex items-center gap-1">
+              Paid:{" "}
+              {group.datePaid
+                ? format(new Date(group.datePaid), "MMM dd, yyyy")
+                : "-"}
+            </span>
+          </div>
+        </div>
+
+        {/* Financial Summary & Actions */}
+        <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 sm:gap-4 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/50 dark:border-slate-800/50">
+          <div className="flex items-center gap-3 text-xs">
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                Gross Total
+              </span>
+              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                ₱{group.totalAmount.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                Paid
+              </span>
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                ₱{group.amountPaid.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wide">
+                Balance
+              </span>
+              <span
+                className={cn(
+                  "font-mono font-bold",
+                  group.balance > 0
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-slate-400",
+                )}
+              >
+                ₱{group.balance.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {group.invoiceId && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                router.push(
+                  `/egg-sales/sales/receipt/${group.invoiceId}?from=history`,
+                )
+              }
+              className="h-8 gap-1.5 text-xs font-semibold rounded-lg bg-background hover:bg-muted border-border/80 text-slate-700 dark:text-slate-300 cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Receipt</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Itemized Egg Breakdown */}
+      <div className="overflow-x-auto">
+        <Table className={cn(textSizeClass, "w-full min-w-[600px]")}>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/40 text-[10px] uppercase font-bold text-slate-400">
+              <TableHead className="py-2 h-7 font-bold">
+                Size / Classification
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-right">
+                Trays
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-right">
+                Extra Pcs
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-right text-purple-600 dark:text-purple-400">
+                Palit Basag
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-right">
+                Total Pcs
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-right">
+                Price (₱)
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-right">
+                Line Total (₱)
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-center">
+                Status
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-center">
+                Remarks
+              </TableHead>
+              <TableHead className="py-2 h-7 font-bold text-center w-12">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {group.items.map((item) => {
+              const cls = item.classification.toUpperCase();
+              let colorClass = "text-blue-600 dark:text-blue-400";
+              if (cls === "CRACKED" || cls === "BROWN_CRACKED")
+                colorClass = "text-red-600 dark:text-red-400";
+              else if (cls === "BROKEN" || cls === "BROWN_BROKEN")
+                colorClass = "text-rose-600 dark:text-rose-400";
+              else if (cls === "DIRTY" || cls === "BROWN_DIRTY")
+                colorClass = "text-stone-600 dark:text-stone-400";
+              else if (cls.startsWith("BROWN_"))
+                colorClass = "text-amber-700 dark:text-amber-500";
+
+              const itemTotalPcs =
+                (item.quantityTrays + (item.palitBasag || 0)) * 30 +
+                item.quantityPieces;
+
+              return (
+                <TableRow
+                  key={item.id}
+                  onClick={() => onRowClick(item)}
+                  className={cn(
+                    "border-b border-border/30 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors",
+                    glowingRowId === item.id &&
+                      "animate-glow-pulse ring-1 ring-blue-400 dark:ring-blue-600",
+                  )}
+                >
+                  <TableCell className="py-2 font-black uppercase">
+                    <span className={colorClass}>{cls}</span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-black text-slate-700 dark:text-slate-300">
+                    {item.quantityTrays}
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-black text-amber-600 dark:text-amber-500">
+                    {item.quantityPieces > 0 ? `+${item.quantityPieces}` : "-"}
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-black text-purple-600 dark:text-purple-400">
+                    {item.palitBasag
+                      ? `${item.palitBasag} ${item.palitBasag === 1 ? "tray" : "trays"}`
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-bold text-emerald-600 dark:text-emerald-500">
+                    {itemTotalPcs.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-mono text-slate-500">
+                    {item.pricePerTray.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-mono font-bold text-slate-900 dark:text-white">
+                    {item.totalAmount.toLocaleString()}
+                  </TableCell>
+                  <TableCell
+                    className="py-2 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {item.paymentStatus === "paid" ||
+                    item.totalAmount - item.amountPaid <= 0.01 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        Paid
+                      </span>
+                    ) : item.amountPaid > 0 ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 cursor-help"
+                        title={`Paid: ₱${item.amountPaid.toLocaleString()} / ₱${item.totalAmount.toLocaleString()}`}
+                      >
+                        <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        Partial
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
+                        <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                        Unpaid
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className="py-2 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <RemarksCell note={item.remarks} />
+                  </TableCell>
+                  <TableCell
+                    className="py-2 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ActionCell
+                      sale={item}
+                      isAdmin={isAdmin}
+                      onRowUpdate={onRowUpdate}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Card Footer Summary */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-muted/20 border-t border-border/40 text-[11px] text-slate-500 dark:text-slate-400">
+        <span>
+          <strong className="text-slate-700 dark:text-slate-300">
+            {group.items.length}
+          </strong>{" "}
+          {group.items.length === 1
+            ? "egg classification"
+            : "egg classifications"}
+        </span>
+        <div className="flex items-center gap-3">
+          <span>
+            Total Volume:{" "}
+            <strong className="text-slate-800 dark:text-slate-200">
+              {group.totalTrays} {group.totalTrays === 1 ? "Tray" : "Trays"}
+            </strong>{" "}
+            {group.totalPieces > 0 ? `+ ${group.totalPieces} pcs` : ""} (
+            {group.totalEggs.toLocaleString()} pcs total)
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

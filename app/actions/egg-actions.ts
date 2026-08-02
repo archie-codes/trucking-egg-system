@@ -433,11 +433,14 @@ export async function deleteEggSale(id: number) {
     const sale = saleResult[0];
 
     await db.transaction(async (tx) => {
-      // 1. Add the sold trays back into the inventory
+      // 1. Add the sold trays + free replacement trays back into the inventory
+      const totalPiecesToRestore =
+        (sale.quantityTrays + (sale.palitBasag || 0)) * 30 + sale.quantityPieces;
+
       await tx
         .update(eggInventory)
         .set({
-          currentStockTrays: sql`${eggInventory.currentStockTrays} + ${sale.quantityTrays * 30}`,
+          currentStockTrays: sql`${eggInventory.currentStockTrays} + ${totalPiecesToRestore}`,
           lastUpdated: new Date(),
         })
         .where(eq(eggInventory.classification, sale.classification));
@@ -463,6 +466,7 @@ const editSaleSchema = z.object({
   customerId: z.string().min(1, "Customer name is required").toUpperCase(),
   quantityTrays: z.number(),
   quantityPieces: z.number().default(0),
+  palitBasag: z.number().min(0).default(0),
   pricePerTray: z.number(),
   amountPaid: z.number(),
   datePaid: z.string().optional().nullable(),
@@ -479,10 +483,10 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
 
   const data = validatedData.data;
 
-  if (data.quantityTrays <= 0 && data.quantityPieces <= 0) {
-    return { success: false, error: "Quantity (Trays or Pieces) must be greater than zero." };
+  if (data.quantityTrays <= 0 && data.quantityPieces <= 0 && data.palitBasag <= 0) {
+    return { success: false, error: "Quantity or Palit Basag must be greater than zero." };
   }
-  if (data.pricePerTray <= 0) {
+  if (data.pricePerTray <= 0 && (data.quantityTrays > 0 || data.quantityPieces > 0)) {
     return { success: false, error: "Price per tray must be greater than zero." };
   }
 
@@ -498,22 +502,22 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
     }
 
     const old = oldSaleResult[0];
-    const totalAmount = (data.quantityTrays * data.pricePerTray) + (data.quantityPieces * (data.pricePerTray / 30));
+    const rawTotalAmount = (data.quantityTrays * data.pricePerTray) + (data.quantityPieces * (data.pricePerTray / 30));
+    const totalAmount = Math.round(rawTotalAmount * 100) / 100;
+    const balance = totalAmount - data.amountPaid;
     let paymentStatus = "unpaid";
     
-    if (data.amountPaid >= totalAmount && totalAmount > 0) {
+    if (balance <= 0.01 && totalAmount > 0) {
         paymentStatus = "paid";
-    } else if (data.amountPaid > 0 && data.amountPaid < totalAmount) {
+    } else if (data.amountPaid > 0 && balance > 0.01) {
         paymentStatus = "partial";
     }
 
     await db.transaction(async (tx) => {
-      // Delta = new quantity - old quantity (in pieces)
-      // Positive delta means we sold MORE, so we must deduct MORE from stock.
-      // Negative delta means we sold LESS, so we must ADD back to stock.
-      const deltaTrays = data.quantityTrays - old.quantityTrays;
-      const deltaPiecesExtra = data.quantityPieces - old.quantityPieces;
-      const deltaPieces = (deltaTrays * 30) + deltaPiecesExtra;
+      // Delta = new quantity - old quantity (in pieces, including palitBasag trays)
+      const oldTotalPieces = (old.quantityTrays + (old.palitBasag || 0)) * 30 + old.quantityPieces;
+      const newTotalPieces = (data.quantityTrays + (data.palitBasag || 0)) * 30 + data.quantityPieces;
+      const deltaPieces = newTotalPieces - oldTotalPieces;
 
       if (deltaPieces > 0) {
         // Check if we have enough stock for the additional pieces
@@ -526,7 +530,7 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
         const currentStock = stockResult[0]?.currentStockTrays || 0;
         if (currentStock < deltaPieces) {
           throw new Error(
-            `Insufficient stock for update. Need ${deltaTrays} more trays of ${old.classification}, but only ${Math.floor(currentStock / 30)} available.`,
+            `Insufficient stock for update. Need ${deltaPieces} additional pieces of ${old.classification}, but only ${currentStock} available.`,
           );
         }
       }
@@ -550,6 +554,7 @@ export async function updateEggSale(values: z.infer<typeof editSaleSchema>) {
           customerId: data.customerId,
           quantityTrays: data.quantityTrays,
           quantityPieces: data.quantityPieces,
+          palitBasag: data.palitBasag,
           pricePerTray: data.pricePerTray,
           totalAmount: totalAmount,
           amountPaid: data.amountPaid,
@@ -576,6 +581,7 @@ const saleItemSchema = z.object({
   classification: z.string().min(1),
   quantityTrays: z.number().min(0),
   quantityPieces: z.number().min(0).default(0),
+  palitBasag: z.number().min(0).default(0),
   pricePerTray: z.number().min(0),
 });
 
@@ -603,12 +609,13 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
     await db.transaction(async (tx) => {
       // 1. Guard: Check Live Inventory for ALL items first
       for (const item of data.items) {
-        if (item.quantityTrays <= 0 && item.quantityPieces <= 0) {
+        const totalTraysAndBasag = item.quantityTrays + (item.palitBasag || 0);
+        if (totalTraysAndBasag <= 0 && item.quantityPieces <= 0) {
           throw new Error(
-            `Invalid quantity for ${item.classification}. Please enter at least 1 tray or piece.`,
+            `Invalid quantity for ${item.classification}. Please enter at least 1 tray, palit basag, or piece.`,
           );
         }
-        if (item.pricePerTray <= 0) {
+        if (item.pricePerTray <= 0 && (item.quantityTrays > 0 || item.quantityPieces > 0)) {
           throw new Error(
             `Invalid price for ${item.classification}. Price per tray must be greater than zero.`,
           );
@@ -624,7 +631,7 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
           .limit(1);
 
         const availablePieces = stock[0]?.currentStockTrays || 0;
-        const totalPiecesSold = (item.quantityTrays * PIECES_PER_TRAY) + item.quantityPieces;
+        const totalPiecesSold = (totalTraysAndBasag * PIECES_PER_TRAY) + item.quantityPieces;
 
         if (stock.length === 0 || availablePieces < totalPiecesSold) {
           throw new Error(
@@ -637,8 +644,10 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
       let remainingPayment = data.amountPaid;
 
       for (const item of data.items) {
-        const totalPiecesSold = (item.quantityTrays * PIECES_PER_TRAY) + item.quantityPieces;
-        const itemTotalAmount = (item.quantityTrays * item.pricePerTray) + (item.quantityPieces * (item.pricePerTray / 30));
+        const totalTraysAndBasag = item.quantityTrays + (item.palitBasag || 0);
+        const totalPiecesSold = (totalTraysAndBasag * PIECES_PER_TRAY) + item.quantityPieces;
+        const rawItemTotal = (item.quantityTrays * item.pricePerTray) + (item.quantityPieces * (item.pricePerTray / 30));
+        const itemTotalAmount = Math.round(rawItemTotal * 100) / 100;
 
         // Calculate how much of the payment applies to this specific row
         const appliedPayment = Math.min(remainingPayment, itemTotalAmount);
@@ -646,8 +655,8 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
 
         const balance = itemTotalAmount - appliedPayment;
         let status = "unpaid";
-        if (balance <= 0) status = "paid";
-        else if (appliedPayment > 0 && balance > 0) status = "partial";
+        if (balance <= 0.01) status = "paid";
+        else if (appliedPayment > 0 && balance > 0.01) status = "partial";
 
         // Fetch the inventory ID again for the foreign key
         const stock = await tx
@@ -665,6 +674,7 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
           classification: item.classification,
           quantityTrays: item.quantityTrays,
           quantityPieces: item.quantityPieces,
+          palitBasag: item.palitBasag || 0,
           pricePerTray: item.pricePerTray,
           totalAmount: itemTotalAmount,
           amountPaid: appliedPayment,
@@ -703,7 +713,20 @@ export async function getEggSalesHistory() {
       .from(eggSales)
       .orderBy(desc(eggSales.saleDate), desc(eggSales.createdAt), desc(eggSales.id));
 
-    return { success: true, data: history };
+    // Auto-fix any floating point precision status mismatches in database
+    const updatedHistory = history.map((record) => {
+      const balance = record.totalAmount - record.amountPaid;
+      if (balance <= 0.01 && record.paymentStatus !== "paid") {
+        db.update(eggSales)
+          .set({ paymentStatus: "paid" })
+          .where(eq(eggSales.id, record.id))
+          .catch(console.error);
+        return { ...record, paymentStatus: "paid" };
+      }
+      return record;
+    });
+
+    return { success: true, data: updatedHistory };
   } catch (error) {
     console.error("Failed to fetch sales history:", error);
     return { success: false, data: [] };

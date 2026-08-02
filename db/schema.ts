@@ -204,6 +204,7 @@ export const eggSales = pgTable("egg_sales", {
   classification: varchar("classification", { length: 50 }).notNull(), // Small, Medium, XL
   quantityTrays: integer("quantity_trays").notNull(),
   quantityPieces: integer("quantity_pieces").default(0).notNull(),
+  palitBasag: integer("palit_basag").default(0).notNull(),
 
   // Financials
   pricePerTray: real("price_per_tray").notNull(),

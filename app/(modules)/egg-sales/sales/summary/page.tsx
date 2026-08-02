@@ -32,7 +32,7 @@ export default async function SalesSummaryPage() {
   const isAdmin = currentUser?.role === "admin";
 
   return (
-    <div className="w-full mx-auto space-y-3 animate-in fade-in duration-300 flex flex-col">
+    <div className="mx-auto flex flex-col h-[calc(100vh-112px)] w-full min-w-0 overflow-hidden gap-3 animate-in fade-in duration-300">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
         <div>
@@ -42,13 +42,13 @@ export default async function SalesSummaryPage() {
             </span>
           </h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            Overview of outbound dispatches, gross sales, and net income
+            Filter sales by timeframe (Today, 2 Weeks, Month, Year, Date) and track customer pending credits
           </p>
         </div>
       </div>
 
       {/* DASHBOARD CLIENT COMPONENT */}
-      <div className="pb-12">
+      <div className="flex-1 flex flex-col min-h-0">
         <SummaryDashboard data={sales} isAdmin={isAdmin} />
       </div>
     </div>

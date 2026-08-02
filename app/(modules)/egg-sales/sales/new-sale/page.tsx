@@ -54,6 +54,7 @@ const sizeItemSchema = z.object({
   checked: z.boolean().default(false),
   quantityTrays: numField,
   quantityPieces: numField,
+  palitBasag: numField,
   pricePerTray: numField,
 });
 
@@ -277,126 +278,147 @@ export default function NewSalePage() {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         XS: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         SMALL: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         MEDIUM: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         LARGE: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         XL: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         XXL: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         CRACKED: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROKEN: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         DIRTY: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_PEEWEE: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_XS: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_SMALL: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_MEDIUM: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_LARGE: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_XL: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_XXL: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_ASSORTED: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_CRACKED: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_BROKEN: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
         BROWN_DIRTY: {
           checked: false,
           quantityTrays: "",
           quantityPieces: "",
+          palitBasag: "",
           pricePerTray: "",
         },
       },
@@ -428,10 +450,12 @@ export default function NewSalePage() {
     const stockPieces =
       inventory.find((i) => i.classification === size.id)?.currentStockTrays ||
       0;
-    const availableTrays = Math.floor(stockPieces / 30);
-    const requestedQty = Number(data.quantityTrays) || 0;
+    const requestedTrays = Number(data.quantityTrays) || 0;
+    const requestedPalitBasag = Number(data.palitBasag) || 0;
+    const requestedPieces = Number(data.quantityPieces) || 0;
+    const totalPiecesRequested = (requestedTrays + requestedPalitBasag) * 30 + requestedPieces;
 
-    return requestedQty > availableTrays;
+    return totalPiecesRequested > stockPieces;
   });
 
   // Auto-fill payment date if fully settled
@@ -474,6 +498,7 @@ export default function NewSalePage() {
       classification: size.id,
       quantityTrays: Number(values.sizes[size.id].quantityTrays),
       quantityPieces: Number(values.sizes[size.id].quantityPieces),
+      palitBasag: Number(values.sizes[size.id].palitBasag),
       pricePerTray: Number(values.sizes[size.id].pricePerTray),
     }));
 
@@ -489,10 +514,10 @@ export default function NewSalePage() {
     for (const item of outboundItems) {
       const sizeInfo = EGG_SIZES.find((s) => s.id === item.classification);
       const label = sizeInfo ? sizeInfo.label : item.classification;
-      const hasQty = item.quantityTrays > 0 || item.quantityPieces > 0;
-      const hasPrice = item.pricePerTray > 0;
+      const hasQty = item.quantityTrays > 0 || item.quantityPieces > 0 || item.palitBasag > 0;
+      const hasPrice = item.pricePerTray > 0 || item.palitBasag > 0;
 
-      if (!hasQty || !hasPrice) {
+      if (!hasQty || (!hasPrice && item.palitBasag <= 0)) {
         setErrorFields({
           [item.classification]: { qty: !hasQty, price: !hasPrice },
         });
@@ -506,13 +531,13 @@ export default function NewSalePage() {
 
         if (!hasQty && !hasPrice) {
           toast.error("Incomplete Egg Size Entry", {
-            description: `Oops! You selected "${label}", but forgot to put values for Quantity (Trays/Pieces) and Tray Price. Please enter values or uncheck it before saving.`,
+            description: `Oops! You selected "${label}", but forgot to put values for Quantity (Trays/Pieces/Palit Basag) and Tray Price. Please enter values or uncheck it before saving.`,
           });
           return;
         }
         if (!hasQty) {
           toast.error("Missing Quantity", {
-            description: `Oops! You selected "${label}", but forgot to put how many Trays or Pieces. Please enter a quantity or uncheck it before saving.`,
+            description: `Oops! You selected "${label}", but forgot to put how many Trays, Pieces, or Palit Basag. Please enter a quantity or uncheck it before saving.`,
           });
           return;
         }
@@ -560,7 +585,7 @@ export default function NewSalePage() {
       setInventory((prev) => {
         const updated = [...prev];
         outboundItems.forEach((item) => {
-          const piecesSold = item.quantityTrays * 30;
+          const piecesSold = (item.quantityTrays + item.palitBasag) * 30 + item.quantityPieces;
           const matchIdx = updated.findIndex(
             (i) => i.classification === item.classification,
           );
@@ -589,9 +614,10 @@ export default function NewSalePage() {
 
     const rowQtyTrays = Number(watchedSizes[size.id]?.quantityTrays) || 0;
     const rowQtyPieces = Number(watchedSizes[size.id]?.quantityPieces) || 0;
+    const rowPalitBasag = Number(watchedSizes[size.id]?.palitBasag) || 0;
     const rowPrice = Number(watchedSizes[size.id]?.pricePerTray) || 0;
 
-    const totalPiecesRequested = rowQtyTrays * 30 + rowQtyPieces;
+    const totalPiecesRequested = (rowQtyTrays + rowPalitBasag) * 30 + rowQtyPieces;
     const rowSubtotal = isChecked
       ? rowQtyTrays * rowPrice + rowQtyPieces * (rowPrice / 30)
       : 0;
@@ -625,6 +651,7 @@ export default function NewSalePage() {
                   if (!checked) {
                     setValue(`sizes.${size.id}.quantityTrays`, "");
                     setValue(`sizes.${size.id}.quantityPieces`, "");
+                    setValue(`sizes.${size.id}.palitBasag`, "");
                     setValue(`sizes.${size.id}.pricePerTray`, "");
                   }
                 }}
@@ -662,8 +689,8 @@ export default function NewSalePage() {
           </span>
         </div>
 
-        {/* Quantity Input Form Field */}
-        <div className="col-span-3 px-1 grid grid-cols-2 gap-2">
+        {/* Quantity Inputs (Trays, Pieces, Palit Basag) */}
+        <div className="col-span-4 px-1 grid grid-cols-3 gap-2">
           <Controller
             name={`sizes.${size.id}.quantityTrays`}
             control={control}
@@ -724,6 +751,36 @@ export default function NewSalePage() {
               />
             )}
           />
+          <Controller
+            name={`sizes.${size.id}.palitBasag`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                min="0"
+                step="1"
+                disabled={!isChecked}
+                placeholder="0"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[-.]/g, "");
+                  field.onChange(val);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "-" || e.key === ".") e.preventDefault();
+                }}
+                onClick={(e) => e.currentTarget.select()}
+                className={cn(
+                  "h-9 font-black rounded-lg text-sm text-center transition-all bg-purple-50/50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/50",
+                  isQtyError
+                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                    : rowIsOverselling
+                    ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                    : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                )}
+              />
+            )}
+          />
         </div>
 
         {/* Price Per Tray Input Form Field */}
@@ -761,7 +818,7 @@ export default function NewSalePage() {
         {/* Interactive Live Subtotal Cell */}
         <div
           className={cn(
-            "col-span-2 text-right font-mono font-bold text-sm pr-2",
+            "col-span-1 text-right font-mono font-bold text-sm pr-2",
             isChecked
               ? "text-slate-900 dark:text-white"
               : "text-slate-300 dark:text-slate-700",
@@ -916,12 +973,13 @@ export default function NewSalePage() {
                   <div className="col-span-1 text-center">Selected</div>
                   <div className="col-span-2">Egg Classification</div>
                   <div className="col-span-2 text-center">Available Stock</div>
-                  <div className="col-span-3 px-1 grid grid-cols-2 gap-2 text-center">
+                  <div className="col-span-4 px-1 grid grid-cols-3 gap-2 text-center">
                     <div>Trays</div>
                     <div>Pieces</div>
+                    <div className="text-purple-600 dark:text-purple-400 font-black">Palit Basag</div>
                   </div>
                   <div className="col-span-2 px-1">Tray Price (₱)</div>
-                  <div className="col-span-2 text-right">Subtotal</div>
+                  <div className="col-span-1 text-right">Subtotal</div>
                 </div>
 
                 {/* WHITE EGGS CATEGORY */}

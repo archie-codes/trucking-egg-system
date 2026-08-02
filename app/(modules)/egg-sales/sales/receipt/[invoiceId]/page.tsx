@@ -114,10 +114,16 @@ export default async function ReceiptPage({
                   {item.classification}
                 </td>
                 <td className="py-3 font-mono text-center">
-                  {item.quantityTrays}
+                  {item.quantityTrays}{" "}
+                  {item.quantityTrays === 1 ? "tray" : "trays"}
                   {item.quantityPieces > 0 && (
                     <span className="text-xs text-slate-500 ml-1">
                       (+{item.quantityPieces} pcs)
+                    </span>
+                  )}
+                  {item.palitBasag > 0 && (
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-bold ml-1">
+                      (+{item.palitBasag} free)
                     </span>
                   )}
                 </td>

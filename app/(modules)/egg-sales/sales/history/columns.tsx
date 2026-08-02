@@ -54,10 +54,11 @@ import {
 import { deleteEggSale, updateEggSale } from "@/app/actions/egg-actions";
 import { toast } from "sonner";
 import { NumberTicker } from "@/components/ui/number-ticker";
+import { getInvoiceTheme } from "./invoice-theme";
 
 export type EggSaleRecord = typeof eggSales.$inferSelect;
 
-function RemarksCell({ note }: { note?: string | null }) {
+export function RemarksCell({ note }: { note?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!note || note.trim() === "") {
@@ -115,11 +116,22 @@ export const getColumns = (
   {
     accessorKey: "invoiceId",
     header: "Invoice No.",
-    cell: ({ row }) => (
-      <div className="font-mono text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md w-fit">
-        {row.getValue("invoiceId") || "-"}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const invoiceId = row.getValue("invoiceId") as string | null;
+      const theme = getInvoiceTheme(invoiceId);
+      return (
+        <div
+          className={cn(
+            "font-mono text-[10px] font-bold px-2 py-1 rounded-md border w-fit whitespace-nowrap",
+            theme.badgeBg,
+            theme.badgeText,
+            theme.badgeBorder,
+          )}
+        >
+          {invoiceId || "-"}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "saleDate",
@@ -211,12 +223,29 @@ export const getColumns = (
     },
   },
   {
+    accessorKey: "palitBasag",
+    header: () => (
+      <div className="text-right text-purple-600 dark:text-purple-400">
+        Palit Basag
+      </div>
+    ),
+    cell: ({ row }) => {
+      const val = (row.getValue("palitBasag") as number) || 0;
+      return (
+        <div className="text-right font-black text-purple-600 dark:text-purple-400">
+          {val > 0 ? `${val} ${val === 1 ? "tray" : "trays"}` : "-"}
+        </div>
+      );
+    },
+  },
+  {
     id: "totalEggs",
     header: () => <div className="text-right">Total Pcs</div>,
     cell: ({ row }) => {
       const trays = row.original.quantityTrays;
       const pcs = row.original.quantityPieces;
-      const total = trays * 30 + pcs;
+      const palitBasag = row.original.palitBasag || 0;
+      const total = (trays + palitBasag) * 30 + pcs;
       return (
         <div className="text-right font-bold text-emerald-600 dark:text-emerald-500">
           {total.toLocaleString()}
@@ -289,8 +318,11 @@ export const getColumns = (
     header: "Status",
     cell: ({ row }) => {
       const status = (row.getValue("paymentStatus") as string)?.toLowerCase();
+      const total = row.original.totalAmount;
+      const paid = row.original.amountPaid;
+      const isPaid = status === "paid" || (total - paid) <= 0.01;
 
-      if (status === "paid") {
+      if (isPaid) {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
             <CheckCircle2
@@ -340,7 +372,7 @@ export const getColumns = (
   },
 ];
 
-const ActionCell = ({
+export const ActionCell = ({
   sale,
   isAdmin,
   onRowUpdate,
@@ -362,6 +394,7 @@ const ActionCell = ({
     customerId: sale.customerId || "",
     quantityTrays: sale.quantityTrays ?? 0,
     quantityPieces: sale.quantityPieces ?? 0,
+    palitBasag: sale.palitBasag ?? 0,
     pricePerTray: sale.pricePerTray ?? 0,
     amountPaid: sale.amountPaid ?? 0,
     datePaid: sale.datePaid || "",
@@ -408,6 +441,7 @@ const ActionCell = ({
       customerId: formData.customerId,
       quantityTrays: formData.quantityTrays,
       quantityPieces: formData.quantityPieces,
+      palitBasag: formData.palitBasag,
       pricePerTray: formData.pricePerTray,
       amountPaid: formData.amountPaid,
       datePaid: formData.datePaid || null,
@@ -448,7 +482,9 @@ const ActionCell = ({
           <DropdownMenuItem
             className="gap-2 font-medium cursor-pointer text-slate-700 dark:text-slate-300"
             onClick={() =>
-              router.push(`/egg-sales/sales/receipt/${sale.invoiceId}?from=history`)
+              router.push(
+                `/egg-sales/sales/receipt/${sale.invoiceId}?from=history`,
+              )
             }
           >
             <Printer className="w-4 h-4" /> View Receipt
@@ -473,6 +509,7 @@ const ActionCell = ({
                 customerId: sale.customerId || "",
                 quantityTrays: sale.quantityTrays ?? 0,
                 quantityPieces: sale.quantityPieces ?? 0,
+                palitBasag: sale.palitBasag ?? 0,
                 pricePerTray: sale.pricePerTray ?? 0,
                 amountPaid: sale.amountPaid ?? 0,
                 datePaid: sale.datePaid || "",
@@ -526,7 +563,7 @@ const ActionCell = ({
               <span className="font-bold text-slate-800 dark:text-white">
                 {sale.customerId}
               </span>
-              . The sold trays will be returned back to the active bodega
+              . The sold {sale.quantityTrays === 1 ? "tray" : "trays"} will be returned back to the active bodega
               inventory.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -719,6 +756,31 @@ const ActionCell = ({
                         isPaidOrPartial && "opacity-50 cursor-not-allowed",
                       )}
                       required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase">
+                      Palit Basag (Free Trays)
+                    </Label>
+                    <Input
+                      type="number"
+                      disabled={isPaidOrPartial}
+                      value={
+                        formData.palitBasag === 0 &&
+                        formData.palitBasag.toString() !== "0"
+                          ? ""
+                          : formData.palitBasag
+                      }
+                      onChange={(e) =>
+                        handleNumChange("palitBasag", e.target.value)
+                      }
+                      onClick={(e) =>
+                        !isPaidOrPartial && e.currentTarget.select()
+                      }
+                      className={cn(
+                        "h-11 border-purple-200 dark:border-purple-900/50 rounded-2xl bg-purple-50/50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 font-bold",
+                        isPaidOrPartial && "opacity-50 cursor-not-allowed",
+                      )}
                     />
                   </div>
                   <div className="space-y-1.5">

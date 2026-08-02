@@ -64,6 +64,7 @@ import {
   PackageOpen,
   CalendarIcon,
   Printer,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,19 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   }>({ type: "all" });
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
+  const [selectedFarm, setSelectedFarm] = React.useState<string>("all");
+
+  // Extract farm options, ensuring SJK FARM and BARACBAC are present
+  const farmOptions = React.useMemo(() => {
+    const set = new Set<string>(["SJK FARM", "BARACBAC"]);
+    (data as EggBatchRecord[]).forEach((item) => {
+      if (item.farmName && item.farmName.trim() !== "") {
+        set.add(item.farmName.trim().toUpperCase());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
@@ -113,6 +127,37 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = String(filterValue || "").trim().toLowerCase();
+      if (!search) return true;
+
+      const item = row.original as EggBatchRecord;
+      const batchId = String(item.batchId || "").toLowerCase();
+      const farmName = String(item.farmName || "").toLowerCase();
+      const arrivalDateRaw = String(item.arrivalDate || "").toLowerCase();
+
+      let dateFormatted1 = "";
+      let dateFormatted2 = "";
+      let dateFormatted3 = "";
+
+      try {
+        if (item.arrivalDate) {
+          const d = new Date(item.arrivalDate);
+          dateFormatted1 = format(d, "MMM dd, yyyy").toLowerCase(); // e.g. "aug 02, 2026"
+          dateFormatted2 = format(d, "MMMM dd, yyyy").toLowerCase(); // e.g. "august 02, 2026"
+          dateFormatted3 = format(d, "MM/dd/yyyy").toLowerCase(); // e.g. "08/02/2026"
+        }
+      } catch {}
+
+      return (
+        batchId.includes(search) ||
+        farmName.includes(search) ||
+        arrivalDateRaw.includes(search) ||
+        dateFormatted1.includes(search) ||
+        dateFormatted2.includes(search) ||
+        dateFormatted3.includes(search)
+      );
+    },
     state: { sorting, columnFilters, globalFilter },
     initialState: { pagination: { pageSize: 20 } },
   });
@@ -128,6 +173,16 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       col.setFilterValue(format(dateFilter.date, "yyyy-MM-dd"));
     }
   }, [dateFilter, table]);
+
+  React.useEffect(() => {
+    const col = table.getColumn("farmName");
+    if (!col) return;
+    if (selectedFarm === "all") {
+      col.setFilterValue(undefined);
+    } else {
+      col.setFilterValue(selectedFarm);
+    }
+  }, [selectedFarm, table]);
 
   const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
     textSize
@@ -152,14 +207,29 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     rows.forEach((r) => {
       const d = r.original;
       totalGood +=
-        d.qtyPeewee +
-        d.qtyXs +
-        d.qtySmall +
-        d.qtyMedium +
-        d.qtyLarge +
-        d.qtyXl +
-        d.qtyXxl;
-      totalLosses += d.qtyCracked + d.qtyBroken + d.qtyDirty;
+        (d.qtyPeewee || 0) +
+        (d.qtyXs || 0) +
+        (d.qtySmall || 0) +
+        (d.qtyMedium || 0) +
+        (d.qtyLarge || 0) +
+        (d.qtyXl || 0) +
+        (d.qtyXxl || 0) +
+        (d.brownQtyPeewee || 0) +
+        (d.brownQtyXs || 0) +
+        (d.brownQtySmall || 0) +
+        (d.brownQtyMedium || 0) +
+        (d.brownQtyLarge || 0) +
+        (d.brownQtyXl || 0) +
+        (d.brownQtyXxl || 0) +
+        (d.brownQtyAssorted || 0);
+
+      totalLosses +=
+        (d.qtyCracked || 0) +
+        (d.qtyBroken || 0) +
+        (d.qtyDirty || 0) +
+        (d.brownQtyCracked || 0) +
+        (d.brownQtyBroken || 0) +
+        (d.brownQtyDirty || 0);
     });
 
     return {
@@ -213,21 +283,48 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         "Cracked",
         "Broken",
         "Dirty",
+        "Br PW",
+        "Br XS",
+        "Br S",
+        "Br M",
+        "Br L",
+        "Br XL",
+        "Br XXL",
+        "Br ASST",
+        "Br CRK",
+        "Br BRK",
+        "Br DRT",
         "Total Good Pcs",
         "Total Bad Egg",
+        "Grand Total Pcs",
       ];
 
       const csvData = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
         const totalGood =
-          d.qtyPeewee +
-          d.qtyXs +
-          d.qtySmall +
-          d.qtyMedium +
-          d.qtyLarge +
-          d.qtyXl +
-          d.qtyXxl;
-        const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
+          (d.qtyPeewee || 0) +
+          (d.qtyXs || 0) +
+          (d.qtySmall || 0) +
+          (d.qtyMedium || 0) +
+          (d.qtyLarge || 0) +
+          (d.qtyXl || 0) +
+          (d.qtyXxl || 0) +
+          (d.brownQtyPeewee || 0) +
+          (d.brownQtyXs || 0) +
+          (d.brownQtySmall || 0) +
+          (d.brownQtyMedium || 0) +
+          (d.brownQtyLarge || 0) +
+          (d.brownQtyXl || 0) +
+          (d.brownQtyXxl || 0) +
+          (d.brownQtyAssorted || 0);
+
+        const totalLoss =
+          (d.qtyCracked || 0) +
+          (d.qtyBroken || 0) +
+          (d.qtyDirty || 0) +
+          (d.brownQtyCracked || 0) +
+          (d.brownQtyBroken || 0) +
+          (d.brownQtyDirty || 0);
 
         return [
           new Date(d.arrivalDate).toLocaleDateString(),
@@ -235,18 +332,30 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           `"${d.farmName}"`,
           d.rawCasesPickedUp,
           d.rawTraysPickedUp,
-          d.qtyPeewee,
-          d.qtyXs,
-          d.qtySmall,
-          d.qtyMedium,
-          d.qtyLarge,
-          d.qtyXl,
-          d.qtyXxl,
-          d.qtyCracked,
-          d.qtyBroken,
-          d.qtyDirty,
+          d.qtyPeewee || 0,
+          d.qtyXs || 0,
+          d.qtySmall || 0,
+          d.qtyMedium || 0,
+          d.qtyLarge || 0,
+          d.qtyXl || 0,
+          d.qtyXxl || 0,
+          d.qtyCracked || 0,
+          d.qtyBroken || 0,
+          d.qtyDirty || 0,
+          d.brownQtyPeewee || 0,
+          d.brownQtyXs || 0,
+          d.brownQtySmall || 0,
+          d.brownQtyMedium || 0,
+          d.brownQtyLarge || 0,
+          d.brownQtyXl || 0,
+          d.brownQtyXxl || 0,
+          d.brownQtyAssorted || 0,
+          d.brownQtyCracked || 0,
+          d.brownQtyBroken || 0,
+          d.brownQtyDirty || 0,
           totalGood,
           totalLoss,
+          totalGood + totalLoss,
         ].join(",");
       });
 
@@ -321,14 +430,29 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
       const tableRows = rows.map((row: { original: EggBatchRecord }) => {
         const d = row.original;
         const totalGood =
-          d.qtyPeewee +
-          d.qtyXs +
-          d.qtySmall +
-          d.qtyMedium +
-          d.qtyLarge +
-          d.qtyXl +
-          d.qtyXxl;
-        const totalLoss = d.qtyCracked + d.qtyBroken + d.qtyDirty;
+          (d.qtyPeewee || 0) +
+          (d.qtyXs || 0) +
+          (d.qtySmall || 0) +
+          (d.qtyMedium || 0) +
+          (d.qtyLarge || 0) +
+          (d.qtyXl || 0) +
+          (d.qtyXxl || 0) +
+          (d.brownQtyPeewee || 0) +
+          (d.brownQtyXs || 0) +
+          (d.brownQtySmall || 0) +
+          (d.brownQtyMedium || 0) +
+          (d.brownQtyLarge || 0) +
+          (d.brownQtyXl || 0) +
+          (d.brownQtyXxl || 0) +
+          (d.brownQtyAssorted || 0);
+
+        const totalLoss =
+          (d.qtyCracked || 0) +
+          (d.qtyBroken || 0) +
+          (d.qtyDirty || 0) +
+          (d.brownQtyCracked || 0) +
+          (d.brownQtyBroken || 0) +
+          (d.brownQtyDirty || 0);
 
         return [
           new Date(d.arrivalDate).toLocaleDateString(),
@@ -346,6 +470,17 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           d.qtyCracked > 0 ? d.qtyCracked.toString() : "-",
           d.qtyBroken > 0 ? d.qtyBroken.toString() : "-",
           d.qtyDirty > 0 ? d.qtyDirty.toString() : "-",
+          d.brownQtyPeewee > 0 ? d.brownQtyPeewee.toString() : "-",
+          d.brownQtyXs > 0 ? d.brownQtyXs.toString() : "-",
+          d.brownQtySmall > 0 ? d.brownQtySmall.toString() : "-",
+          d.brownQtyMedium > 0 ? d.brownQtyMedium.toString() : "-",
+          d.brownQtyLarge > 0 ? d.brownQtyLarge.toString() : "-",
+          d.brownQtyXl > 0 ? d.brownQtyXl.toString() : "-",
+          d.brownQtyXxl > 0 ? d.brownQtyXxl.toString() : "-",
+          d.brownQtyAssorted > 0 ? d.brownQtyAssorted.toString() : "-",
+          d.brownQtyCracked > 0 ? d.brownQtyCracked.toString() : "-",
+          d.brownQtyBroken > 0 ? d.brownQtyBroken.toString() : "-",
+          d.brownQtyDirty > 0 ? d.brownQtyDirty.toString() : "-",
           totalGood.toLocaleString(),
           totalLoss.toLocaleString(),
         ];
@@ -366,20 +501,31 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             "L",
             "XL",
             "XXL",
-            "Cracked",
-            "Broken",
-            "Dirty",
+            "Crk",
+            "Brk",
+            "Drt",
+            "Br PW",
+            "Br XS",
+            "Br S",
+            "Br M",
+            "Br L",
+            "Br XL",
+            "Br XXL",
+            "Br ASST",
+            "Br CRK",
+            "Br BRK",
+            "Br DRT",
             "Total Good",
-            "Total Bad Egg",
+            "Total Bad",
           ],
         ],
         body: tableRows,
         startY: 145,
         theme: "grid",
-        styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak" },
+        styles: { fontSize: 5.5, cellPadding: 2, overflow: "linebreak" },
         headStyles: {
           fillColor: [245, 158, 11],
-          fontSize: 8,
+          fontSize: 6,
           halign: "center",
         }, // Amber 500
         columnStyles: {
@@ -390,11 +536,24 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           7: { halign: "right", textColor: [37, 99, 235] },
           8: { halign: "right", textColor: [37, 99, 235] },
           9: { halign: "right", textColor: [37, 99, 235] },
-          10: { halign: "right", textColor: [225, 29, 72] },
-          11: { halign: "right", textColor: [225, 29, 72] },
-          12: { halign: "right", textColor: [234, 88, 12] },
-          13: { halign: "right", fontStyle: "bold", textColor: [37, 99, 235] },
-          14: { halign: "right", fontStyle: "bold", textColor: [225, 29, 72] },
+          10: { halign: "right", textColor: [37, 99, 235] },
+          11: { halign: "right", textColor: [37, 99, 235] },
+          12: { halign: "right", textColor: [225, 29, 72] },
+          13: { halign: "right", textColor: [225, 29, 72] },
+          14: { halign: "right", textColor: [234, 88, 12] },
+          15: { halign: "right", textColor: [180, 83, 9] },
+          16: { halign: "right", textColor: [180, 83, 9] },
+          17: { halign: "right", textColor: [180, 83, 9] },
+          18: { halign: "right", textColor: [180, 83, 9] },
+          19: { halign: "right", textColor: [180, 83, 9] },
+          20: { halign: "right", textColor: [180, 83, 9] },
+          21: { halign: "right", textColor: [180, 83, 9] },
+          22: { halign: "right", textColor: [180, 83, 9] },
+          23: { halign: "right", textColor: [225, 29, 72] },
+          24: { halign: "right", textColor: [225, 29, 72] },
+          25: { halign: "right", textColor: [234, 88, 12] },
+          26: { halign: "right", fontStyle: "bold", textColor: [37, 99, 235] },
+          27: { halign: "right", fontStyle: "bold", textColor: [225, 29, 72] },
         },
       });
 
@@ -433,7 +592,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             )}
           />
           <Input
-            placeholder="Search batches, farms..."
+            placeholder="Search batches, farms, dates..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className={cn(
@@ -463,8 +622,43 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           </div>
         </div>
 
-        {/* Font Size, Density Controller and Export PDF */}
+        {/* Font Size, Density Controller, Origin Farm Filter, and Export PDF */}
         <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+          {/* Origin Farm Selection Dropdown */}
+          <Select
+            value={selectedFarm}
+            onValueChange={(val) => setSelectedFarm(val)}
+          >
+            <SelectTrigger
+              className={cn(
+                "h-8 sm:h-9 w-[150px] sm:w-[170px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
+                selectedFarm !== "all" &&
+                  "text-amber-600 dark:text-amber-500 border-amber-500/40 font-bold",
+              )}
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Building2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
+                <SelectValue placeholder="All Origin Farms" />
+              </div>
+            </SelectTrigger>
+            <SelectContent align="end" className="z-110 w-[200px]">
+              <SelectItem
+                value="all"
+                className="text-xs cursor-pointer font-medium"
+              >
+                All Origin Farms ({data.length})
+              </SelectItem>
+              {farmOptions.map((farm) => (
+                <SelectItem
+                  key={farm}
+                  value={farm}
+                  className="text-xs cursor-pointer font-bold uppercase"
+                >
+                  {farm}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
               <Button

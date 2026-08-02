@@ -18,7 +18,7 @@ async function syncInventory() {
 
   console.log("Fetching sales totals from egg_sales...");
   const salesRes = await sql`
-    SELECT classification, COALESCE(SUM(quantity_trays * 30), 0) as pieces 
+    SELECT classification, COALESCE(SUM((quantity_trays + COALESCE(palit_basag, 0)) * 30 + quantity_pieces), 0) as pieces 
     FROM egg_sales 
     WHERE classification IN ('CRACKED', 'BROKEN', 'DIRTY') 
     GROUP BY classification
