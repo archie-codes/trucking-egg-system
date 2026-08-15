@@ -505,14 +505,14 @@ export function DataTable<TData>({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between shrink-0">
         {/* Search Bar - Animated Expand (Laptop+ Only) */}
         <div
           className={cn(
             "group relative transition-all duration-500 ease-out ml-0.5 ",
             hasFilter
               ? "w-full sm:w-[320px]"
-              : "w-full sm:w-11 sm:focus-within:w-[320px] pr-1",
+              : "w-full sm:w-[320px] xl:w-11 xl:focus-within:w-[320px] pr-1",
           )}
         >
           <Search
@@ -520,7 +520,7 @@ export function DataTable<TData>({
               "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
               hasFilter
                 ? "text-blue-500"
-                : "text-slate-500 dark:text-slate-400 sm:group-focus-within:text-blue-500",
+                : "text-slate-500 dark:text-slate-400 xl:group-focus-within:text-blue-500",
             )}
           />
           <Input
@@ -531,7 +531,7 @@ export function DataTable<TData>({
               "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-blue-500/40",
               hasFilter
                 ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 sm:pr-0 sm:rounded-full sm:text-transparent sm:placeholder:text-transparent sm:cursor-pointer sm:hover:bg-slate-200/50 sm:dark:hover:bg-slate-800/80 sm:group-focus-within:bg-white sm:group-focus-within:dark:bg-slate-900 sm:group-focus-within:pr-10 sm:group-focus-within:rounded-xl sm:group-focus-within:text-foreground sm:group-focus-within:placeholder:text-slate-400 sm:group-focus-within:dark:placeholder:text-slate-500 sm:group-focus-within:cursor-text",
+                : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 xl:pr-0 xl:rounded-full xl:text-transparent xl:placeholder:text-transparent xl:cursor-pointer xl:hover:bg-slate-200/50 xl:dark:hover:bg-slate-800/80 xl:group-focus-within:bg-white xl:group-focus-within:dark:bg-slate-900 xl:group-focus-within:pr-10 xl:group-focus-within:rounded-xl xl:group-focus-within:text-foreground xl:group-focus-within:placeholder:text-slate-400 xl:group-focus-within:dark:placeholder:text-slate-500 xl:group-focus-within:cursor-text",
             )}
           />
           <div
@@ -555,7 +555,7 @@ export function DataTable<TData>({
         </div>
 
         {/* Font Size, Density Controller and Export PDF */}
-        <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+        <div className="flex items-center justify-start sm:justify-end w-full xl:w-auto gap-1.5 sm:gap-2 flex-wrap shrink-0">
           <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
             <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
             <div className="flex items-center gap-0.5">

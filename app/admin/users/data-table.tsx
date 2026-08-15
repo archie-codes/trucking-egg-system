@@ -33,6 +33,7 @@ interface DataTableProps<TData> {
 }
 
 export function DataTable<TData>({ columns, data, currentUserId, onlineCount }: DataTableProps<TData>) {
+  "use no memo";
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 

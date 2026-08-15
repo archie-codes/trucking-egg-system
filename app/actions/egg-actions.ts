@@ -2,9 +2,11 @@
 "use server";
 
 import { db } from "@/db";
-import { eggBatches, eggInventory, eggSales } from "@/db/schema";
-import { sql, desc, eq } from "drizzle-orm";
+import { eggBatches, eggInventory, eggSales, users } from "@/db/schema";
+import { sql, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { decodeJwt } from "jose";
 import * as z from "zod";
 
 const numField = z
@@ -15,9 +17,11 @@ const batchSchema = z.object({
   arrivalDate: z.string().min(1, "Date is required"),
   batchId: z.string().min(1, "Batch ID is required"),
   farmName: z.string().min(1, "Farm Name is required").toUpperCase(),
+  receivedBy: z.string().optional(),
 
-  rawCasesPickedUp: numField,
-  rawTraysPickedUp: numField,
+  totalTraysPickedUp: numField,
+  extraType: z.string().default("NONE"),
+  extraPiecesPickedUp: numField,
 
   qtyPeewee: numField,
   qtyXs: numField,
@@ -28,7 +32,7 @@ const batchSchema = z.object({
   qtyXxl: numField,
   qtyCracked: numField,
   qtyBroken: numField,
-  qtyDirty: numField, // ✨ ADDED
+  qtyDirty: numField,
 
   brownQtyPeewee: numField,
   brownQtyXs: numField,
@@ -52,14 +56,37 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
 
   const data = validatedData.data;
 
+  // Resolve logged-in user / encoder name
+  let encoderName = data.receivedBy || "System";
+  if (!data.receivedBy) {
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get("auth_token")?.value;
+      if (token) {
+        const payload = decodeJwt(token);
+        if (payload?.id) {
+          const [u] = await db
+            .select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, payload.id as number));
+          if (u?.name) encoderName = u.name;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to resolve user for receiving batch:", err);
+    }
+  }
+
   try {
-    // 1. Log the Batch History
+    // 1. Log the Batch History (in Trays)
     await db.insert(eggBatches).values({
       arrivalDate: data.arrivalDate,
       batchId: data.batchId,
       farmName: data.farmName,
-      rawCasesPickedUp: data.rawCasesPickedUp, // ✨ Added
-      rawTraysPickedUp: data.rawTraysPickedUp, // ✨ Added
+      receivedBy: encoderName,
+      totalTraysPickedUp: data.totalTraysPickedUp,
+      extraType: data.extraType || "NONE",
+      extraPiecesPickedUp: data.extraPiecesPickedUp,
       qtyPeewee: data.qtyPeewee,
       qtyXs: data.qtyXs,
       qtySmall: data.qtySmall,
@@ -69,7 +96,7 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
       qtyXxl: data.qtyXxl,
       qtyCracked: data.qtyCracked,
       qtyBroken: data.qtyBroken,
-      qtyDirty: data.qtyDirty, // ✨ Added
+      qtyDirty: data.qtyDirty,
       brownQtyPeewee: data.brownQtyPeewee,
       brownQtyXs: data.brownQtyXs,
       brownQtySmall: data.brownQtySmall,
@@ -83,8 +110,9 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
       brownQtyDirty: data.brownQtyDirty,
     });
 
-    const updateStock = async (classification: string, qtyPieces: number) => {
-      if (qtyPieces <= 0) return;
+    const updateStock = async (classification: string, qtyTrays: number) => {
+      if (qtyTrays <= 0) return;
+      const qtyPieces = Math.round(qtyTrays * 30);
       await db
         .insert(eggInventory)
         .values({
@@ -101,7 +129,7 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
         });
     };
 
-    // 3. Update the ledger
+    // 3. Update the ledger (converts trays to pieces for stock ledger)
     await updateStock("PEEWEE", data.qtyPeewee);
     await updateStock("XS", data.qtyXs);
     await updateStock("SMALL", data.qtySmall);
@@ -138,7 +166,6 @@ export async function createEggBatch(values: z.infer<typeof batchSchema>) {
     };
   }
 }
-// ... Keep your other functions exactly the same
 
 // ✨ GET UNIQUE FARMS FOR BODEGA AUTOCOMPLETE
 export async function getEggFarmSuggestions() {
@@ -189,34 +216,34 @@ export async function deleteEggBatch(batchId: string) {
 
     const batch = batchResult[0];
 
-    // Map the quantities we need to subtract from inventory
+    // Map quantities to pieces to subtract from inventory
     const inventoryReversalMap = [
-      { class: "PEEWEE", qty: batch.qtyPeewee },
-      { class: "XS", qty: batch.qtyXs },
-      { class: "SMALL", qty: batch.qtySmall },
-      { class: "MEDIUM", qty: batch.qtyMedium },
-      { class: "LARGE", qty: batch.qtyLarge },
-      { class: "XL", qty: batch.qtyXl },
-      { class: "XXL", qty: batch.qtyXxl },
-      { class: "CRACKED", qty: batch.qtyCracked },
-      { class: "BROKEN", qty: batch.qtyBroken },
-      { class: "DIRTY", qty: batch.qtyDirty },
-      { class: "BROWN_PEEWEE", qty: batch.brownQtyPeewee },
-      { class: "BROWN_XS", qty: batch.brownQtyXs },
-      { class: "BROWN_SMALL", qty: batch.brownQtySmall },
-      { class: "BROWN_MEDIUM", qty: batch.brownQtyMedium },
-      { class: "BROWN_LARGE", qty: batch.brownQtyLarge },
-      { class: "BROWN_XL", qty: batch.brownQtyXl },
-      { class: "BROWN_XXL", qty: batch.brownQtyXxl },
-      { class: "BROWN_ASSORTED", qty: batch.brownQtyAssorted },
-      { class: "BROWN_CRACKED", qty: batch.brownQtyCracked },
-      { class: "BROWN_BROKEN", qty: batch.brownQtyBroken },
-      { class: "BROWN_DIRTY", qty: batch.brownQtyDirty },
+      { class: "PEEWEE", pieces: Math.round((batch.qtyPeewee || 0) * 30) },
+      { class: "XS", pieces: Math.round((batch.qtyXs || 0) * 30) },
+      { class: "SMALL", pieces: Math.round((batch.qtySmall || 0) * 30) },
+      { class: "MEDIUM", pieces: Math.round((batch.qtyMedium || 0) * 30) },
+      { class: "LARGE", pieces: Math.round((batch.qtyLarge || 0) * 30) },
+      { class: "XL", pieces: Math.round((batch.qtyXl || 0) * 30) },
+      { class: "XXL", pieces: Math.round((batch.qtyXxl || 0) * 30) },
+      { class: "CRACKED", pieces: Math.round((batch.qtyCracked || 0) * 30) },
+      { class: "BROKEN", pieces: Math.round((batch.qtyBroken || 0) * 30) },
+      { class: "DIRTY", pieces: Math.round((batch.qtyDirty || 0) * 30) },
+      { class: "BROWN_PEEWEE", pieces: Math.round((batch.brownQtyPeewee || 0) * 30) },
+      { class: "BROWN_XS", pieces: Math.round((batch.brownQtyXs || 0) * 30) },
+      { class: "BROWN_SMALL", pieces: Math.round((batch.brownQtySmall || 0) * 30) },
+      { class: "BROWN_MEDIUM", pieces: Math.round((batch.brownQtyMedium || 0) * 30) },
+      { class: "BROWN_LARGE", pieces: Math.round((batch.brownQtyLarge || 0) * 30) },
+      { class: "BROWN_XL", pieces: Math.round((batch.brownQtyXl || 0) * 30) },
+      { class: "BROWN_XXL", pieces: Math.round((batch.brownQtyXxl || 0) * 30) },
+      { class: "BROWN_ASSORTED", pieces: Math.round((batch.brownQtyAssorted || 0) * 30) },
+      { class: "BROWN_CRACKED", pieces: Math.round((batch.brownQtyCracked || 0) * 30) },
+      { class: "BROWN_BROKEN", pieces: Math.round((batch.brownQtyBroken || 0) * 30) },
+      { class: "BROWN_DIRTY", pieces: Math.round((batch.brownQtyDirty || 0) * 30) },
     ];
 
     // 1. Guard Check: Ensure deleting this won't cause negative inventory
     for (const item of inventoryReversalMap) {
-      if (item.qty <= 0) continue;
+      if (item.pieces <= 0) continue;
 
       const stockResult = await db
         .select({ currentStockTrays: eggInventory.currentStockTrays })
@@ -226,21 +253,21 @@ export async function deleteEggBatch(batchId: string) {
 
       const currentStock = stockResult[0]?.currentStockTrays || 0;
 
-      if (currentStock < item.qty) {
+      if (currentStock < item.pieces) {
         throw new Error(
-          `Cannot delete batch. ${item.class} eggs from this batch have already been sold. (Need ${item.qty}, only ${currentStock} available).`,
+          `Cannot delete batch. ${item.class} eggs from this batch have already been sold. (Need ${item.pieces} pieces, only ${currentStock} available).`,
         );
       }
     }
 
     // 2. Safely deduct the pieces back out of the inventory
     for (const item of inventoryReversalMap) {
-      if (item.qty <= 0) continue;
+      if (item.pieces <= 0) continue;
 
       await db
         .update(eggInventory)
         .set({
-          currentStockTrays: sql`${eggInventory.currentStockTrays} - ${item.qty}`,
+          currentStockTrays: sql`${eggInventory.currentStockTrays} - ${item.pieces}`,
           lastUpdated: new Date(),
         })
         .where(eq(eggInventory.classification, item.class));
@@ -287,36 +314,36 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
 
     const old = oldBatchResult[0];
 
-    // Calculate the Delta (New Value - Old Value)
+    // Calculate the Delta in pieces (New Pieces - Old Pieces)
     const deltas = [
-      { class: "PEEWEE", delta: data.qtyPeewee - old.qtyPeewee },
-      { class: "XS", delta: data.qtyXs - old.qtyXs },
-      { class: "SMALL", delta: data.qtySmall - old.qtySmall },
-      { class: "MEDIUM", delta: data.qtyMedium - old.qtyMedium },
-      { class: "LARGE", delta: data.qtyLarge - old.qtyLarge },
-      { class: "XL", delta: data.qtyXl - old.qtyXl },
-      { class: "XXL", delta: data.qtyXxl - old.qtyXxl },
-      { class: "CRACKED", delta: data.qtyCracked - old.qtyCracked },
-      { class: "BROKEN", delta: data.qtyBroken - old.qtyBroken },
-      { class: "DIRTY", delta: data.qtyDirty - old.qtyDirty },
-      { class: "BROWN_PEEWEE", delta: data.brownQtyPeewee - old.brownQtyPeewee },
-      { class: "BROWN_XS", delta: data.brownQtyXs - old.brownQtyXs },
-      { class: "BROWN_SMALL", delta: data.brownQtySmall - old.brownQtySmall },
-      { class: "BROWN_MEDIUM", delta: data.brownQtyMedium - old.brownQtyMedium },
-      { class: "BROWN_LARGE", delta: data.brownQtyLarge - old.brownQtyLarge },
-      { class: "BROWN_XL", delta: data.brownQtyXl - old.brownQtyXl },
-      { class: "BROWN_XXL", delta: data.brownQtyXxl - old.brownQtyXxl },
-      { class: "BROWN_ASSORTED", delta: data.brownQtyAssorted - old.brownQtyAssorted },
-      { class: "BROWN_CRACKED", delta: data.brownQtyCracked - old.brownQtyCracked },
-      { class: "BROWN_BROKEN", delta: data.brownQtyBroken - old.brownQtyBroken },
-      { class: "BROWN_DIRTY", delta: data.brownQtyDirty - old.brownQtyDirty },
+      { class: "PEEWEE", deltaPieces: Math.round((data.qtyPeewee - old.qtyPeewee) * 30) },
+      { class: "XS", deltaPieces: Math.round((data.qtyXs - old.qtyXs) * 30) },
+      { class: "SMALL", deltaPieces: Math.round((data.qtySmall - old.qtySmall) * 30) },
+      { class: "MEDIUM", deltaPieces: Math.round((data.qtyMedium - old.qtyMedium) * 30) },
+      { class: "LARGE", deltaPieces: Math.round((data.qtyLarge - old.qtyLarge) * 30) },
+      { class: "XL", deltaPieces: Math.round((data.qtyXl - old.qtyXl) * 30) },
+      { class: "XXL", deltaPieces: Math.round((data.qtyXxl - old.qtyXxl) * 30) },
+      { class: "CRACKED", deltaPieces: Math.round((data.qtyCracked - old.qtyCracked) * 30) },
+      { class: "BROKEN", deltaPieces: Math.round((data.qtyBroken - old.qtyBroken) * 30) },
+      { class: "DIRTY", deltaPieces: Math.round((data.qtyDirty - old.qtyDirty) * 30) },
+      { class: "BROWN_PEEWEE", deltaPieces: Math.round((data.brownQtyPeewee - old.brownQtyPeewee) * 30) },
+      { class: "BROWN_XS", deltaPieces: Math.round((data.brownQtyXs - old.brownQtyXs) * 30) },
+      { class: "BROWN_SMALL", deltaPieces: Math.round((data.brownQtySmall - old.brownQtySmall) * 30) },
+      { class: "BROWN_MEDIUM", deltaPieces: Math.round((data.brownQtyMedium - old.brownQtyMedium) * 30) },
+      { class: "BROWN_LARGE", deltaPieces: Math.round((data.brownQtyLarge - old.brownQtyLarge) * 30) },
+      { class: "BROWN_XL", deltaPieces: Math.round((data.brownQtyXl - old.brownQtyXl) * 30) },
+      { class: "BROWN_XXL", deltaPieces: Math.round((data.brownQtyXxl - old.brownQtyXxl) * 30) },
+      { class: "BROWN_ASSORTED", deltaPieces: Math.round((data.brownQtyAssorted - old.brownQtyAssorted) * 30) },
+      { class: "BROWN_CRACKED", deltaPieces: Math.round((data.brownQtyCracked - old.brownQtyCracked) * 30) },
+      { class: "BROWN_BROKEN", deltaPieces: Math.round((data.brownQtyBroken - old.brownQtyBroken) * 30) },
+      { class: "BROWN_DIRTY", deltaPieces: Math.round((data.brownQtyDirty - old.brownQtyDirty) * 30) },
     ];
 
     // 1. Guard Check: Ensure negative deltas (removing eggs) don't drop stock below zero
     for (const item of deltas) {
-      if (item.delta >= 0) continue; // Adding eggs is always safe
+      if (item.deltaPieces >= 0) continue; // Adding eggs is safe
 
-      const absoluteRemovalAmount = Math.abs(item.delta);
+      const absoluteRemovalAmount = Math.abs(item.deltaPieces);
       const stockResult = await db
         .select({ currentStockTrays: eggInventory.currentStockTrays })
         .from(eggInventory)
@@ -334,12 +361,12 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
 
     // 2. Apply Deltas to Inventory
     for (const item of deltas) {
-      if (item.delta === 0) continue; // No change
+      if (item.deltaPieces === 0) continue; // No change
 
       await db
         .update(eggInventory)
         .set({
-          currentStockTrays: sql`${eggInventory.currentStockTrays} + ${item.delta}`,
+          currentStockTrays: sql`${eggInventory.currentStockTrays} + ${item.deltaPieces}`,
           lastUpdated: new Date(),
         })
         .where(eq(eggInventory.classification, item.class));
@@ -351,8 +378,9 @@ export async function updateEggBatch(values: z.infer<typeof editBatchSchema>) {
       .set({
         arrivalDate: data.arrivalDate,
         farmName: data.farmName,
-        rawCasesPickedUp: data.rawCasesPickedUp,
-        rawTraysPickedUp: data.rawTraysPickedUp,
+        totalTraysPickedUp: data.totalTraysPickedUp,
+        extraType: data.extraType || "NONE",
+        extraPiecesPickedUp: data.extraPiecesPickedUp,
         qtyPeewee: data.qtyPeewee,
         qtyXs: data.qtyXs,
         qtySmall: data.qtySmall,
@@ -588,6 +616,7 @@ const saleItemSchema = z.object({
 const saleSchema = z.object({
   saleDate: z.string().min(1, "Sale date is required"),
   customerId: z.string().min(1, "Customer is required").toUpperCase(),
+  preparedBy: z.string().optional(),
   items: z.array(saleItemSchema).min(1, "Need at least 1 item"),
   amountPaid: z.number().min(0, "Invalid amount"),
   datePaid: z.string().optional().nullable(),
@@ -605,6 +634,26 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
     const timestamp = data.saleDate.replace(/-/g, "");
     const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
     const generatedInvoiceId = `INV-${timestamp}-${randomChars}`;
+
+    let encoderName = data.preparedBy || "System";
+    if (!data.preparedBy) {
+      try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get("auth_token")?.value;
+        if (token) {
+          const payload = decodeJwt(token);
+          if (payload?.id) {
+            const [u] = await db
+              .select({ name: users.name })
+              .from(users)
+              .where(eq(users.id, payload.id as number));
+            if (u?.name) encoderName = u.name;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to resolve user for egg sale:", err);
+      }
+    }
 
     await db.transaction(async (tx) => {
       // 1. Guard: Check Live Inventory for ALL items first
@@ -680,6 +729,7 @@ export async function createEggSale(values: z.infer<typeof saleSchema>) {
           amountPaid: appliedPayment,
           paymentStatus: status,
           datePaid: data.datePaid || null,
+          preparedBy: encoderName,
           remarks: data.remarks,
         });
 
@@ -730,5 +780,85 @@ export async function getEggSalesHistory() {
   } catch (error) {
     console.error("Failed to fetch sales history:", error);
     return { success: false, data: [] };
+  }
+}
+
+// ✨ POST GROUP PAYMENT FOR ENTIRE INVOICE / LIST OF SALE ITEMS
+export async function postInvoicePayment({
+  invoiceId,
+  itemIds,
+  additionalAmountPaid,
+  datePaid,
+}: {
+  invoiceId?: string | null;
+  itemIds?: number[];
+  additionalAmountPaid: number;
+  datePaid: string;
+}) {
+  if (additionalAmountPaid <= 0 || !datePaid) {
+    return { success: false, error: "Invalid payment parameters." };
+  }
+
+  try {
+    let items: typeof eggSales.$inferSelect[] = [];
+
+    if (invoiceId) {
+      items = await db
+        .select()
+        .from(eggSales)
+        .where(eq(eggSales.invoiceId, invoiceId))
+        .orderBy(eggSales.id);
+    } else if (itemIds && itemIds.length > 0) {
+      items = await db
+        .select()
+        .from(eggSales)
+        .where(inArray(eggSales.id, itemIds))
+        .orderBy(eggSales.id);
+    }
+
+    if (!items || items.length === 0) {
+      return { success: false, error: "No sales records found." };
+    }
+
+    let remainingAddPayment = Math.round(additionalAmountPaid * 100) / 100;
+
+    await db.transaction(async (tx) => {
+      for (const item of items) {
+        if (remainingAddPayment <= 0) break;
+
+        const itemTotal = Number(item.totalAmount);
+        const currentPaid = Number(item.amountPaid);
+        const itemUnpaidBalance = Math.max(0, itemTotal - currentPaid);
+
+        if (itemUnpaidBalance > 0.01) {
+          const addForThisItem = Math.min(remainingAddPayment, itemUnpaidBalance);
+          const newPaid = Math.round((currentPaid + addForThisItem) * 100) / 100;
+          remainingAddPayment = Math.round((remainingAddPayment - addForThisItem) * 100) / 100;
+
+          const newBalance = itemTotal - newPaid;
+          let status = "unpaid";
+          if (newBalance <= 0.01) status = "paid";
+          else if (newPaid > 0) status = "partial";
+
+          await tx
+            .update(eggSales)
+            .set({
+              amountPaid: newPaid,
+              datePaid: datePaid,
+              paymentStatus: status,
+            })
+            .where(eq(eggSales.id, item.id));
+        }
+      }
+    });
+
+    revalidatePath("/egg-sales/sales/history");
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Post Invoice Payment Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to record payment.",
+    };
   }
 }

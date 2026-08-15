@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   CalendarIcon,
+  Info,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -27,6 +28,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +98,18 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     },
   },
   {
+    accessorKey: "receivedBy",
+    header: "Recorded By",
+    cell: ({ row }) => {
+      const receivedBy = (row.getValue("receivedBy") as string) || "System";
+      return (
+        <div className="font-semibold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
+          {receivedBy}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "farmName",
     header: "Farm Origin",
     cell: ({ row }) => {
@@ -101,31 +121,25 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     },
   },
   {
-    accessorKey: "rawCasesPickedUp",
+    accessorKey: "totalTraysPickedUp",
     header: () => (
-      <div className="text-right text-amber-600 dark:text-amber-500">Cases</div>
-    ),
-    cell: ({ row }) => {
-      const val = row.getValue("rawCasesPickedUp") as number;
-      return (
-        <div className="text-right font-black text-amber-600 dark:text-amber-500 bg-amber-50/30 dark:bg-amber-900/10 px-2 py-1 rounded">
-          {val}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "rawTraysPickedUp",
-    header: () => (
-      <div className="text-right text-amber-600 dark:text-amber-500 border-r border-slate-200 dark:border-slate-800 pr-2">
-        Trays
+      <div className="text-right text-amber-600 dark:text-amber-500 font-bold border-r border-slate-200 dark:border-slate-800 pr-2">
+        Total Trays
       </div>
     ),
     cell: ({ row }) => {
-      const val = row.getValue("rawTraysPickedUp") as number;
+      const totalTrays = (row.getValue("totalTraysPickedUp") as number) || 0;
+      const extraType = (row.original.extraType as string) || "NONE";
+      const extraPieces = (row.original.extraPiecesPickedUp as number) || 0;
+
+      let extraText = "";
+      if (extraType === "HALF_TRAY") extraText = " + Half Tray";
+      else if (extraType === "PIECES" && extraPieces > 0)
+        extraText = ` + ${extraPieces} Pcs`;
+
       return (
         <div className="text-right font-black text-amber-600 dark:text-amber-500 border-r border-slate-100 dark:border-slate-800/60 pr-2 bg-amber-50/30 dark:bg-amber-900/10 py-1">
-          {val}
+          {totalTrays} Trays{extraText}
         </div>
       );
     },
@@ -269,66 +283,118 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
   // --- BROWN EGGS COLUMNS ---
   {
     accessorKey: "brownQtyPeewee",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br PW</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">Br PW</div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyPeewee") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtyXs",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br XS</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">Br XS</div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyXs") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtySmall",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br S</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">Br S</div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtySmall") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtyMedium",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br M</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">Br M</div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyMedium") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtyLarge",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br L</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">Br L</div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyLarge") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtyXl",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br XL</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">Br XL</div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyXl") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtyXxl",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500">Br XXL</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500">
+        Br XXL
+      </div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyXxl") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
     accessorKey: "brownQtyAssorted",
-    header: () => <div className="text-right text-amber-700 dark:text-amber-500 border-r border-slate-200 dark:border-slate-800 pr-2">Br ASST</div>,
+    header: () => (
+      <div className="text-right text-amber-700 dark:text-amber-500 border-r border-slate-200 dark:border-slate-800 pr-2">
+        Br ASST
+      </div>
+    ),
     cell: ({ row }) => {
       const val = row.getValue("brownQtyAssorted") as number;
-      return <div className="text-right font-mono text-amber-700 dark:text-amber-500 border-r border-slate-100 dark:border-slate-800/60 pr-2">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-amber-700 dark:text-amber-500 border-r border-slate-100 dark:border-slate-800/60 pr-2">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
@@ -336,7 +402,11 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     header: () => <div className="text-right text-rose-500">Br CRK</div>,
     cell: ({ row }) => {
       const val = row.getValue("brownQtyCracked") as number;
-      return <div className="text-right font-mono text-rose-500 bg-rose-50/30 dark:bg-rose-900/10 px-2 py-1 rounded">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-rose-500 bg-rose-50/30 dark:bg-rose-900/10 px-2 py-1 rounded">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
@@ -344,7 +414,11 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     header: () => <div className="text-right text-rose-500">Br BRK</div>,
     cell: ({ row }) => {
       const val = row.getValue("brownQtyBroken") as number;
-      return <div className="text-right font-mono text-rose-500 bg-rose-50/30 dark:bg-rose-900/10 px-2 py-1 rounded">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-rose-500 bg-rose-50/30 dark:bg-rose-900/10 px-2 py-1 rounded">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
@@ -352,7 +426,11 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
     header: () => <div className="text-right text-orange-500">Br DRT</div>,
     cell: ({ row }) => {
       const val = row.getValue("brownQtyDirty") as number;
-      return <div className="text-right font-mono text-orange-500 bg-orange-50/30 dark:bg-orange-900/10 px-2 py-1 rounded">{val > 0 ? val : "-"}</div>;
+      return (
+        <div className="text-right font-mono text-orange-500 bg-orange-50/30 dark:bg-orange-900/10 px-2 py-1 rounded">
+          {val > 0 ? val : "-"}
+        </div>
+      );
     },
   },
   {
@@ -387,7 +465,7 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
         brownQtyDirty,
       } = row.original;
 
-      const total =
+      const totalTrays =
         (qtyPeewee || 0) +
         (qtyXs || 0) +
         (qtySmall || 0) +
@@ -410,9 +488,11 @@ export const getColumns = (isAdmin: boolean): ColumnDef<EggBatchRecord>[] => [
         (brownQtyBroken || 0) +
         (brownQtyDirty || 0);
 
+      const totalPieces = Math.round(totalTrays * 30);
+
       return (
         <div className="text-right font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20 px-2 py-1 rounded">
-          {total > 0 ? total.toLocaleString() : "-"}
+          {totalPieces > 0 ? `${totalPieces.toLocaleString()} Pcs` : "-"}
         </div>
       );
     },
@@ -443,8 +523,9 @@ const ActionCell = ({
     arrivalDate: batch.arrivalDate || "",
     batchId: batch.batchId || "",
     farmName: batch.farmName || "",
-    rawCasesPickedUp: batch.rawCasesPickedUp ?? 0,
-    rawTraysPickedUp: batch.rawTraysPickedUp ?? 0,
+    totalTraysPickedUp: batch.totalTraysPickedUp ?? 0,
+    extraType: batch.extraType || "NONE",
+    extraPiecesPickedUp: batch.extraPiecesPickedUp ?? 0,
     qtyPeewee: batch.qtyPeewee ?? 0,
     qtyXs: batch.qtyXs ?? 0,
     qtySmall: batch.qtySmall ?? 0,
@@ -483,14 +564,26 @@ const ActionCell = ({
     setIsDeleteDialogOpen(false);
   };
 
-  const TRAYS_PER_CASE = 12;
+  const formatTrayCount = (val: number): string => {
+    if (isNaN(val) || val === 0) return "0";
+    if (Number.isInteger(val)) return val.toString();
+    return Number(val.toFixed(2)).toString();
+  };
+
   const EGGS_PER_TRAY = 30;
 
-  const rawCases = Number(formData.rawCasesPickedUp) || 0;
-  const rawTrays = Number(formData.rawTraysPickedUp) || 0;
+  const totalTrays = Number(formData.totalTraysPickedUp) || 0;
+  const extraType = formData.extraType || "NONE";
+  const extraPiecesInput = Number(formData.extraPiecesPickedUp) || 0;
 
-  const totalPickupTrays = rawCases * TRAYS_PER_CASE + rawTrays;
-  const totalExpectedPieces = totalPickupTrays * EGGS_PER_TRAY;
+  const extraPieces =
+    extraType === "HALF_TRAY"
+      ? 15
+      : extraType === "PIECES"
+        ? extraPiecesInput
+        : 0;
+  const totalPickupTrays = totalTrays + extraPieces / 30;
+  const totalExpectedPieces = totalTrays * EGGS_PER_TRAY + extraPieces;
 
   const peewee = Number(formData.qtyPeewee) || 0;
   const xs = Number(formData.qtyXs) || 0;
@@ -515,10 +608,33 @@ const ActionCell = ({
   const bBroken = Number(formData.brownQtyBroken) || 0;
   const bDirty = Number(formData.brownQtyDirty) || 0;
 
-  const totalSortedPieces =
-    peewee + xs + s + m + l + xl + xxl + cracked + broken + dirty +
-    bPeewee + bXs + bS + bM + bL + bXl + bXxl + bAssorted + bCracked + bBroken + bDirty;
+  const totalSortedTrays =
+    peewee +
+    xs +
+    s +
+    m +
+    l +
+    xl +
+    xxl +
+    cracked +
+    broken +
+    dirty +
+    bPeewee +
+    bXs +
+    bS +
+    bM +
+    bL +
+    bXl +
+    bXxl +
+    bAssorted +
+    bCracked +
+    bBroken +
+    bDirty;
+  const totalSortedPieces = Math.round(totalSortedTrays * EGGS_PER_TRAY);
   const variancePieces = totalExpectedPieces - totalSortedPieces;
+  const varianceTrays = Number(
+    (totalPickupTrays - totalSortedTrays).toFixed(2),
+  );
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -527,8 +643,10 @@ const ActionCell = ({
       setIsShaking(true);
       setTimeout(() => setIsShaking(false), 600);
       const isMissing = variancePieces > 0;
+      const absTrays = Math.abs(varianceTrays);
+      const absPieces = Math.abs(variancePieces);
       toast.error(isMissing ? "Missing Eggs Detected" : "Overcount Detected", {
-        description: `You are ${isMissing ? "missing" : "over by"} ${Math.abs(variancePieces)} pieces. Please correct the sorting breakdown.`,
+        description: `You are ${isMissing ? "missing" : "over by"} ${absTrays} ${absTrays === 1 ? "Tray" : "Trays"} (${absPieces} Pcs). Please correct the sorting breakdown.`,
         duration: 5000,
       });
       return;
@@ -569,6 +687,19 @@ const ActionCell = ({
         .animate-shake {
           animation: shake 0.2s ease-in-out 3;
         }
+        @keyframes expandFadeIn {
+          0% {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-expand-fade-in {
+          animation: expandFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
       `}</style>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -601,8 +732,9 @@ const ActionCell = ({
                 arrivalDate: batch.arrivalDate || "",
                 batchId: batch.batchId || "",
                 farmName: batch.farmName || "",
-                rawCasesPickedUp: batch.rawCasesPickedUp ?? 0,
-                rawTraysPickedUp: batch.rawTraysPickedUp ?? 0,
+                totalTraysPickedUp: batch.totalTraysPickedUp ?? 0,
+                extraType: batch.extraType || "NONE",
+                extraPiecesPickedUp: batch.extraPiecesPickedUp ?? 0,
                 qtyPeewee: batch.qtyPeewee ?? 0,
                 qtyXs: batch.qtyXs ?? 0,
                 qtySmall: batch.qtySmall ?? 0,
@@ -812,18 +944,19 @@ const ActionCell = ({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-bold text-slate-500 uppercase">
-                      Raw Cases Picked Up
+                      Total Trays
                     </Label>
                     <Input
                       type="number"
+                      min="0"
                       value={
-                        formData.rawCasesPickedUp === 0 &&
-                        formData.rawCasesPickedUp.toString() !== "0"
+                        formData.totalTraysPickedUp === 0 &&
+                        formData.totalTraysPickedUp.toString() !== "0"
                           ? ""
-                          : formData.rawCasesPickedUp
+                          : formData.totalTraysPickedUp
                       }
                       onChange={(e) =>
-                        handleNumChange("rawCasesPickedUp", e.target.value)
+                        handleNumChange("totalTraysPickedUp", e.target.value)
                       }
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 font-bold"
@@ -831,29 +964,118 @@ const ActionCell = ({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-bold text-slate-500 uppercase">
-                      Raw Trays Picked Up
+                      Extra Egg Option
+                    </Label>
+                    <Select
+                      value={formData.extraType || "NONE"}
+                      onValueChange={(val) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          extraType: val,
+                          extraPiecesPickedUp:
+                            val === "HALF_TRAY"
+                              ? 15
+                              : val === "NONE"
+                                ? 0
+                                : prev.extraPiecesPickedUp,
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="h-11! w-full rounded-2xl font-bold bg-amber-50 dark:bg-amber-950/30 border-slate-200 dark:border-slate-800/80 text-amber-900 dark:text-amber-100">
+                        <SelectValue placeholder="Option" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl z-200">
+                        <SelectItem value="NONE">No Extra (0 Pcs)</SelectItem>
+                        <SelectItem value="HALF_TRAY">
+                          Half Tray (15 Pcs)
+                        </SelectItem>
+                        <SelectItem value="PIECES">Per Pieces Egg</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                      Extra Eggs (Pcs)
                     </Label>
                     <Input
                       type="number"
+                      min="0"
+                      disabled={formData.extraType !== "PIECES"}
+                      readOnly={
+                        formData.extraType === "HALF_TRAY" ||
+                        formData.extraType === "NONE"
+                      }
                       value={
-                        formData.rawTraysPickedUp === 0 &&
-                        formData.rawTraysPickedUp.toString() !== "0"
-                          ? ""
-                          : formData.rawTraysPickedUp
+                        formData.extraType === "HALF_TRAY"
+                          ? 15
+                          : formData.extraType === "NONE"
+                            ? 0
+                            : formData.extraPiecesPickedUp
                       }
                       onChange={(e) =>
-                        handleNumChange("rawTraysPickedUp", e.target.value)
+                        handleNumChange("extraPiecesPickedUp", e.target.value)
                       }
-                      onClick={(e) => e.currentTarget.select()}
-                      className="h-11 border-slate-200 dark:border-slate-800/80 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 font-bold"
+                      onClick={(e) =>
+                        formData.extraType === "PIECES" &&
+                        e.currentTarget.select()
+                      }
+                      className={cn(
+                        "h-11 rounded-2xl font-bold transition-all",
+                        formData.extraType === "PIECES"
+                          ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600 border-slate-200 dark:border-slate-800/80"
+                          : "bg-slate-100 dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed",
+                      )}
                     />
                   </div>
                 </div>
+
+                {formData.extraType === "HALF_TRAY" && (
+                  <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200 animate-expand-fade-in">
+                    <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block text-amber-700 dark:text-amber-300">
+                        QA Hint: Half Tray = 0.5 Tray (15 Eggs)
+                      </span>
+                      <span>
+                        Enter{" "}
+                        <code className="font-mono font-bold bg-amber-200/60 dark:bg-amber-900/60 text-amber-900 dark:text-amber-100 px-1 py-0.5 rounded">
+                          0.5
+                        </code>{" "}
+                        in any QA box below for half trays.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {formData.extraType === "PIECES" &&
+                  Number(formData.extraPiecesPickedUp) > 0 && (
+                    <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200 animate-expand-fade-in">
+                      <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block text-blue-700 dark:text-blue-300">
+                          QA Hint: {formData.extraPiecesPickedUp} Eggs ={" "}
+                          {Number(
+                            (formData.extraPiecesPickedUp / 30).toFixed(2),
+                          )}{" "}
+                          Trays
+                        </span>
+                        <span>
+                          Enter{" "}
+                          <code className="font-mono font-bold bg-blue-200/60 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100 px-1 py-0.5 rounded">
+                            {Number(
+                              (formData.extraPiecesPickedUp / 30).toFixed(2),
+                            )}
+                          </code>{" "}
+                          in QA breakdown for these extra eggs.
+                        </span>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <h4 className="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest border-b border-blue-100 dark:border-blue-900/30 pb-2">
-                  White QA Breakdown (Pieces)
+                  White QA Breakdown (Trays)
                 </h4>
 
                 <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
@@ -872,6 +1094,8 @@ const ActionCell = ({
                       </Label>
                       <Input
                         type="number"
+                        step="any"
+                        min="0"
                         value={
                           formData[size.key as keyof typeof formData] === 0 &&
                           formData[
@@ -886,6 +1110,18 @@ const ActionCell = ({
                         onClick={(e) => e.currentTarget.select()}
                         className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-blue-50 dark:bg-blue-950/20 text-blue-600 font-mono font-bold"
                       />
+                      {Number(formData[size.key as keyof typeof formData]) >
+                        0 && (
+                        <span className="text-[9px] font-semibold text-slate-500 text-right pr-1">
+                          ={" "}
+                          {Math.round(
+                            Number(
+                              formData[size.key as keyof typeof formData],
+                            ) * 30,
+                          )}{" "}
+                          pcs
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -897,6 +1133,8 @@ const ActionCell = ({
                     </Label>
                     <Input
                       type="number"
+                      step="any"
+                      min="0"
                       value={
                         formData.qtyCracked === 0 &&
                         formData.qtyCracked.toString() !== "0"
@@ -909,6 +1147,11 @@ const ActionCell = ({
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 font-mono font-bold"
                     />
+                    {Number(formData.qtyCracked) > 0 && (
+                      <span className="text-[9px] font-semibold text-rose-500 text-right pr-1">
+                        = {Math.round(Number(formData.qtyCracked) * 30)} pcs
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-rose-400 uppercase">
@@ -916,6 +1159,8 @@ const ActionCell = ({
                     </Label>
                     <Input
                       type="number"
+                      step="any"
+                      min="0"
                       value={
                         formData.qtyBroken === 0 &&
                         formData.qtyBroken.toString() !== "0"
@@ -928,6 +1173,11 @@ const ActionCell = ({
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 font-mono font-bold"
                     />
+                    {Number(formData.qtyBroken) > 0 && (
+                      <span className="text-[9px] font-semibold text-rose-500 text-right pr-1">
+                        = {Math.round(Number(formData.qtyBroken) * 30)} pcs
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-orange-400 uppercase">
@@ -935,6 +1185,8 @@ const ActionCell = ({
                     </Label>
                     <Input
                       type="number"
+                      step="any"
+                      min="0"
                       value={
                         formData.qtyDirty === 0 &&
                         formData.qtyDirty.toString() !== "0"
@@ -947,13 +1199,18 @@ const ActionCell = ({
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 font-mono font-bold"
                     />
+                    {Number(formData.qtyDirty) > 0 && (
+                      <span className="text-[9px] font-semibold text-orange-500 text-right pr-1">
+                        = {Math.round(Number(formData.qtyDirty) * 30)} pcs
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <h4 className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest border-b border-amber-100 dark:border-amber-900/30 pb-2">
-                  Brown QA Breakdown (Pieces)
+                  Brown QA Breakdown (Trays)
                 </h4>
 
                 <div className="grid grid-cols-3 sm:grid-cols-8 gap-3">
@@ -973,6 +1230,8 @@ const ActionCell = ({
                       </Label>
                       <Input
                         type="number"
+                        step="any"
+                        min="0"
                         value={
                           formData[size.key as keyof typeof formData] === 0 &&
                           formData[
@@ -987,6 +1246,18 @@ const ActionCell = ({
                         onClick={(e) => e.currentTarget.select()}
                         className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-amber-50 dark:bg-amber-950/20 text-amber-600 font-mono font-bold"
                       />
+                      {Number(formData[size.key as keyof typeof formData]) >
+                        0 && (
+                        <span className="text-[9px] font-semibold text-slate-500 text-right pr-1">
+                          ={" "}
+                          {Math.round(
+                            Number(
+                              formData[size.key as keyof typeof formData],
+                            ) * 30,
+                          )}{" "}
+                          pcs
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -998,6 +1269,8 @@ const ActionCell = ({
                     </Label>
                     <Input
                       type="number"
+                      step="any"
+                      min="0"
                       value={
                         formData.brownQtyCracked === 0 &&
                         formData.brownQtyCracked.toString() !== "0"
@@ -1010,6 +1283,12 @@ const ActionCell = ({
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 font-mono font-bold"
                     />
+                    {Number(formData.brownQtyCracked) > 0 && (
+                      <span className="text-[9px] font-semibold text-rose-500 text-right pr-1">
+                        = {Math.round(Number(formData.brownQtyCracked) * 30)}{" "}
+                        pcs
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-rose-400 uppercase">
@@ -1017,6 +1296,8 @@ const ActionCell = ({
                     </Label>
                     <Input
                       type="number"
+                      step="any"
+                      min="0"
                       value={
                         formData.brownQtyBroken === 0 &&
                         formData.brownQtyBroken.toString() !== "0"
@@ -1029,6 +1310,11 @@ const ActionCell = ({
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-500 font-mono font-bold"
                     />
+                    {Number(formData.brownQtyBroken) > 0 && (
+                      <span className="text-[9px] font-semibold text-rose-500 text-right pr-1">
+                        = {Math.round(Number(formData.brownQtyBroken) * 30)} pcs
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-orange-400 uppercase">
@@ -1036,6 +1322,8 @@ const ActionCell = ({
                     </Label>
                     <Input
                       type="number"
+                      step="any"
+                      min="0"
                       value={
                         formData.brownQtyDirty === 0 &&
                         formData.brownQtyDirty.toString() !== "0"
@@ -1048,6 +1336,11 @@ const ActionCell = ({
                       onClick={(e) => e.currentTarget.select()}
                       className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 font-mono font-bold"
                     />
+                    {Number(formData.brownQtyDirty) > 0 && (
+                      <span className="text-[9px] font-semibold text-orange-500 text-right pr-1">
+                        = {Math.round(Number(formData.brownQtyDirty) * 30)} pcs
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1066,7 +1359,7 @@ const ActionCell = ({
                     </span>
                   </p>
                   <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-1">
-                    = {totalPickupTrays} Total Trays
+                    = {formatTrayCount(totalPickupTrays)} Total Trays
                   </p>
                 </div>
 
@@ -1080,7 +1373,7 @@ const ActionCell = ({
                     {variancePieces === 0 && totalExpectedPieces > 0 ? (
                       <span className="flex items-center text-emerald-600 dark:text-emerald-400 font-bold text-xs bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-md">
                         <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Perfect
-                        Match
+                        Match ({formatTrayCount(totalPickupTrays)} Trays)
                       </span>
                     ) : variancePieces > 0 ? (
                       <span
@@ -1093,7 +1386,9 @@ const ActionCell = ({
                       >
                         <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
                         <span>
-                          Missing <NumberTicker value={variancePieces} /> Pieces
+                          Missing {formatTrayCount(Math.abs(varianceTrays))}{" "}
+                          {Math.abs(varianceTrays) === 1 ? "Tray" : "Trays"} (
+                          {Math.abs(variancePieces)} Pcs)
                         </span>
                       </span>
                     ) : variancePieces < 0 ? (
@@ -1107,8 +1402,10 @@ const ActionCell = ({
                       >
                         <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
                         <span>
-                          Over count (
-                          <NumberTicker value={Math.abs(variancePieces)} />)
+                          Over count by{" "}
+                          {formatTrayCount(Math.abs(varianceTrays))}{" "}
+                          {Math.abs(varianceTrays) === 1 ? "Tray" : "Trays"} (
+                          {Math.abs(variancePieces)} Pcs)
                         </span>
                       </span>
                     ) : (

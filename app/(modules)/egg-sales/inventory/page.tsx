@@ -23,6 +23,12 @@ import { NumberTicker } from "@/components/ui/number-ticker";
 const PIECES_PER_TRAY = 30;
 const LOW_STOCK_TRAYS = 5;
 
+const formatTrayCount = (val: number): string => {
+  if (isNaN(val) || val === 0) return "0";
+  if (Number.isInteger(val)) return val.toString();
+  return Number(val.toFixed(2)).toString();
+};
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 type InventoryItem = {
   id: number;
@@ -277,10 +283,9 @@ function EggCard({ size, pieces }: { size: string; pieces: number }) {
   const meta = CLASS_METADATA[size];
   if (!meta) return null;
 
-  const trays = Math.floor(pieces / PIECES_PER_TRAY);
-  const loose = pieces % PIECES_PER_TRAY;
+  const trayCount = pieces / PIECES_PER_TRAY;
   const isEmpty = pieces === 0;
-  const isLow = !isEmpty && trays <= LOW_STOCK_TRAYS;
+  const isLow = !isEmpty && trayCount <= LOW_STOCK_TRAYS;
   const status: "good" | "low" | "empty" = isEmpty
     ? "empty"
     : isLow
@@ -289,7 +294,7 @@ function EggCard({ size, pieces }: { size: string; pieces: number }) {
 
   const progressPct = isEmpty
     ? 0
-    : Math.min(100, Math.round((trays / LOW_STOCK_TRAYS) * 100));
+    : Math.min(100, Math.round((trayCount / LOW_STOCK_TRAYS) * 100));
   const progressColor = isLow ? "#E24B4A" : "#1D9E75";
 
   return (
@@ -322,13 +327,13 @@ function EggCard({ size, pieces }: { size: string; pieces: number }) {
           <StatusBadge status={status} />
         </div>
 
-        {/* Piece count */}
-        <div className="flex items-baseline gap-1 mb-3">
+        {/* Primary metric: Trays */}
+        <div className="flex items-baseline gap-1.5 mb-3">
           <span className="text-2xl font-semibold text-slate-900 dark:text-white tabular-nums">
-            <NumberTicker value={pieces} />
+            {formatTrayCount(trayCount)}
           </span>
-          <span className="text-xs text-slate-400 dark:text-slate-500">
-            pcs
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            trays
           </span>
         </div>
 
@@ -346,21 +351,14 @@ function EggCard({ size, pieces }: { size: string; pieces: number }) {
         )}
         {isEmpty && <div className="mb-3" />}
 
-        {/* Breakdown footer */}
+        {/* Breakdown footer: Total Eggs */}
         <div className="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
-          <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
-            <Layers className="w-3 h-3" aria-hidden />
-            <span className="font-medium text-slate-700 dark:text-slate-300 tabular-nums">
-              <NumberTicker value={trays} />
-            </span>
-            {" trays"}
-          </span>
           <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
             <Egg className="w-3 h-3" aria-hidden />
             <span className="font-medium text-slate-700 dark:text-slate-300 tabular-nums">
-              <NumberTicker value={loose} />
+              <NumberTicker value={pieces} />
             </span>
-            {" loose"}
+            {" total eggs"}
           </span>
         </div>
       </div>
@@ -371,12 +369,8 @@ function EggCard({ size, pieces }: { size: string; pieces: number }) {
 // ─── Hero Card: Warehouse Volume ─────────────────────────────────────────────────
 function HeroVolume({
   totalPieces,
-  totalTrays,
-  totalLoose,
 }: {
   totalPieces: number;
-  totalTrays: number;
-  totalLoose: number;
 }) {
   return (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-between">
@@ -388,7 +382,18 @@ function HeroVolume({
       <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-slate-800/80">
         <div className="pr-4">
           <p className="text-[10px] text-slate-600 dark:text-slate-500 uppercase tracking-wider mb-1">
-            Pieces
+            Total Trays
+          </p>
+          <p className="text-3xl font-semibold text-slate-900 dark:text-white tabular-nums leading-none">
+            {formatTrayCount(totalPieces / PIECES_PER_TRAY)}
+          </p>
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-1">
+            trays
+          </p>
+        </div>
+        <div className="pl-4">
+          <p className="text-[10px] text-slate-600 dark:text-slate-500 uppercase tracking-wider mb-1">
+            Total Eggs
           </p>
           <p className="text-3xl font-semibold text-slate-900 dark:text-white tabular-nums leading-none">
             <NumberTicker value={totalPieces} />
@@ -397,27 +402,6 @@ function HeroVolume({
             egg pieces
           </p>
         </div>
-        <div className="pl-4">
-          <p className="text-[10px] text-slate-600 dark:text-slate-500 uppercase tracking-wider mb-1">
-            Trays
-          </p>
-          <p className="text-3xl font-semibold text-slate-900 dark:text-white tabular-nums leading-none">
-            <NumberTicker value={totalTrays} />
-          </p>
-          <p className="text-xs text-slate-600 dark:text-slate-500 mt-1">
-            full trays
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-500">
-          <Egg className="w-3.5 h-3.5" aria-hidden />
-          Loose extra
-        </span>
-        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 px-2.5 py-0.5 rounded border border-slate-100 dark:border-slate-700/50 tabular-nums">
-          <NumberTicker value={totalLoose} /> pcs
-        </span>
       </div>
     </div>
   );
@@ -737,8 +721,6 @@ export default function InventoryDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <HeroVolume
           totalPieces={grandTotalPieces}
-          totalTrays={globalTrays}
-          totalLoose={globalLoose}
         />
         <HeroYield
           premiumPct={premiumPct}

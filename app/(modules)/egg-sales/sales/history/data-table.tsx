@@ -65,6 +65,7 @@ import {
   LayoutGrid,
   Printer,
   User,
+  PartyPopper,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -85,8 +86,9 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { updateEggSale } from "@/app/actions/egg-actions";
+import { updateEggSale, postInvoicePayment } from "@/app/actions/egg-actions";
 import { useRouter } from "next/navigation";
+import { triggerConfetti } from "@/components/ui/confetti";
 
 export function DataTable({
   data,
@@ -135,12 +137,26 @@ export function DataTable({
   const [isSavingPayment, setIsSavingPayment] = React.useState(false);
   const router = useRouter();
 
-  React.useEffect(() => {
-    if (viewData) {
+  const handleOpenViewData = (record: EggSaleRecord | null) => {
+    setViewData(record);
+    if (record) {
       setPaymentAmount("");
       setPaymentDate("");
     }
-  }, [viewData]);
+  };
+
+  const [celebrationDetails, setCelebrationDetails] = React.useState<{
+    invoiceId: string | null;
+    customerName: string;
+    amountSettled: number;
+    datePaid: string;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (celebrationDetails) {
+      triggerConfetti();
+    }
+  }, [celebrationDetails]);
 
   const [shakeDate, setShakeDate] = React.useState(false);
 
@@ -176,10 +192,22 @@ export function DataTable({
     });
 
     if (result.success) {
-      toast.success("Payment updated successfully.", { id: toastId });
-      setViewData(null);
-      handleRowUpdate(viewData.id);
-      router.refresh();
+      toast.dismiss(toastId);
+      const isFull = newTotalPaid >= viewData.totalAmount;
+      if (isFull) {
+        setViewData(null);
+        setCelebrationDetails({
+          invoiceId: viewData.invoiceId,
+          customerName: viewData.customerId,
+          amountSettled: viewData.totalAmount,
+          datePaid: paymentDate,
+        });
+      } else {
+        toast.success("Payment updated successfully.");
+        setViewData(null);
+        handleRowUpdate(viewData.id);
+        router.refresh();
+      }
     } else {
       toast.error(result.error || "Failed to update payment.", { id: toastId });
     }
@@ -293,6 +321,7 @@ export function DataTable({
         invoiceId,
         customerId: first.customerId,
         saleDate: first.saleDate,
+        preparedBy: first.preparedBy || "System",
         datePaid: latestDatePaid,
         paymentStatus,
         totalAmount,
@@ -673,22 +702,23 @@ export function DataTable({
         `}
       </style>
       <div className="flex flex-col flex-1 min-h-0 gap-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {/* Search Bar - Animated Expand */}
+        {/* ── TOOLBAR & FILTERS ── */}
+        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between shrink-0">
+          {/* Animated Collapsing Search Input (Responsive - Dedicated row on tablet/small laptops) */}
           <div
             className={cn(
-              "group relative transition-all duration-500 ease-out ml-0.5 ",
+              "group relative transition-all duration-500 ease-out ml-0.5",
               hasFilter
                 ? "w-full sm:w-[320px]"
-                : "w-full sm:w-11 sm:focus-within:w-[320px] pr-1",
+                : "w-full sm:w-[320px] xl:w-11 xl:focus-within:w-[320px] pr-1"
             )}
           >
             <Search
               className={cn(
                 "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
                 hasFilter
-                  ? "text-emerald-500"
-                  : "text-slate-500 dark:text-slate-400 sm:group-focus-within:text-emerald-500",
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-slate-500 dark:text-slate-400 xl:group-focus-within:text-emerald-600"
               )}
             />
             <Input
@@ -699,7 +729,7 @@ export function DataTable({
                 "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-emerald-500/40",
                 hasFilter
                   ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 sm:pr-0 sm:rounded-full sm:text-transparent sm:placeholder:text-transparent sm:cursor-pointer sm:hover:bg-slate-200/50 sm:dark:hover:bg-slate-800/80 sm:group-focus-within:bg-white sm:group-focus-within:dark:bg-slate-900 sm:group-focus-within:pr-10 sm:group-focus-within:rounded-xl sm:group-focus-within:text-foreground sm:group-focus-within:placeholder:text-slate-400 sm:group-focus-within:dark:placeholder:text-slate-500 sm:group-focus-within:cursor-text",
+                  : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 xl:pr-0 xl:rounded-full xl:text-transparent xl:placeholder:text-transparent xl:cursor-pointer xl:hover:bg-slate-200/50 xl:dark:hover:bg-slate-800/80 xl:group-focus-within:bg-white xl:group-focus-within:dark:bg-slate-900 xl:group-focus-within:pr-10 xl:group-focus-within:rounded-xl xl:group-focus-within:text-foreground xl:group-focus-within:placeholder:text-slate-400 xl:group-focus-within:dark:placeholder:text-slate-500 xl:group-focus-within:cursor-text"
               )}
             />
             <div
@@ -707,13 +737,14 @@ export function DataTable({
                 "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
                 hasFilter
                   ? "opacity-100 scale-100"
-                  : "opacity-0 scale-50 pointer-events-none",
+                  : "opacity-0 scale-50 pointer-events-none"
               )}
             >
               {hasFilter && (
                 <button
+                  type="button"
                   onClick={() => setGlobalFilter("")}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 cursor-pointer"
                   aria-label="Clear search"
                 >
                   <X className="h-4 w-4" />
@@ -722,8 +753,10 @@ export function DataTable({
             </div>
           </div>
 
-          {/* Font Size, Density Controller and Export */}
-          <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
+          {/* Font Size, Density Controller and Export (Placed on row 2 on tablet/small laptops, right-aligned) */}
+          <div className="flex items-center justify-start sm:justify-end w-full xl:w-auto gap-1.5 sm:gap-2 flex-wrap shrink-0">
+
+
             {/* Status Filter Dropdown */}
             <Select
               value={statusFilter}
@@ -1024,7 +1057,7 @@ export function DataTable({
                               : "bg-muted hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30",
                         )}
                         onClick={() =>
-                          setViewData(row.original as EggSaleRecord)
+                          handleOpenViewData(row.original as EggSaleRecord)
                         }
                       >
                         {row.getVisibleCells().map((cell) => (
@@ -1085,10 +1118,13 @@ export function DataTable({
                     key={group.groupKey}
                     group={group}
                     isAdmin={isAdmin}
-                    onRowClick={(item) => setViewData(item)}
+                    onRowClick={(item) => handleOpenViewData(item)}
                     onRowUpdate={handleRowUpdate}
                     glowingRowId={glowingRowId}
                     textSizeClass={textSizeClass}
+                    onSuccessPayment={(details) =>
+                      setCelebrationDetails(details)
+                    }
                   />
                 ))
               ) : (
@@ -1286,21 +1322,42 @@ export function DataTable({
                 return (
                   <div className="p-4 sm:p-5 space-y-3 bg-slate-50/50 dark:bg-slate-950/50 overflow-y-auto custom-scrollbar flex-1 min-h-0">
                     {/* Info Bar */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Customer Name
-                        </span>
-                        <div className="font-bold text-emerald-600 dark:text-emerald-400 uppercase truncate text-sm">
-                          {viewData.customerId}
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                      <div className="flex flex-col gap-2 text-xs sm:text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-32 shrink-0">
+                            INVOICE NO:
+                          </span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {viewData.invoiceId || "N/A"}
+                          </span>
                         </div>
-                      </div>
-                      <div className="space-y-1 sm:border-l sm:border-t-0 border-t border-slate-100 dark:border-slate-800 sm:pl-4 pt-3 sm:pt-0">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Date Delivered
-                        </span>
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {new Date(viewData.saleDate).toLocaleDateString()}
+
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-32 shrink-0">
+                            DATE DELIVERED:
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {new Date(viewData.saleDate).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-32 shrink-0">
+                            CUSTOMER NAME:
+                          </span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase truncate">
+                            {viewData.customerId}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-32 shrink-0">
+                            PREPARED BY:
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 capitalize truncate">
+                            {viewData.preparedBy || "System"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1561,6 +1618,85 @@ export function DataTable({
               })()}
           </DialogContent>
         </Dialog>
+
+        {/* Fully Paid Success Celebration Modal */}
+        <Dialog
+          open={!!celebrationDetails}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCelebrationDetails(null);
+              router.refresh();
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm rounded-2xl p-6 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xl text-center space-y-4 z-200">
+            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border-2 border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-xs">
+              <PartyPopper className="w-7 h-7" />
+            </div>
+
+            <div>
+              <DialogTitle className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Invoice Fully Paid!
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 mt-1">
+                All balance for this transaction has been cleared successfully
+              </DialogDescription>
+            </div>
+
+            {/* Invoice Summary Details Box */}
+            <div className="bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs space-y-2 text-left">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  Invoice No:
+                </span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  {celebrationDetails?.invoiceId
+                    ? `# ${celebrationDetails.invoiceId}`
+                    : "N/A"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  Customer Name:
+                </span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase truncate max-w-[160px]">
+                  {celebrationDetails?.customerName}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  Date Settled:
+                </span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {celebrationDetails?.datePaid
+                    ? format(
+                        new Date(celebrationDetails.datePaid),
+                        "MMM dd, yyyy",
+                      )
+                    : "-"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800">
+                <span className="font-bold text-slate-800 dark:text-slate-100 uppercase text-[11px]">
+                  Total Settled:
+                </span>
+                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-base">
+                  ₱{celebrationDetails?.amountSettled.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => {
+                setCelebrationDetails(null);
+                router.refresh();
+              }}
+              className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm cursor-pointer shadow-md"
+            >
+              OK
+            </Button>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
@@ -1572,6 +1708,7 @@ interface InvoiceGroupCardProps {
     invoiceId: string | null;
     customerId: string;
     saleDate: string;
+    preparedBy?: string | null;
     datePaid: string | null;
     paymentStatus: "paid" | "partial" | "unpaid";
     totalAmount: number;
@@ -1589,6 +1726,12 @@ interface InvoiceGroupCardProps {
   onRowUpdate?: (id: number) => void;
   glowingRowId: number | null;
   textSizeClass: string;
+  onSuccessPayment: (details: {
+    invoiceId: string | null;
+    customerName: string;
+    amountSettled: number;
+    datePaid: string;
+  }) => void;
 }
 
 function InvoiceGroupCard({
@@ -1598,8 +1741,70 @@ function InvoiceGroupCard({
   onRowUpdate,
   glowingRowId,
   textSizeClass,
+  onSuccessPayment,
 }: InvoiceGroupCardProps) {
   const router = useRouter();
+
+  const [isGroupPaymentOpen, setIsGroupPaymentOpen] = React.useState(false);
+  const [paymentAmount, setPaymentAmount] = React.useState<number | "">(
+    group.balance,
+  );
+  const [paymentDate, setPaymentDate] = React.useState<string>(
+    format(new Date(), "yyyy-MM-dd"),
+  );
+  const [isCalendarOpen, setIsCalendarOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleGroupPaymentOpenChange = (open: boolean) => {
+    setIsGroupPaymentOpen(open);
+    if (open) {
+      setPaymentAmount(group.balance);
+      setPaymentDate(format(new Date(), "yyyy-MM-dd"));
+    }
+  };
+
+  const handleGroupPaymentSubmit = async () => {
+    if (!paymentAmount || Number(paymentAmount) <= 0) {
+      toast.error("Please enter a valid payment amount.");
+      return;
+    }
+    if (!paymentDate) {
+      toast.error("Date Paid is required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const toastId = toast.loading("Processing group payment...");
+
+    const itemIds = group.items.map((i) => i.id);
+    const result = await postInvoicePayment({
+      invoiceId: group.invoiceId,
+      itemIds: group.invoiceId ? undefined : itemIds,
+      additionalAmountPaid: Number(paymentAmount),
+      datePaid: paymentDate,
+    });
+
+    if (result.success) {
+      toast.dismiss(toastId);
+      const isFull = Number(paymentAmount) >= group.balance;
+      setIsGroupPaymentOpen(false);
+
+      if (isFull) {
+        onSuccessPayment({
+          invoiceId: group.invoiceId,
+          customerName: group.customerId,
+          amountSettled: group.totalAmount,
+          datePaid: paymentDate,
+        });
+      } else {
+        toast.success("Group payment posted successfully!");
+        router.refresh();
+      }
+    } else {
+      toast.error(result.error || "Failed to post payment.", { id: toastId });
+    }
+    setIsSubmitting(false);
+  };
 
   return (
     <div
@@ -1664,8 +1869,8 @@ function InvoiceGroupCard({
             )}
           </div>
 
-          {/* Dates Subtitle: Delivered Date | Paid Date */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          {/* Dates Subtitle: Delivered Date | Paid Date | Prepared By */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium">
             <span className="flex items-center gap-1">
               <CalendarIcon className="h-3.5 w-3.5 opacity-70" />
               Delivered: {format(new Date(group.saleDate), "MMM dd, yyyy")}
@@ -1678,6 +1883,15 @@ function InvoiceGroupCard({
               {group.datePaid
                 ? format(new Date(group.datePaid), "MMM dd, yyyy")
                 : "-"}
+            </span>
+            <span className="text-slate-300 dark:text-slate-700 font-bold">
+              |
+            </span>
+            <span className="flex items-center gap-1">
+              Prepared By:{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-300 capitalize">
+                {group.preparedBy || "System"}
+              </span>
             </span>
           </div>
         </div>
@@ -1718,21 +1932,34 @@ function InvoiceGroupCard({
             </div>
           </div>
 
-          {group.invoiceId && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                router.push(
-                  `/egg-sales/sales/receipt/${group.invoiceId}?from=history`,
-                )
-              }
-              className="h-8 gap-1.5 text-xs font-semibold rounded-lg bg-background hover:bg-muted border-border/80 text-slate-700 dark:text-slate-300 cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Receipt</span>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isAdmin && group.balance > 0 && (
+              <Button
+                size="sm"
+                onClick={() => handleGroupPaymentOpenChange(true)}
+                className="h-8 gap-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+              >
+                <Banknote className="w-3.5 h-3.5" />
+                <span>Pay Invoice</span>
+              </Button>
+            )}
+
+            {group.invoiceId && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  router.push(
+                    `/egg-sales/sales/receipt/${group.invoiceId}?from=history`,
+                  )
+                }
+                className="h-8 gap-1.5 text-xs font-semibold rounded-lg bg-background hover:bg-muted border-border/80 text-slate-700 dark:text-slate-300 cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Receipt</span>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1892,6 +2119,167 @@ function InvoiceGroupCard({
           </span>
         </div>
       </div>
+      {/* Group Payment Modal */}
+      <Dialog
+        open={isGroupPaymentOpen}
+        onOpenChange={handleGroupPaymentOpenChange}
+      >
+        <DialogContent className="max-w-md rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+                <Banknote className="w-6 h-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
+                  Post Group Payment
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Apply payment to entire invoice #{group.invoiceId || "Group"}{" "}
+                  ({group.items.length}{" "}
+                  {group.items.length === 1 ? "item" : "items"})
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 my-2">
+            {/* Group Info Summary */}
+            <div className="bg-slate-50 dark:bg-slate-950/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Customer:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
+                  {group.customerId}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Gross Total:</span>
+                <span className="font-mono font-bold">
+                  ₱{group.totalAmount.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">
+                  Already Paid:
+                </span>
+                <span className="font-mono font-bold text-emerald-600">
+                  ₱{group.amountPaid.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t border-slate-200 dark:border-slate-800">
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  Remaining Balance:
+                </span>
+                <span className="font-mono font-bold text-rose-600 text-sm">
+                  ₱{group.balance.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Inputs */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                  Payment Amount (₱)
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setPaymentAmount(group.balance)}
+                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                >
+                  Full Balance (₱{group.balance.toLocaleString()})
+                </button>
+              </div>
+              <Input
+                type="number"
+                placeholder={`Max: ₱${group.balance.toLocaleString()}`}
+                value={
+                  paymentAmount === 0 && paymentAmount.toString() !== "0"
+                    ? ""
+                    : paymentAmount
+                }
+                onChange={(e) =>
+                  setPaymentAmount(
+                    e.target.value === "" ? "" : Number(e.target.value),
+                  )
+                }
+                onClick={(e) => e.currentTarget.select()}
+                className={cn(
+                  "h-11 border-slate-200 dark:border-slate-800 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 font-bold text-base",
+                  Number(paymentAmount) > group.balance &&
+                    "border-rose-500 text-rose-600 bg-rose-50",
+                )}
+              />
+            </div>
+
+            <div className="space-y-1.5 flex flex-col">
+              <Label className="text-[11px] font-bold text-slate-500 uppercase">
+                Date Paid
+              </Label>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 h-11 text-sm font-medium"
+                  >
+                    <span>
+                      {paymentDate
+                        ? format(new Date(paymentDate), "MMM dd, yyyy")
+                        : "Select Date Paid"}
+                    </span>
+                    <CalendarIcon className="w-4 h-4 text-emerald-500" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-0 rounded-xl z-200"
+                  align="start"
+                >
+                  <Calendar
+                    mode="single"
+                    selected={paymentDate ? new Date(paymentDate) : undefined}
+                    disabled={(date) => date > new Date()}
+                    onSelect={(date) => {
+                      if (date) {
+                        setPaymentDate(format(date, "yyyy-MM-dd"));
+                        setIsCalendarOpen(false);
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsGroupPaymentOpen(false)}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGroupPaymentSubmit}
+              disabled={
+                isSubmitting ||
+                Number(paymentAmount) <= 0 ||
+                Number(paymentAmount) > group.balance
+              }
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
+                </>
+              ) : Number(paymentAmount) >= group.balance ? (
+                "Pay Full Invoice"
+              ) : (
+                "Submit Partial Payment"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

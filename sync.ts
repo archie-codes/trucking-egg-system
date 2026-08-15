@@ -7,14 +7,14 @@ async function syncInventory() {
   
   const batchRes = await sql`
     SELECT 
-      COALESCE(SUM(qty_cracked), 0) as cracked, 
-      COALESCE(SUM(qty_broken), 0) as broken, 
-      COALESCE(SUM(qty_dirty), 0) as dirty 
+      COALESCE(SUM(qty_cracked * 30), 0) as cracked, 
+      COALESCE(SUM(qty_broken * 30), 0) as broken, 
+      COALESCE(SUM(qty_dirty * 30), 0) as dirty 
     FROM egg_batches
   `;
   
   const { cracked, broken, dirty } = batchRes[0];
-  console.log("Received totals:", { cracked, broken, dirty });
+  console.log("Received totals (Pieces):", { cracked, broken, dirty });
 
   console.log("Fetching sales totals from egg_sales...");
   const salesRes = await sql`

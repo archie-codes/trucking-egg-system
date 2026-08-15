@@ -139,11 +139,11 @@ export default async function TripsHistoryPage(props: {
           </p>
         </div>
 
-        <Link href="/trucking/trips/new" className="w-full sm:w-auto">
-          <Button className="relative h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg  transition-all duration-300 overflow-hidden group/btn font-semibold w-full sm:w-auto">
+        <Link href="/trucking/trips/new" className="w-full sm:w-auto shrink-0">
+          <Button className="relative h-11 px-6 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg transition-all duration-300 overflow-hidden group/btn font-semibold w-full sm:w-auto whitespace-nowrap shrink-0">
             <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-            <Plus className="w-5 h-5 mr-2 transition-transform group-hover/btn:rotate-90 duration-300" />
-            Record New Trip
+            <Plus className="w-5 h-5 mr-2 transition-transform group-hover/btn:rotate-90 duration-300 shrink-0" />
+            <span className="whitespace-nowrap">Record New Trip</span>
           </Button>
         </Link>
       </div>

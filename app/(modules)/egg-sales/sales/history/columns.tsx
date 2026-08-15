@@ -183,6 +183,15 @@ export const getColumns = (
     ),
   },
   {
+    accessorKey: "preparedBy",
+    header: "Prepared By",
+    cell: ({ row }) => (
+      <div className="font-semibold text-slate-700 dark:text-slate-300 capitalize whitespace-nowrap">
+        {row.getValue("preparedBy") || "System"}
+      </div>
+    ),
+  },
+  {
     accessorKey: "classification",
     header: "Size",
     cell: ({ row }) => {
@@ -353,6 +362,24 @@ export const getColumns = (
           Unpaid
         </span>
       );
+    },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue || filterValue === "all") return true;
+      const record = row.original as EggSaleRecord;
+      const total = record.totalAmount;
+      const paid = record.amountPaid;
+      const balance = total - paid;
+
+      let effectiveStatus = (record.paymentStatus || "").toLowerCase();
+      if (balance <= 0.01) {
+        effectiveStatus = "paid";
+      } else if (paid > 0) {
+        effectiveStatus = "partial";
+      } else {
+        effectiveStatus = "unpaid";
+      }
+
+      return effectiveStatus === filterValue;
     },
   },
   {

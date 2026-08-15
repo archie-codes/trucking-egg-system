@@ -21,13 +21,21 @@ export async function getAdminClearance() {
 export async function getAdminRoleAndDept() {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
-  if (!token) return { id: null, role: "encoder", department: "trucking" };
+  if (!token) return { id: null, role: "encoder", department: "trucking", name: "System" };
 
   const payload = decodeJwt(token);
+  const userId = payload.id as number;
+  let name = "System";
+  if (userId) {
+    const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
+    if (user?.name) name = user.name;
+  }
+
   return {
-    id: payload.id as number,
+    id: userId,
     role: payload.role as string,
     department: payload.department as string,
+    name,
   };
 }
 

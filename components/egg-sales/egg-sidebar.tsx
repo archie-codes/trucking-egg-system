@@ -40,11 +40,10 @@ const routes: Route[] = [
     label: "Farm Operations",
     icon: Tractor,
     href: "/egg-sales/farm-operations",
-    isComingSoon: true,
     divider: true,
     subRoutes: [
       {
-        label: "Flock / Batch Management",
+        label: "Flock Management",
         href: "/egg-sales/farm-operations/flocks",
       },
       {
@@ -56,8 +55,8 @@ const routes: Route[] = [
         href: "/egg-sales/farm-operations/feed-management",
       },
       {
-        label: "Health & Medication",
-        href: "/egg-sales/farm-operations/health-medication",
+        label: "Operating Expenses",
+        href: "/egg-sales/farm-operations/operating-expenses",
       },
       {
         label: "Farm Reports",

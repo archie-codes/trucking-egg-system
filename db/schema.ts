@@ -142,39 +142,41 @@ export const eggBatches = pgTable("egg_batches", {
   batchId: varchar("batch_id", { length: 50 }).notNull().unique(),
   arrivalDate: date("arrival_date").notNull(),
   farmName: varchar("farm_name", { length: 255 }).notNull(),
+  receivedBy: varchar("received_by", { length: 255 }),
 
-  // ✨ NEW: Explicitly store the driver's exact input
-  rawCasesPickedUp: integer("raw_cases_picked_up").default(0).notNull(),
-  rawTraysPickedUp: integer("raw_trays_picked_up").default(0).notNull(),
+  // Inbound pickup volume
+  totalTraysPickedUp: integer("total_trays_picked_up").default(0).notNull(),
+  extraType: varchar("extra_type", { length: 20 }).default("NONE").notNull(), // 'NONE' | 'HALF_TRAY' | 'PIECES'
+  extraPiecesPickedUp: integer("extra_pieces_picked_up").default(0).notNull(),
 
-  // The Bodega QA sorted counts (Good Inventory)
-  qtyPeewee: integer("qty_peewee").default(0).notNull(),
-  qtyXs: integer("qty_xs").default(0).notNull(),
-  qtySmall: integer("qty_small").default(0).notNull(),
-  qtyMedium: integer("qty_medium").default(0).notNull(),
-  qtyLarge: integer("qty_large").default(0).notNull(),
-  qtyXl: integer("qty_xl").default(0).notNull(),
-  qtyXxl: integer("qty_xxl").default(0).notNull(),
+  // The Bodega QA sorted counts (in Trays)
+  qtyPeewee: real("qty_peewee").default(0).notNull(),
+  qtyXs: real("qty_xs").default(0).notNull(),
+  qtySmall: real("qty_small").default(0).notNull(),
+  qtyMedium: real("qty_medium").default(0).notNull(),
+  qtyLarge: real("qty_large").default(0).notNull(),
+  qtyXl: real("qty_xl").default(0).notNull(),
+  qtyXxl: real("qty_xxl").default(0).notNull(),
 
-  // Spoilage / Losses / Downgrades
-  qtyCracked: integer("qty_cracked").default(0).notNull(),
-  qtyBroken: integer("qty_broken").default(0).notNull(),
-  qtyDirty: integer("qty_dirty").default(0).notNull(), // ✨ NEW: Dirty Eggs
+  // Spoilage / Losses / Downgrades (in Trays)
+  qtyCracked: real("qty_cracked").default(0).notNull(),
+  qtyBroken: real("qty_broken").default(0).notNull(),
+  qtyDirty: real("qty_dirty").default(0).notNull(),
 
-  // ✨ NEW: Brown Eggs
-  brownQtyPeewee: integer("brown_qty_peewee").default(0).notNull(),
-  brownQtyXs: integer("brown_qty_xs").default(0).notNull(),
-  brownQtySmall: integer("brown_qty_small").default(0).notNull(),
-  brownQtyMedium: integer("brown_qty_medium").default(0).notNull(),
-  brownQtyLarge: integer("brown_qty_large").default(0).notNull(),
-  brownQtyXl: integer("brown_qty_xl").default(0).notNull(),
-  brownQtyXxl: integer("brown_qty_xxl").default(0).notNull(),
-  brownQtyAssorted: integer("brown_qty_assorted").default(0).notNull(),
+  // Brown Eggs (in Trays)
+  brownQtyPeewee: real("brown_qty_peewee").default(0).notNull(),
+  brownQtyXs: real("brown_qty_xs").default(0).notNull(),
+  brownQtySmall: real("brown_qty_small").default(0).notNull(),
+  brownQtyMedium: real("brown_qty_medium").default(0).notNull(),
+  brownQtyLarge: real("brown_qty_large").default(0).notNull(),
+  brownQtyXl: real("brown_qty_xl").default(0).notNull(),
+  brownQtyXxl: real("brown_qty_xxl").default(0).notNull(),
+  brownQtyAssorted: real("brown_qty_assorted").default(0).notNull(),
 
-  // Brown Spoilage
-  brownQtyCracked: integer("brown_qty_cracked").default(0).notNull(),
-  brownQtyBroken: integer("brown_qty_broken").default(0).notNull(),
-  brownQtyDirty: integer("brown_qty_dirty").default(0).notNull(),
+  // Brown Spoilage (in Trays)
+  brownQtyCracked: real("brown_qty_cracked").default(0).notNull(),
+  brownQtyBroken: real("brown_qty_broken").default(0).notNull(),
+  brownQtyDirty: real("brown_qty_dirty").default(0).notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -219,5 +221,85 @@ export const eggSales = pgTable("egg_sales", {
 
   remarks: text("remarks"), // ✨ NEW: Matches her "REMARKS" column
 
+  preparedBy: varchar("prepared_by", { length: 255 }), // ✨ Track who released/prepared the sale
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ======================================================================
+// 4. FARM OPERATIONS MODULE (POULTRY MANAGEMENT)
+// ======================================================================
+
+// 1. FLOCKS: The anchor table for everything (Batch loaded into a building)
+export const farmFlocks = pgTable("farm_flocks", {
+  id: serial("id").primaryKey(),
+  batchName: varchar("batch_name", { length: 100 }).notNull(), // e.g., "Batch 1 - 2026"
+  farmName: varchar("farm_name", { length: 255 }).notNull(), // e.g., "Baracbac Farm"
+  buildingName: varchar("building_name", { length: 100 }).notNull(), // e.g., "Bldg 1"
+
+  // To track the age of the chickens
+  dateLoaded: date("date_loaded").notNull(),
+
+  initialHeadCount: integer("initial_head_count").notNull(), // e.g., 5000 or 7000
+  currentHeadCount: integer("current_head_count").notNull(), // Goes down as mortality happens
+
+  isActive: boolean("is_active").default(true).notNull(),
+  recordedBy: varchar("recorded_by", { length: 255 }).default("System"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 2. DAILY RECORDS: Tracks Mortality and raw egg production per flock per day
+export const farmDailyRecords = pgTable("farm_daily_records", {
+  id: serial("id").primaryKey(),
+  flockId: integer("flock_id")
+    .references(() => farmFlocks.id)
+    .notNull(),
+
+  recordDate: date("record_date").notNull(),
+  mortalityCount: integer("mortality_count").default(0).notNull(),
+
+  // ✨ REPLACED rawEggsProduced WITH THESE TWO:
+  quantityTrays: integer("quantity_trays").default(0).notNull(),
+  quantityPieces: integer("quantity_pieces").default(0).notNull(),
+
+  remarks: text("remarks"),
+  recordedBy: varchar("recorded_by", { length: 255 }).default("System"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 3. FEED MANAGEMENT: Tracks feed consumption and expenses per flock
+export const farmFeedConsumptions = pgTable("farm_feed_consumptions", {
+  id: serial("id").primaryKey(),
+
+  // Relational Link to Farm Flocks
+  flockId: integer("flock_id")
+    .references(() => farmFlocks.id)
+    .notNull(),
+
+  dateGiven: date("date_given").notNull(),
+  feedType: varchar("feed_type", { length: 100 }).notNull(),
+  quantityBags: real("quantity_bags").notNull(),
+  totalCost: real("total_cost").default(0).notNull(),
+  recordedBy: varchar("recorded_by", { length: 255 }).default("System"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 4. HEALTH & MEDICATION: Tracks vaccines, vitamins, and their expenses
+export const farmOperatingExpenses = pgTable("farm_operating_expenses", {
+  id: serial("id").primaryKey(),
+
+  // Tied to a specific flock/batch to calculate exact profitability per batch
+  flockId: integer("flock_id")
+    .references(() => farmFlocks.id)
+    .notNull(),
+
+  dateIncurred: date("date_incurred").notNull(),
+
+  // Category will store: 'Diesel', 'Toll', 'Miscellaneous', 'Salary', 'Extra Salary', 'Electricity', or 'Water Bill'
+  category: varchar("category", { length: 100 }).notNull(),
+
+  amount: real("amount").default(0).notNull(),
+  remarks: text("remarks"), // For extra details (e.g., "Juan's Salary", "May Water Bill")
+  recordedBy: varchar("recorded_by", { length: 255 }).default("System"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

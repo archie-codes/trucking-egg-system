@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
+import { NumberTicker } from "@/components/ui/number-ticker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -144,6 +145,9 @@ export function SummaryDashboard({
 
   const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
   const [customerSearch, setCustomerSearch] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "paid" | "partial" | "unpaid"
+  >("all");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [textSize, setTextSize] = useState<"xs" | "sm" | "base">("xs");
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
@@ -186,10 +190,29 @@ export function SummaryDashboard({
         return false;
       }
 
+      // 2. Payment Status Filter
+      if (statusFilter !== "all") {
+        const totalAmount = sale.totalAmount;
+        const amountPaid = sale.amountPaid;
+        const balance = totalAmount - amountPaid;
+        let effectiveStatus = (sale.paymentStatus || "").toLowerCase();
+        if (balance <= 0.01) {
+          effectiveStatus = "paid";
+        } else if (amountPaid > 0) {
+          effectiveStatus = "partial";
+        } else {
+          effectiveStatus = "unpaid";
+        }
+
+        if (effectiveStatus !== statusFilter) {
+          return false;
+        }
+      }
+
       const saleDate = parseISO(sale.saleDate);
       if (isNaN(saleDate.getTime())) return true;
 
-      // 2. Date Range Filter
+      // 3. Date Range Filter
       if (dateRange.from) {
         const fromDate = startOfDay(dateRange.from);
         const toDate = dateRange.to
@@ -200,7 +223,7 @@ export function SummaryDashboard({
 
       return true;
     });
-  }, [data, selectedCustomer, dateRange]);
+  }, [data, selectedCustomer, statusFilter, dateRange]);
 
   // In-table search filter
   const searchedSales = useMemo(() => {
@@ -508,8 +531,8 @@ export function SummaryDashboard({
     <div className="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
       {/* FILTER TOOLBAR */}
       <div className="bg-card border border-border rounded-xl p-3 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
-        {/* Left: Customer Search Dropdown */}
-        <div className="flex items-center gap-2">
+        {/* Left: Customer Search Dropdown & Status Filter */}
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             value={selectedCustomer}
             onValueChange={(val) => {
@@ -562,6 +585,44 @@ export function SummaryDashboard({
                   </p>
                 )}
               </div>
+            </SelectContent>
+          </Select>
+
+          {/* Status Filter Dropdown */}
+          <Select
+            value={statusFilter}
+            onValueChange={(val: "all" | "paid" | "partial" | "unpaid") => {
+              setStatusFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="h-9 text-xs rounded-lg border-border bg-background font-semibold w-[150px]">
+              <div className="flex items-center gap-1.5 truncate">
+                {statusFilter === "paid" ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                ) : statusFilter === "partial" ? (
+                  <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                ) : statusFilter === "unpaid" ? (
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                ) : (
+                  <Banknote className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                )}
+                <SelectValue placeholder="All Statuses" />
+              </div>
+            </SelectTrigger>
+            <SelectContent align="start" className="z-110">
+              <SelectItem value="all" className="text-xs cursor-pointer">
+                All Statuses
+              </SelectItem>
+              <SelectItem value="paid" className="text-xs cursor-pointer">
+                Fully Paid
+              </SelectItem>
+              <SelectItem value="partial" className="text-xs cursor-pointer">
+                Partial Payment
+              </SelectItem>
+              <SelectItem value="unpaid" className="text-xs cursor-pointer">
+                Unpaid
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -774,7 +835,11 @@ export function SummaryDashboard({
                 )}
                 title={customerCreditFormatted.full}
               >
-                {customerCreditFormatted.formatted}
+                ₱
+                <NumberTicker
+                  value={customerTotalUnpaidCredit}
+                  decimalPlaces={2}
+                />
               </span>
             </div>
           </div>
@@ -794,7 +859,7 @@ export function SummaryDashboard({
               className="text-xl font-bold font-mono text-foreground truncate"
               title={grossFormatted.full}
             >
-              {grossFormatted.formatted}
+              ₱<NumberTicker value={totals.gross} decimalPlaces={2} />
             </p>
             <p
               className="text-[11px] text-muted-foreground mt-1 truncate"
@@ -816,7 +881,7 @@ export function SummaryDashboard({
               className="text-xl font-bold font-mono text-teal-600 dark:text-teal-400 truncate"
               title={paidFormatted.full}
             >
-              {paidFormatted.formatted}
+              ₱<NumberTicker value={totals.paid} decimalPlaces={2} />
             </p>
             <p
               className="text-[11px] text-muted-foreground mt-1 truncate"
@@ -838,7 +903,7 @@ export function SummaryDashboard({
               className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400 truncate"
               title={balanceFormatted.full}
             >
-              {balanceFormatted.formatted}
+              ₱<NumberTicker value={totals.balance} decimalPlaces={2} />
             </p>
             <p
               className="text-[11px] text-muted-foreground mt-1 truncate"
@@ -860,7 +925,7 @@ export function SummaryDashboard({
               className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400 truncate"
               title={traysFormatted.full}
             >
-              {traysFormatted.formatted}{" "}
+              <NumberTicker value={totals.trays} />{" "}
               <span className="text-xs font-normal text-muted-foreground">
                 {totals.trays === 1 ? "tray" : "trays"}
               </span>
@@ -884,7 +949,7 @@ export function SummaryDashboard({
             <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
               Sales Records
               <span className="text-xs font-mono font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
-                {searchedSales.length}{" "}
+                <NumberTicker value={searchedSales.length} />{" "}
                 {searchedSales.length === 1 ? "record" : "records"}
               </span>
             </h3>

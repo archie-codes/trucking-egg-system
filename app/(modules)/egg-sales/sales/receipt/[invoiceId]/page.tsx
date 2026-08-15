@@ -31,6 +31,7 @@ export default async function ReceiptPage({
 
   const customerName = items[0].customerId;
   const saleDate = items[0].saleDate;
+  const preparedBy = items[0].preparedBy || "System";
   const grandTotal = items.reduce(
     (sum, item) => sum + Number(item.totalAmount),
     0,
@@ -165,13 +166,28 @@ export default async function ReceiptPage({
           </div>
         </div>
 
-        <div className="mt-12 flex justify-between items-end">
-          <div className="text-sm font-medium text-slate-400">
-            <p>Received by:</p>
-            <div className="mt-8 border-t border-slate-400 w-48 pt-1 text-center text-xs uppercase">
+        <div className="mt-12 flex flex-wrap justify-between items-end gap-6 pt-6 border-t border-slate-200">
+          <div className="text-sm font-medium text-slate-700">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Prepared / Released By:
+            </p>
+            <p className="text-sm font-bold text-slate-900 mt-1 capitalize">
+              {preparedBy}
+            </p>
+            <div className="mt-8 border-t border-slate-400 w-48 pt-1 text-center text-xs text-slate-400 uppercase">
+              Authorized Signature
+            </div>
+          </div>
+
+          <div className="text-sm font-medium text-slate-700">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Received By:
+            </p>
+            <div className="mt-12 border-t border-slate-400 w-48 pt-1 text-center text-xs text-slate-400 uppercase">
               Signature over printed name
             </div>
           </div>
+
           {isFullyPaid && (
             <div className="border-4 border-emerald-500 text-emerald-500 p-3 rounded-xl transform -rotate-6 opacity-80 print:border-black print:text-black">
               <p className="text-2xl font-black uppercase tracking-widest flex items-center gap-2">

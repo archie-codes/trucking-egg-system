@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { db } = require('./db');
 const { truckingTrips } = require('./db/schema');
 const { desc } = require('drizzle-orm');

@@ -21,6 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+
+const formatTrayCount = (val: number): string => {
+  if (isNaN(val) || val === 0) return "0";
+  if (Number.isInteger(val)) return val.toString();
+  return Number(val.toFixed(2)).toString();
+};
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -128,7 +134,9 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const search = String(filterValue || "").trim().toLowerCase();
+      const search = String(filterValue || "")
+        .trim()
+        .toLowerCase();
       if (!search) return true;
 
       const item = row.original as EggBatchRecord;
@@ -271,8 +279,9 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
         "Date",
         "Batch ID",
         "Farm Name",
-        "Raw Cases",
-        "Raw Trays",
+        "Total Trays",
+        "Extra Option",
+        "Extra Pieces",
         "Peewee",
         "XS",
         "Small",
@@ -330,8 +339,9 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           new Date(d.arrivalDate).toLocaleDateString(),
           `"${d.batchId}"`,
           `"${d.farmName}"`,
-          d.rawCasesPickedUp,
-          d.rawTraysPickedUp,
+          d.totalTraysPickedUp,
+          `"${d.extraType || "NONE"}"`,
+          d.extraPiecesPickedUp || 0,
           d.qtyPeewee || 0,
           d.qtyXs || 0,
           d.qtySmall || 0,
@@ -454,12 +464,22 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
           (d.brownQtyBroken || 0) +
           (d.brownQtyDirty || 0);
 
+        const extraPcs =
+          d.extraType === "HALF_TRAY"
+            ? 15
+            : d.extraType === "PIECES"
+              ? d.extraPiecesPickedUp || 0
+              : 0;
+        const totalTraysDisplay =
+          extraPcs > 0
+            ? `${d.totalTraysPickedUp} (+${extraPcs}pcs)`
+            : `${d.totalTraysPickedUp}`;
+
         return [
           new Date(d.arrivalDate).toLocaleDateString(),
           d.batchId,
           d.farmName,
-          d.rawCasesPickedUp.toString(),
-          d.rawTraysPickedUp.toString(),
+          totalTraysDisplay,
           d.qtyPeewee > 0 ? d.qtyPeewee.toString() : "-",
           d.qtyXs > 0 ? d.qtyXs.toString() : "-",
           d.qtySmall > 0 ? d.qtySmall.toString() : "-",
@@ -492,8 +512,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
             "Date",
             "Batch ID",
             "Farm",
-            "Cases",
-            "Trays",
+            "Total Trays",
             "PW",
             "XS",
             "S",
@@ -573,458 +592,464 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   return (
     <>
       <div className="flex flex-col flex-1 min-h-0 gap-3 print:hidden">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {/* Search Bar - Animated Expand (Laptop+ Only) */}
-        <div
-          className={cn(
-            "group relative transition-all duration-500 ease-out ml-0.5 ",
-            hasFilter
-              ? "w-full sm:w-[320px]"
-              : "w-full sm:w-11 sm:focus-within:w-[320px] pr-1",
-          )}
-        >
-          <Search
-            className={cn(
-              "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
-              hasFilter
-                ? "text-amber-500"
-                : "text-slate-500 dark:text-slate-400 sm:group-focus-within:text-amber-500",
-            )}
-          />
-          <Input
-            placeholder="Search batches, farms, dates..."
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className={cn(
-              "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-amber-500/40",
-              hasFilter
-                ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 sm:pr-0 sm:rounded-full sm:text-transparent sm:placeholder:text-transparent sm:cursor-pointer sm:hover:bg-slate-200/50 sm:dark:hover:bg-slate-800/80 sm:group-focus-within:bg-white sm:group-focus-within:dark:bg-slate-900 sm:group-focus-within:pr-10 sm:group-focus-within:rounded-xl sm:group-focus-within:text-foreground sm:group-focus-within:placeholder:text-slate-400 sm:group-focus-within:dark:placeholder:text-slate-500 sm:group-focus-within:cursor-text",
-            )}
-          />
+        {/* ── TOOLBAR & FILTERS ── */}
+        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between shrink-0">
+          {/* Animated Collapsing Search Input (Responsive - Dedicated row on tablet/small laptops) */}
           <div
             className={cn(
-              "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
+              "group relative transition-all duration-500 ease-out ml-0.5",
               hasFilter
-                ? "opacity-100 scale-100"
-                : "opacity-0 scale-50 pointer-events-none",
+                ? "w-full sm:w-[320px]"
+                : "w-full sm:w-[320px] xl:w-11 xl:focus-within:w-[320px] pr-1"
             )}
           >
-            {hasFilter && (
-              <button
-                onClick={() => setGlobalFilter("")}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Font Size, Density Controller, Origin Farm Filter, and Export PDF */}
-        <div className="flex items-center justify-end sm:justify-end w-full sm:w-auto gap-1.5 sm:gap-2 flex-wrap">
-          {/* Origin Farm Selection Dropdown */}
-          <Select
-            value={selectedFarm}
-            onValueChange={(val) => setSelectedFarm(val)}
-          >
-            <SelectTrigger
+            <Search
               className={cn(
-                "h-8 sm:h-9 w-[150px] sm:w-[170px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
-                selectedFarm !== "all" &&
-                  "text-amber-600 dark:text-amber-500 border-amber-500/40 font-bold",
+                "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
+                hasFilter
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-slate-500 dark:text-slate-400 xl:group-focus-within:text-amber-600"
+              )}
+            />
+            <Input
+              placeholder="Search batches, farms, dates..."
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className={cn(
+                "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-amber-500/40",
+                hasFilter
+                  ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 xl:pr-0 xl:rounded-full xl:text-transparent xl:placeholder:text-transparent xl:cursor-pointer xl:hover:bg-slate-200/50 xl:dark:hover:bg-slate-800/80 xl:group-focus-within:bg-white xl:group-focus-within:dark:bg-slate-900 xl:group-focus-within:pr-10 xl:group-focus-within:rounded-xl xl:group-focus-within:text-foreground xl:group-focus-within:placeholder:text-slate-400 xl:group-focus-within:dark:placeholder:text-slate-500 xl:group-focus-within:cursor-text"
+              )}
+            />
+            <div
+              className={cn(
+                "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
+                hasFilter
+                  ? "opacity-100 scale-100"
+                  : "opacity-0 scale-50 pointer-events-none"
               )}
             >
-              <div className="flex items-center gap-1.5 truncate">
-                <Building2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
-                <SelectValue placeholder="All Origin Farms" />
-              </div>
-            </SelectTrigger>
-            <SelectContent align="end" className="z-110 w-[200px]">
-              <SelectItem
-                value="all"
-                className="text-xs cursor-pointer font-medium"
-              >
-                All Origin Farms ({data.length})
-              </SelectItem>
-              {farmOptions.map((farm) => (
-                <SelectItem
-                  key={farm}
-                  value={farm}
-                  className="text-xs cursor-pointer font-bold uppercase"
-                >
-                  {farm}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs",
-                  dateFilter.type !== "all" &&
-                    "text-amber-600 dark:text-amber-500 font-medium",
-                )}
-              >
-                <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">
-                  {dateFilter.type === "all"
-                    ? "View All Dates"
-                    : dateFilter.type === "today"
-                      ? "Today"
-                      : dateFilter.date
-                        ? format(dateFilter.date, "MMM dd, yyyy")
-                        : "Custom Date"}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 z-110" align="end">
-              <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
-                <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
-                  <Button
-                    variant={dateFilter.type === "all" ? "secondary" : "ghost"}
-                    className="w-full justify-start text-xs h-8"
-                    onClick={() => {
-                      setDateFilter({ type: "all" });
-                      setIsDatePickerOpen(false);
-                    }}
-                  >
-                    View All
-                  </Button>
-                  <Button
-                    variant={
-                      dateFilter.type === "today" ? "secondary" : "ghost"
-                    }
-                    className="w-full justify-start text-xs h-8"
-                    onClick={() => {
-                      setDateFilter({ type: "today" });
-                      setIsDatePickerOpen(false);
-                    }}
-                  >
-                    Today
-                  </Button>
-                </div>
-                <div className="p-2 border-t sm:border-t-0 border-border">
-                  <Calendar
-                    mode="single"
-                    selected={dateFilter.date}
-                    defaultMonth={dateFilter.date}
-                    captionLayout="dropdown"
-                    fromYear={2020}
-                    toYear={new Date().getFullYear() + 1}
-                    onSelect={(date) => {
-                      if (date) {
-                        setDateFilter({ type: "custom", date });
-                        setIsDatePickerOpen(false);
-                      }
-                    }}
-                    disabled={(date) => date > new Date()}
-                    className="rounded-md border-0"
-                  />
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
-            <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
-            <div className="flex items-center gap-0.5">
-              {(["xs", "sm", "base"] as const).map((size) => (
+              {hasFilter && (
                 <button
-                  key={size}
-                  onClick={() => setTextSize(size)}
-                  className={cn(
-                    "px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors",
-                    textSize === size
-                      ? "bg-amber-600 text-white"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                  )}
+                  type="button"
+                  onClick={() => setGlobalFilter("")}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 cursor-pointer"
+                  aria-label="Clear search"
                 >
-                  {size === "xs" ? "S" : size === "sm" ? "M" : "L"}
+                  <X className="h-4 w-4" />
                 </button>
-              ))}
+              )}
             </div>
           </div>
 
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(v) => table.setPageSize(Number(v))}
-          >
-            <SelectTrigger className="h-8 sm:h-9 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-amber-500/40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="z-110">
-              {[5, 10, 20, 30, 50, 100].map((n) => (
-                <SelectItem key={n} value={`${n}`} className="text-xs">
-                  {n} rows
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Font Size, Density Controller, Origin Farm Filter, and Export PDF (Placed on row 2 on tablet/small laptops, right-aligned) */}
+          <div className="flex items-center justify-start sm:justify-end w-full xl:w-auto gap-1.5 sm:gap-2 flex-wrap shrink-0">
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                className="h-8 sm:h-9 gap-1 sm:gap-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-[10px] sm:text-xs font-medium rounded-lg px-2 sm:px-3 shadow-none border-0"
-              >
-                <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                <span>Export</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-52 rounded-xl border-border/60 shadow-md z-110"
+
+            {/* Origin Farm Selection Dropdown */}
+            <Select
+              value={selectedFarm}
+              onValueChange={(val) => setSelectedFarm(val)}
             >
-              <DropdownMenuItem
-                onClick={exportToPDF}
-                className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
+              <SelectTrigger
+                className={cn(
+                  "h-8 sm:h-9 w-[150px] sm:w-[170px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
+                  selectedFarm !== "all" &&
+                    "text-amber-600 dark:text-amber-500 border-amber-500/40 font-bold",
+                )}
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-950/40">
-                  <FileText className="h-3.5 w-3.5 text-rose-500" />
+                <div className="flex items-center gap-1.5 truncate">
+                  <Building2 className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <SelectValue placeholder="All Origin Farms" />
                 </div>
-                <div>
-                  <p className="text-[13px] font-medium leading-none">
-                    Save as PDF
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Printable ledger report
-                  </p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={exportToCSV}
-                className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
-              >
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40">
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-medium leading-none">
-                    Export to CSV
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Open in Excel or Sheets
-                  </p>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {hasFilter && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {filteredCount === 0
-              ? "No results"
-              : `${filteredCount} record${filteredCount !== 1 ? "s" : ""} matching`}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/40">
-            {globalFilter}
-            <button
-              onClick={() => setGlobalFilter("")}
-              className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        </div>
-      )}
-
-      <div className="rounded-lg border border-border/60 bg-card flex flex-col flex-1 min-h-0 overflow-hidden [&>div]:flex-1 [&>div]:overflow-auto [&>div]:custom-scrollbar">
-        <Table className={cn(textSizeClass, "w-full min-w-[640px]")}>
-          <TableHeader className="sticky top-0 z-20 bg-card">
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow
-                key={hg.id}
-                className="bg-muted/40 hover:bg-muted/40 border-b border-border/60"
-              >
-                {hg.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={cn(
-                      textSizeClass,
-                      "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
-                      header.id === "actions" &&
-                        "sticky right-0 bg-card dark:bg-slate-900 z-30 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
-                    )}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody className="group/tbody">
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, i) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  style={{
-                    animationFillMode: "both",
-                    animationDelay: `${i * 40}ms`,
-                  }}
-                  className={cn(
-                    "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
-                    "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
-                    "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-amber-400 dark:hover:ring-amber-600",
-                    i % 2 === 0
-                      ? "bg-card hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
-                      : "bg-muted hover:bg-amber-50/80 dark:hover:bg-amber-900/30",
-                  )}
-                  onClick={() => setViewData(row.original as EggBatchRecord)}
+              </SelectTrigger>
+              <SelectContent align="end" className="z-110 w-[200px]">
+                <SelectItem
+                  value="all"
+                  className="text-xs cursor-pointer font-medium"
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        textSizeClass,
-                        "py-2.5 transition-colors duration-300",
-                        cell.column.id === "actions" &&
-                          "sticky right-0 z-20 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
-                        cell.column.id === "actions" &&
-                          (i % 2 === 0
-                            ? "bg-card group-hover/row:bg-amber-50/80 dark:group-hover/row:bg-amber-900/30"
-                            : "bg-muted dark:bg-slate-900/50 group-hover/row:bg-amber-50/80 dark:group-hover/row:bg-amber-900/30"),
-                      )}
-                      onClick={(e) => {
-                        if (cell.column.id === "actions") {
-                          e.stopPropagation();
-                        }
+                  All Origin Farms
+                </SelectItem>
+                {farmOptions.map((farm) => (
+                  <SelectItem
+                    key={farm}
+                    value={farm}
+                    className="text-xs cursor-pointer font-bold uppercase"
+                  >
+                    {farm}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs",
+                    dateFilter.type !== "all" &&
+                      "text-amber-600 dark:text-amber-500 font-medium",
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {dateFilter.type === "all"
+                      ? "View All Dates"
+                      : dateFilter.type === "today"
+                        ? "Today"
+                        : dateFilter.date
+                          ? format(dateFilter.date, "MMM dd, yyyy")
+                          : "Custom Date"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 z-110" align="end">
+                <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
+                  <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
+                    <Button
+                      variant={
+                        dateFilter.type === "all" ? "secondary" : "ghost"
+                      }
+                      className="w-full justify-start text-xs h-8"
+                      onClick={() => {
+                        setDateFilter({ type: "all" });
+                        setIsDatePickerOpen(false);
                       }}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-40 text-center"
+                      View All
+                    </Button>
+                    <Button
+                      variant={
+                        dateFilter.type === "today" ? "secondary" : "ghost"
+                      }
+                      className="w-full justify-start text-xs h-8"
+                      onClick={() => {
+                        setDateFilter({ type: "today" });
+                        setIsDatePickerOpen(false);
+                      }}
+                    >
+                      Today
+                    </Button>
+                  </div>
+                  <div className="p-2 border-t sm:border-t-0 border-border">
+                    <Calendar
+                      mode="single"
+                      selected={dateFilter.date}
+                      defaultMonth={dateFilter.date}
+                      captionLayout="dropdown"
+                      fromYear={2020}
+                      toYear={new Date().getFullYear() + 1}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDateFilter({ type: "custom", date });
+                          setIsDatePickerOpen(false);
+                        }
+                      }}
+                      disabled={(date) => date > new Date()}
+                      className="rounded-md border-0"
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
+              <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
+              <div className="flex items-center gap-0.5">
+                {(["xs", "sm", "base"] as const).map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setTextSize(size)}
+                    className={cn(
+                      "px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors",
+                      textSize === size
+                        ? "bg-amber-600 text-white"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    )}
+                  >
+                    {size === "xs" ? "S" : size === "sm" ? "M" : "L"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Select
+              value={`${table.getState().pagination.pageSize}`}
+              onValueChange={(v) => table.setPageSize(Number(v))}
+            >
+              <SelectTrigger className="h-8 sm:h-9 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-amber-500/40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-110">
+                {[5, 10, 20, 30, 50, 100].map((n) => (
+                  <SelectItem key={n} value={`${n}`} className="text-xs">
+                    {n} rows
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="h-8 sm:h-9 gap-1 sm:gap-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-[10px] sm:text-xs font-medium rounded-lg px-2 sm:px-3 shadow-none border-0"
                 >
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <PackageOpen className="h-8 w-8 opacity-20" />
-                    <p className="text-sm font-medium">No records found</p>
-                    <p className="text-xs opacity-70">
-                      {hasFilter
-                        ? "Try adjusting your search."
-                        : "Start receiving eggs to see your data."}
+                  <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span>Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-52 rounded-xl border-border/60 shadow-md z-110"
+              >
+                <DropdownMenuItem
+                  onClick={exportToPDF}
+                  className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-950/40">
+                    <FileText className="h-3.5 w-3.5 text-rose-500" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium leading-none">
+                      Save as PDF
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Printable ledger report
                     </p>
                   </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
-          Showing{" "}
-          <span className="font-medium text-foreground">
-            {table.getRowModel().rows.length}
-          </span>{" "}
-          of{" "}
-          <span className="font-medium text-foreground">{filteredCount}</span>{" "}
-          record{filteredCount !== 1 ? "s" : ""}
-          {pageCount > 1 && (
-            <span className="text-muted-foreground/60">
-              {" "}
-              · page {currentPage} of {pageCount}
-            </span>
-          )}
-        </p>
-
-        <div className="flex items-center gap-2 order-1 sm:order-2 justify-center sm:justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
-            className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
-            title="First Page"
-          >
-            <ChevronsLeft className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-            <span className="hidden xs:inline">Prev</span>
-          </Button>
-
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
-              let page = i;
-              if (pageCount > 5) {
-                let startPage = Math.max(0, currentPage - 1 - 2);
-                if (startPage + 4 >= pageCount) {
-                  startPage = Math.max(0, pageCount - 5);
-                }
-                page = startPage + i;
-              }
-              const isActive = page === currentPage - 1;
-              return (
-                <button
-                  key={page}
-                  onClick={() => table.setPageIndex(page)}
-                  className={cn(
-                    "w-7 h-8 rounded-lg text-xs font-medium transition-colors",
-                    isActive
-                      ? "bg-amber-600 text-white"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={exportToCSV}
+                  className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
                 >
-                  {page + 1}
-                </button>
-              );
-            })}
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40">
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium leading-none">
+                      Export to CSV
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Open in Excel or Sheets
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
+        </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
-          >
-            <span className="hidden xs:inline">Next</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
-            className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
-            title="Last Page"
-          >
-            <ChevronsRight className="h-3.5 w-3.5" />
-          </Button>
+        {hasFilter && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {filteredCount === 0
+                ? "No results"
+                : `${filteredCount} record${filteredCount !== 1 ? "s" : ""} matching`}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/40">
+              {globalFilter}
+              <button
+                onClick={() => setGlobalFilter("")}
+                className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-border/60 bg-card flex flex-col flex-1 min-h-0 overflow-hidden [&>div]:flex-1 [&>div]:overflow-auto [&>div]:custom-scrollbar">
+          <Table className={cn(textSizeClass, "w-full min-w-[640px]")}>
+            <TableHeader className="sticky top-0 z-20 bg-card">
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow
+                  key={hg.id}
+                  className="bg-muted/40 hover:bg-muted/40 border-b border-border/60"
+                >
+                  {hg.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        textSizeClass,
+                        "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide",
+                        header.id === "actions" &&
+                          "sticky right-0 bg-card dark:bg-slate-900 z-30 shadow-[-1px_0_0_0_hsl(var(--border))] w-[56px] text-center",
+                      )}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody className="group/tbody">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row, i) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    style={{
+                      animationFillMode: "both",
+                      animationDelay: `${i * 40}ms`,
+                    }}
+                    className={cn(
+                      "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
+                      "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
+                      "hover:shadow-md hover:z-20 hover:ring-1 hover:ring-amber-400 dark:hover:ring-amber-600",
+                      i % 2 === 0
+                        ? "bg-card hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
+                        : "bg-muted hover:bg-amber-50/80 dark:hover:bg-amber-900/30",
+                    )}
+                    onClick={() => setViewData(row.original as EggBatchRecord)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          textSizeClass,
+                          "py-2.5 transition-colors duration-300",
+                          cell.column.id === "actions" &&
+                            "sticky right-0 z-20 p-0 shadow-[-1px_0_0_0_hsl(var(--border))]",
+                          cell.column.id === "actions" &&
+                            (i % 2 === 0
+                              ? "bg-card group-hover/row:bg-amber-50/80 dark:group-hover/row:bg-amber-900/30"
+                              : "bg-muted dark:bg-slate-900/50 group-hover/row:bg-amber-50/80 dark:group-hover/row:bg-amber-900/30"),
+                        )}
+                        onClick={(e) => {
+                          if (cell.column.id === "actions") {
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-40 text-center"
+                  >
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <PackageOpen className="h-8 w-8 opacity-20" />
+                      <p className="text-sm font-medium">No records found</p>
+                      <p className="text-xs opacity-70">
+                        {hasFilter
+                          ? "Try adjusting your search."
+                          : "Start receiving eggs to see your data."}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
+            Showing{" "}
+            <span className="font-medium text-foreground">
+              {table.getRowModel().rows.length}
+            </span>{" "}
+            of{" "}
+            <span className="font-medium text-foreground">{filteredCount}</span>{" "}
+            record{filteredCount !== 1 ? "s" : ""}
+            {pageCount > 1 && (
+              <span className="text-muted-foreground/60">
+                {" "}
+                · page {currentPage} of {pageCount}
+              </span>
+            )}
+          </p>
+
+          <div className="flex items-center gap-2 order-1 sm:order-2 justify-center sm:justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+              className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+              title="First Page"
+            >
+              <ChevronsLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span className="hidden xs:inline">Prev</span>
+            </Button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
+                let page = i;
+                if (pageCount > 5) {
+                  let startPage = Math.max(0, currentPage - 1 - 2);
+                  if (startPage + 4 >= pageCount) {
+                    startPage = Math.max(0, pageCount - 5);
+                  }
+                  page = startPage + i;
+                }
+                const isActive = page === currentPage - 1;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => table.setPageIndex(page)}
+                    className={cn(
+                      "w-7 h-8 rounded-lg text-xs font-medium transition-colors",
+                      isActive
+                        ? "bg-amber-600 text-white"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {page + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="h-8 px-3 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40"
+            >
+              <span className="hidden xs:inline">Next</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+              className="h-8 px-2 gap-1 text-xs rounded-lg border-border/60 hover:bg-muted disabled:opacity-40 hidden sm:flex"
+              title="Last Page"
+            >
+              <ChevronsRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
       {/* View Details Modal */}
       <Dialog
         open={!!viewData}
@@ -1059,8 +1084,17 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
           {viewData &&
             (() => {
-              const expectedTotal =
-                viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp;
+              const extraPcs =
+                viewData.extraType === "HALF_TRAY"
+                  ? 15
+                  : viewData.extraType === "PIECES"
+                    ? viewData.extraPiecesPickedUp || 0
+                    : 0;
+              const expectedTotalTrays =
+                viewData.totalTraysPickedUp + extraPcs / 30;
+              const expectedTotalEggs =
+                viewData.totalTraysPickedUp * 30 + extraPcs;
+
               const whiteGoodTotal =
                 viewData.qtyPeewee +
                 viewData.qtyXs +
@@ -1091,29 +1125,42 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               return (
                 <div className="p-4 sm:p-5 space-y-3 bg-slate-50/50 dark:bg-slate-950/50 overflow-y-auto custom-scrollbar flex-1 min-h-0">
                   {/* Info Bar */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Batch ID
-                      </span>
-                      <div className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
-                        {viewData.batchId}
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div className="flex flex-col gap-2 text-xs sm:text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-28 shrink-0">
+                          BATCH ID:
+                        </span>
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {viewData.batchId}
+                        </span>
                       </div>
-                    </div>
-                    <div className="space-y-1 sm:border-l sm:border-t-0 border-t border-slate-100 dark:border-slate-800 sm:pl-4 pt-3 sm:pt-0">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Arrival Date
-                      </span>
-                      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {viewData.arrivalDate}
+
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-28 shrink-0">
+                          ARRIVAL DATE:
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {viewData.arrivalDate}
+                        </span>
                       </div>
-                    </div>
-                    <div className="space-y-1 sm:border-l sm:border-t-0 border-t border-slate-100 dark:border-slate-800 sm:pl-4 pt-3 sm:pt-0">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Farm Origin
-                      </span>
-                      <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase truncate">
-                        {viewData.farmName}
+
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-28 shrink-0">
+                          FARM ORIGIN:
+                        </span>
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400 uppercase truncate">
+                          {viewData.farmName}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px] w-28 shrink-0">
+                          RECORDED BY:
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 capitalize truncate">
+                          {viewData.receivedBy || "System"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1126,32 +1173,32 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                       </div>
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
                         <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300">
-                          {viewData.rawCasesPickedUp}
+                          {viewData.totalTraysPickedUp}
                         </span>{" "}
                         <span className="text-sm text-indigo-600/70 dark:text-indigo-400/70 mr-2">
-                          cases
-                        </span>
-                        <span className="text-indigo-300 dark:text-indigo-700 font-bold mr-2">
-                          +
-                        </span>
-                        <span className="font-mono font-bold text-indigo-700 dark:text-indigo-300">
-                          {viewData.rawTraysPickedUp}
-                        </span>{" "}
-                        <span className="text-sm text-indigo-600/70 dark:text-indigo-400/70">
                           trays
                         </span>
+                        {viewData.extraType === "HALF_TRAY" ? (
+                          <span className="text-xs font-bold text-amber-600 bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 rounded">
+                            + Half Tray (15 Pcs)
+                          </span>
+                        ) : viewData.extraType === "PIECES" && extraPcs > 0 ? (
+                          <span className="text-xs font-bold text-amber-600 bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 rounded">
+                            + {extraPcs} Pcs
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="hidden sm:block w-px h-10 bg-indigo-200/60 dark:bg-indigo-800/60"></div>
                     <div className="border-t border-indigo-200/60 dark:border-indigo-800/60 sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto text-center sm:text-right">
                       <div className="text-2xl font-bold font-mono text-indigo-700 dark:text-indigo-400 leading-none">
-                        {expectedTotal}{" "}
+                        {formatTrayCount(expectedTotalTrays)}{" "}
                         <span className="text-sm font-sans font-medium opacity-70">
                           trays
                         </span>
                       </div>
                       <div className="text-[15px] font-bold text-indigo-600/70 dark:text-indigo-400/70 mt-1">
-                        {(expectedTotal * 30).toLocaleString()} total eggs
+                        {expectedTotalEggs.toLocaleString()} total eggs
                       </div>
                     </div>
                   </div>
@@ -1339,15 +1386,25 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               <div>
                 <strong>Farm Origin:</strong> {viewData.farmName}
               </div>
+              <div>
+                <strong>Recorded By:</strong> {viewData.receivedBy || "System"}
+              </div>
             </div>
             <div className="space-y-1 text-right">
               <div className="text-xl font-bold">
-                {viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp}{" "}
+                {formatTrayCount(
+                  viewData.totalTraysPickedUp +
+                    (viewData.extraType === "HALF_TRAY"
+                      ? 0.5
+                      : (viewData.extraPiecesPickedUp || 0) / 30),
+                )}{" "}
                 trays
               </div>
               <div className="text-gray-500">
-                {(viewData.rawCasesPickedUp * 12 + viewData.rawTraysPickedUp) *
-                  30}{" "}
+                {viewData.totalTraysPickedUp * 30 +
+                  (viewData.extraType === "HALF_TRAY"
+                    ? 15
+                    : viewData.extraPiecesPickedUp || 0)}{" "}
                 total eggs
               </div>
             </div>

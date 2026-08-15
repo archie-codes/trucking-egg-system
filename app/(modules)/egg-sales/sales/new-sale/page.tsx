@@ -3,7 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm, useWatch, Controller, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,6 +35,7 @@ import {
   getLiveEggInventory,
   getEggCustomerSuggestions,
 } from "@/app/actions/egg-actions";
+import { getAdminRoleAndDept } from "@/app/actions/user-actions";
 import {
   Save,
   Loader2,
@@ -243,6 +244,39 @@ const EGG_SIZES = [
   },
 ] as const;
 
+function AnimatedNumber({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    const start = prevValueRef.current;
+    const end = value;
+    if (start === end) return;
+
+    const duration = 250;
+    const startTime = performance.now();
+
+    const update = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + (end - start) * easeProgress);
+
+      setDisplayValue(current);
+      prevValueRef.current = current;
+
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      }
+    };
+
+    const handle = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(handle);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function NewSalePage() {
   const router = useRouter();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -255,8 +289,12 @@ export default function NewSalePage() {
   const [customerSuggestions, setCustomerSuggestions] = useState<string[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inventory, setInventory] = useState<any[]>([]);
+  const [preparedByName, setPreparedByName] = useState<string>("System");
 
   useEffect(() => {
+    getAdminRoleAndDept().then((res) => {
+      if (res?.name) setPreparedByName(res.name);
+    });
     getEggCustomerSuggestions().then((res) => {
       if (res.success) setCustomerSuggestions(res.customers || []);
     });
@@ -523,43 +561,62 @@ export default function NewSalePage() {
         item.quantityTrays > 0 ||
         item.quantityPieces > 0 ||
         item.palitBasag > 0;
-      const hasPrice = item.pricePerTray > 0 || item.palitBasag > 0;
+      const needsPrice = item.quantityTrays > 0 || item.quantityPieces > 0;
+      const isMissingPrice = needsPrice && item.pricePerTray <= 0;
+      const isMissingQty = !hasQty;
 
-      if (!hasQty || (!hasPrice && item.palitBasag <= 0)) {
+      if (isMissingQty || isMissingPrice) {
         setErrorFields({
-          [item.classification]: { qty: !hasQty, price: !hasPrice },
+          [item.classification]: { qty: isMissingQty, price: isMissingPrice },
         });
-        setTimeout(() => setErrorFields({}), 600);
+        setTimeout(() => setErrorFields({}), 3000);
 
-        if (!hasQty) {
-          form.setFocus(
-            `sizes.${item.classification as keyof typeof values.sizes}.quantityTrays` as Path<
-              z.input<typeof saleSchema>
-            >,
-          );
-        } else {
-          form.setFocus(
-            `sizes.${item.classification as keyof typeof values.sizes}.pricePerTray` as Path<
-              z.input<typeof saleSchema>
-            >,
-          );
+        const rowEl = document.getElementById(`row-${item.classification}`);
+        if (rowEl) {
+          rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
         }
 
-        if (!hasQty && !hasPrice) {
-          toast.error("Incomplete Egg Size Entry", {
-            description: `Oops! You selected "${label}", but forgot to put values for Quantity (Trays/Pieces/Palit Basag) and Tray Price. Please enter values or uncheck it before saving.`,
-          });
-          return;
-        }
-        if (!hasQty) {
+        setTimeout(() => {
+          if (isMissingQty) {
+            const inputQty = document.getElementById(
+              `input-qty-${item.classification}`,
+            ) as HTMLInputElement | null;
+            if (inputQty) {
+              inputQty.focus();
+              inputQty.select?.();
+            } else {
+              form.setFocus(
+                `sizes.${item.classification as keyof typeof values.sizes}.quantityTrays` as Path<
+                  z.input<typeof saleSchema>
+                >,
+              );
+            }
+          } else if (isMissingPrice) {
+            const inputPrice = document.getElementById(
+              `input-price-${item.classification}`,
+            ) as HTMLInputElement | null;
+            if (inputPrice) {
+              inputPrice.focus();
+              inputPrice.select?.();
+            } else {
+              form.setFocus(
+                `sizes.${item.classification as keyof typeof values.sizes}.pricePerTray` as Path<
+                  z.input<typeof saleSchema>
+                >,
+              );
+            }
+          }
+        }, 200);
+
+        if (isMissingQty) {
           toast.error("Missing Quantity", {
             description: `Oops! You selected "${label}", but forgot to put how many Trays, Pieces, or Palit Basag. Please enter a quantity or uncheck it before saving.`,
           });
           return;
         }
-        if (!hasPrice) {
+        if (isMissingPrice) {
           toast.error("Missing Tray Price", {
-            description: `Oops! You selected "${label}", but forgot to put the Price Per Tray. Please enter the price before saving.`,
+            description: `Oops! You entered quantity for "${label}", but forgot to put the Price Per Tray. Price per tray must be greater than zero.`,
           });
           return;
         }
@@ -573,12 +630,17 @@ export default function NewSalePage() {
       return;
     }
 
-    toast.loading("Processing outbound delivery...", { id: "sale-save" });
+    toast.dismiss();
+    toast.loading("Processing outbound delivery...", {
+      id: "sale-save",
+      description: "Saving delivery details & deducting inventory...",
+    });
 
     // Remap form values to pass the flattened item structure down to the server transaction handler
     const payload = {
       saleDate: values.saleDate,
       customerId: values.customerId,
+      preparedBy: preparedByName,
       amountPaid: values.amountPaid,
       datePaid: values.datePaid,
       remarks: values.remarks,
@@ -588,10 +650,11 @@ export default function NewSalePage() {
     const result = await createEggSale(payload);
 
     if (result.success) {
-      router.push(`/egg-sales/sales/receipt/${result.invoiceId}?from=new-sale`);
+      toast.dismiss("sale-save");
       toast.success("Delivery completed & inventory deducted!", {
-        id: "sale-save",
+        description: `Invoice ${result.invoiceId} recorded successfully.`,
       });
+      router.push(`/egg-sales/sales/receipt/${result.invoiceId}?from=new-sale`);
 
       if (!customerSuggestions.includes(values.customerId)) {
         setCustomerSuggestions((prev) => [...prev, values.customerId]);
@@ -614,9 +677,9 @@ export default function NewSalePage() {
 
       form.reset();
     } else {
-      toast.error("Database Error", {
-        id: "sale-save",
-        description: result.error,
+      toast.dismiss("sale-save");
+      toast.error("Delivery Failed", {
+        description: result.error || "Failed to process sale.",
       });
     }
   }
@@ -626,8 +689,7 @@ export default function NewSalePage() {
     const stockPieces =
       inventory.find((i) => i.classification === size.id)?.currentStockTrays ||
       0;
-    const availableTrays = Math.floor(stockPieces / 30);
-    const looseEggs = stockPieces % 30;
+    const initialTrays = Math.floor(stockPieces / 30);
 
     const rowQtyTrays = Number(watchedSizes[size.id]?.quantityTrays) || 0;
     const rowQtyPieces = Number(watchedSizes[size.id]?.quantityPieces) || 0;
@@ -636,6 +698,15 @@ export default function NewSalePage() {
 
     const totalPiecesRequested =
       (rowQtyTrays + rowPalitBasag) * 30 + rowQtyPieces;
+
+    const remainingPieces = Math.max(
+      0,
+      stockPieces - (isChecked ? totalPiecesRequested : 0),
+    );
+    const availableTrays = Math.floor(remainingPieces / 30);
+    const looseEggs = remainingPieces % 30;
+
+    const isDeducting = isChecked && totalPiecesRequested > 0;
     const rowSubtotal = isChecked
       ? rowQtyTrays * rowPrice + rowQtyPieces * (rowPrice / 30)
       : 0;
@@ -647,15 +718,16 @@ export default function NewSalePage() {
     return (
       <div
         key={size.id}
+        id={`row-${size.id}`}
         className={cn(
-          "grid grid-cols-12 items-center p-4 transition-colors duration-150",
+          "grid grid-cols-12 items-start p-4 transition-colors duration-150",
           isChecked
             ? "bg-white dark:bg-slate-900/60"
             : "bg-slate-50/20 dark:bg-transparent opacity-70",
         )}
       >
         {/* Checkbox Column */}
-        <div className="col-span-1 flex justify-center">
+        <div className="col-span-1 flex justify-center pt-2">
           <Controller
             name={`sizes.${size.id}.checked`}
             control={control}
@@ -663,7 +735,7 @@ export default function NewSalePage() {
               <Checkbox
                 id={`check-${size.id}`}
                 checked={field.value}
-                disabled={availableTrays <= 0}
+                disabled={initialTrays <= 0 && stockPieces <= 0}
                 onCheckedChange={(checked) => {
                   field.onChange(checked);
                   if (!checked) {
@@ -680,7 +752,7 @@ export default function NewSalePage() {
         </div>
 
         {/* Classification Badge Name */}
-        <div className="col-span-2">
+        <div className="col-span-2 pt-2">
           <label
             htmlFor={`check-${size.id}`}
             className={cn(
@@ -693,112 +765,138 @@ export default function NewSalePage() {
         </div>
 
         {/* Available Bodega Stock Level */}
-        <div className="col-span-2 text-center text-xs">
+        <div className="col-span-2 text-center text-xs pt-1.5">
           <span
             className={cn(
-              "font-bold px-2.5 py-1 rounded-full text-[11px]",
-              availableTrays === 0
-                ? "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
+              "font-bold px-2.5 py-1 rounded-full text-[11px] transition-all duration-300 inline-flex items-center justify-center gap-1",
+              rowIsOverselling || (remainingPieces === 0 && stockPieces === 0)
+                ? "bg-rose-50 text-rose-600 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50"
+                : isDeducting
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800/60 shadow-xs"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
             )}
           >
-            {availableTrays} Trays{" "}
-            {looseEggs > 0 ? `(+${looseEggs} peaces)` : ""}
+            <AnimatedNumber value={availableTrays} /> Trays{" "}
+            {looseEggs > 0 ? (
+              <>
+                (+
+                <AnimatedNumber value={looseEggs} /> pcs)
+              </>
+            ) : null}
           </span>
         </div>
 
         {/* Quantity Inputs (Trays, Pieces, Palit Basag) */}
-        <div className="col-span-4 px-1 grid grid-cols-3 gap-2">
-          <Controller
-            name={`sizes.${size.id}.quantityTrays`}
-            control={control}
-            render={({ field }) => (
-              <Input
-                {...field}
-                type="number"
-                min="0"
-                step="1"
-                disabled={!isChecked}
-                placeholder="0"
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[-.]/g, "");
-                  field.onChange(val);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "-" || e.key === ".") e.preventDefault();
-                }}
-                onClick={(e) => e.currentTarget.select()}
-                className={cn(
-                  "h-9 font-black rounded-lg text-sm text-center transition-all",
-                  isQtyError
-                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                    : rowIsOverselling
-                      ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                      : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
-                )}
-              />
+        <div className="col-span-4 px-1 grid grid-cols-3 gap-2 items-start">
+          <div>
+            <Controller
+              name={`sizes.${size.id}.quantityTrays`}
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id={`input-qty-${size.id}`}
+                  type="number"
+                  min="0"
+                  step="1"
+                  disabled={!isChecked}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[-.]/g, "");
+                    field.onChange(val);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === ".") e.preventDefault();
+                  }}
+                  onClick={(e) => e.currentTarget.select()}
+                  className={cn(
+                    "h-9 font-black rounded-lg text-sm text-center transition-all",
+                    isQtyError
+                      ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                      : rowIsOverselling
+                        ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                        : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                  )}
+                />
+              )}
+            />
+            {isChecked && rowQtyTrays > 0 && (
+              <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 text-center mt-1 leading-tight tracking-tight">
+                {rowQtyTrays} {rowQtyTrays === 1 ? "tray" : "trays"} ={" "}
+                {rowQtyTrays * 30} pcs egg
+              </p>
             )}
-          />
-          <Controller
-            name={`sizes.${size.id}.quantityPieces`}
-            control={control}
-            render={({ field }) => (
-              <Input
-                {...field}
-                type="number"
-                min="0"
-                step="1"
-                disabled={!isChecked}
-                placeholder="0"
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[-.]/g, "");
-                  field.onChange(val);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "-" || e.key === ".") e.preventDefault();
-                }}
-                onClick={(e) => e.currentTarget.select()}
-                className={cn(
-                  "h-9 font-black rounded-lg text-sm text-center transition-all",
-                  isQtyError
-                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                    : rowIsOverselling
-                      ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                      : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
-                )}
-              />
+          </div>
+          <div>
+            <Controller
+              name={`sizes.${size.id}.quantityPieces`}
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  type="number"
+                  min="0"
+                  step="1"
+                  disabled={!isChecked}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[-.]/g, "");
+                    field.onChange(val);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === ".") e.preventDefault();
+                  }}
+                  onClick={(e) => e.currentTarget.select()}
+                  className={cn(
+                    "h-9 font-black rounded-lg text-sm text-center transition-all",
+                    isQtyError
+                      ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                      : rowIsOverselling
+                        ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                        : "bg-transparent border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                  )}
+                />
+              )}
+            />
+          </div>
+          <div>
+            <Controller
+              name={`sizes.${size.id}.palitBasag`}
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  type="number"
+                  min="0"
+                  step="1"
+                  disabled={!isChecked}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[-.]/g, "");
+                    field.onChange(val);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === ".") e.preventDefault();
+                  }}
+                  onClick={(e) => e.currentTarget.select()}
+                  className={cn(
+                    "h-9 font-black rounded-lg text-sm text-center transition-all bg-purple-50/50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/50",
+                    isQtyError
+                      ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                      : rowIsOverselling
+                        ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
+                        : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
+                  )}
+                />
+              )}
+            />
+            {isChecked && rowPalitBasag > 0 && (
+              <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 text-center mt-1 leading-tight tracking-tight">
+                {rowPalitBasag} {rowPalitBasag === 1 ? "tray" : "trays"} ={" "}
+                {rowPalitBasag * 30} pcs egg
+              </p>
             )}
-          />
-          <Controller
-            name={`sizes.${size.id}.palitBasag`}
-            control={control}
-            render={({ field }) => (
-              <Input
-                {...field}
-                type="number"
-                min="0"
-                step="1"
-                disabled={!isChecked}
-                placeholder="0"
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[-.]/g, "");
-                  field.onChange(val);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "-" || e.key === ".") e.preventDefault();
-                }}
-                onClick={(e) => e.currentTarget.select()}
-                className={cn(
-                  "h-9 font-black rounded-lg text-sm text-center transition-all bg-purple-50/50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/50",
-                  isQtyError
-                    ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                    : rowIsOverselling
-                      ? "border-rose-500 text-rose-600 focus-visible:ring-rose-500 bg-rose-50/50"
-                      : "border-slate-200 dark:border-slate-800 focus-visible:ring-emerald-500",
-                )}
-              />
-            )}
-          />
+          </div>
         </div>
 
         {/* Price Per Tray Input Form Field */}
@@ -809,6 +907,7 @@ export default function NewSalePage() {
             render={({ field }) => (
               <Input
                 {...field}
+                id={`input-price-${size.id}`}
                 type="number"
                 min="0"
                 step="1"
@@ -836,13 +935,13 @@ export default function NewSalePage() {
         {/* Interactive Live Subtotal Cell */}
         <div
           className={cn(
-            "col-span-1 text-right font-mono font-bold text-sm pr-2",
+            "col-span-1 text-right font-mono font-bold text-sm pr-2 pt-2",
             isChecked
               ? "text-slate-900 dark:text-white"
               : "text-slate-300 dark:text-slate-700",
           )}
         >
-          ₱{rowSubtotal.toLocaleString()}
+          ₱<NumberTicker value={rowSubtotal} />
         </div>
       </div>
     );
@@ -994,13 +1093,17 @@ export default function NewSalePage() {
                       Available Stock
                     </div>
                     <div className="col-span-4 px-1 grid grid-cols-3 gap-2 text-center">
-                      <div>Trays</div>
-                      <div>Pieces</div>
-                      <div className="text-purple-600 dark:text-purple-400 font-black">
+                      <div>Per Tray</div>
+                      <div>Extra Pieces</div>
+                      <div>
                         Palit Basag
+                        <br />
+                        (Per Tray)
                       </div>
                     </div>
-                    <div className="col-span-2 px-1">Tray Price (₱)</div>
+                    <div className="col-span-2 px-1 text-center">
+                      Tray Price (₱)
+                    </div>
                     <div className="col-span-1 text-right">Subtotal</div>
                   </div>
 

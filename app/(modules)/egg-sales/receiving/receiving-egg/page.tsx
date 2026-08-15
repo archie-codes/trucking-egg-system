@@ -8,6 +8,7 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import {
   Dialog,
@@ -34,6 +42,7 @@ import {
   createEggBatch,
   getEggFarmSuggestions,
 } from "@/app/actions/egg-actions";
+import { getAdminRoleAndDept } from "@/app/actions/user-actions";
 import {
   Save,
   Loader2,
@@ -44,10 +53,10 @@ import {
   CheckCircle2,
   ShieldCheck,
   ChevronDown,
+  Info,
 } from "lucide-react";
 
 // Standard Constants
-const TRAYS_PER_CASE = 12;
 const EGGS_PER_TRAY = 30;
 
 const numField = z
@@ -59,8 +68,9 @@ const batchSchema = z.object({
   batchId: z.string().min(1, "Batch ID is required"),
   farmName: z.string().min(1, "Farm Name is required").toUpperCase(),
 
-  rawCasesPickedUp: numField,
-  rawTraysPickedUp: numField,
+  totalTraysPickedUp: numField,
+  extraType: z.enum(["NONE", "HALF_TRAY", "PIECES"]).default("NONE"),
+  extraPiecesPickedUp: numField,
 
   qtyPeewee: numField,
   qtyXs: numField,
@@ -86,28 +96,46 @@ const batchSchema = z.object({
   brownQtyDirty: numField,
 });
 
-// ✨ UPGRADED: Now includes Seconds + a 4-character random unique string
 const generateBatchId = (date: Date = new Date()) => {
   const timestamp = format(date, "yyyyMMdd-HHmmss");
   const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `BATCH-${timestamp}-${randomChars}`;
 };
 
+const formatTrayCount = (val: number): string => {
+  if (isNaN(val) || val === 0) return "0";
+  if (Number.isInteger(val)) return val.toString();
+  return Number(val.toFixed(2)).toString();
+};
+
 export default function ReceivingPage() {
+  const router = useRouter();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [farmSuggestions, setFarmSuggestions] = useState<string[]>([]);
+  const [farmSuggestions, setFarmSuggestions] = useState<string[]>([
+    "SJK FARM",
+    "BARACBAC FARM",
+  ]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // ✨ NEW Modal State
   const [isBatchIdClicked, setIsBatchIdClicked] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [isFarmOriginShaking, setIsFarmOriginShaking] = useState(false);
+  const [isTotalTraysShaking, setIsTotalTraysShaking] = useState(false);
+  const [isExtraPiecesShaking, setIsExtraPiecesShaking] = useState(false);
+  const [isCustomFarm, setIsCustomFarm] = useState(false);
+  const [encoderName, setEncoderName] = useState<string>("System");
 
   // Use a lazy state initializer to guarantee Math.random() only runs once on mount
   const [initialBatchId] = useState(generateBatchId);
 
   useEffect(() => {
+    getAdminRoleAndDept().then((res) => {
+      if (res?.name) setEncoderName(res.name);
+    });
     getEggFarmSuggestions().then((res) => {
       if (res.success) {
-        setFarmSuggestions(res.farms || []);
+        setFarmSuggestions((prev) =>
+          Array.from(new Set([...prev, ...(res.farms || [])])),
+        );
       }
     });
   }, []);
@@ -122,8 +150,9 @@ export default function ReceivingPage() {
       arrivalDate: format(new Date(), "yyyy-MM-dd"),
       batchId: initialBatchId,
       farmName: "",
-      rawCasesPickedUp: "",
-      rawTraysPickedUp: "",
+      totalTraysPickedUp: "",
+      extraType: "NONE",
+      extraPiecesPickedUp: "",
       qtyPeewee: "",
       qtyXs: "",
       qtySmall: "",
@@ -150,11 +179,20 @@ export default function ReceivingPage() {
 
   const { control } = form;
 
-  const rawCases = Number(useWatch({ control, name: "rawCasesPickedUp" })) || 0;
-  const rawTrays = Number(useWatch({ control, name: "rawTraysPickedUp" })) || 0;
+  const totalTrays =
+    Number(useWatch({ control, name: "totalTraysPickedUp" })) || 0;
+  const extraType = useWatch({ control, name: "extraType" }) || "NONE";
+  const extraPiecesInput =
+    Number(useWatch({ control, name: "extraPiecesPickedUp" })) || 0;
 
-  const totalPickupTrays = rawCases * TRAYS_PER_CASE + rawTrays;
-  const totalExpectedPieces = totalPickupTrays * EGGS_PER_TRAY;
+  const extraPieces =
+    extraType === "HALF_TRAY"
+      ? 15
+      : extraType === "PIECES"
+        ? extraPiecesInput
+        : 0;
+  const totalPickupTrays = totalTrays + extraPieces / EGGS_PER_TRAY;
+  const totalExpectedPieces = totalTrays * EGGS_PER_TRAY + extraPieces;
 
   const peewee = Number(useWatch({ control, name: "qtyPeewee" })) || 0;
   const xs = Number(useWatch({ control, name: "qtyXs" })) || 0;
@@ -180,8 +218,7 @@ export default function ReceivingPage() {
   const bBroken = Number(useWatch({ control, name: "brownQtyBroken" })) || 0;
   const bDirty = Number(useWatch({ control, name: "brownQtyDirty" })) || 0;
 
-  // ✨ Added Dirty to total calculation
-  const totalSortedPieces =
+  const totalSortedTrays =
     peewee +
     xs +
     s +
@@ -203,24 +240,68 @@ export default function ReceivingPage() {
     bCracked +
     bBroken +
     bDirty;
+
+  const totalSortedPieces = Math.round(totalSortedTrays * EGGS_PER_TRAY);
   const variancePieces = totalExpectedPieces - totalSortedPieces;
+  const varianceTrays = Number(
+    (totalPickupTrays - totalSortedTrays).toFixed(2),
+  );
 
   // Handles the initial click on the bottom bar
   const handlePreSubmitCheck = () => {
     const farmName = form.getValues("farmName");
     if (!farmName || farmName.trim() === "") {
       setIsFarmOriginShaking(true);
-      form.setFocus("farmName"); // ✨ Auto-focus the field
-      setTimeout(() => setIsFarmOriginShaking(false), 600);
+      form.setFocus("farmName"); // ✨ Auto-focus field
+      setTimeout(() => setIsFarmOriginShaking(false), 800);
+
+      // ✨ Smooth scroll viewport to focus on farm field
+      const el =
+        document.querySelector('[name="farmName"]') ||
+        document.querySelector('button[role="combobox"]');
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
       toast.error("Missing Origin Farm", {
         description: "Please select or type the farm origin before proceeding.",
       });
       return;
     }
 
-    if (totalExpectedPieces === 0) {
-      toast.error("Invalid Entry", {
-        description: "Please enter the Cases/Trays picked up.",
+    if (totalTrays === 0 && extraPieces === 0) {
+      setIsTotalTraysShaking(true);
+      form.setFocus("totalTraysPickedUp"); // ✨ Auto-focus field
+      setTimeout(() => setIsTotalTraysShaking(false), 800);
+
+      // ✨ Smooth scroll viewport to focus on Total Trays field
+      const el = document.querySelector('[name="totalTraysPickedUp"]');
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      toast.error("Missing Pickup Volume", {
+        description: "Please enter the Total Trays picked up from farm.",
+      });
+      return;
+    }
+
+    if (
+      extraType === "PIECES" &&
+      (extraPiecesInput === 0 || isNaN(extraPiecesInput))
+    ) {
+      setIsExtraPiecesShaking(true);
+      form.setFocus("extraPiecesPickedUp"); // ✨ Auto-focus field
+      setTimeout(() => setIsExtraPiecesShaking(false), 800);
+
+      // ✨ Smooth scroll viewport to focus on Extra Loose Eggs field
+      const el = document.querySelector('[name="extraPiecesPickedUp"]');
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      toast.error("Missing Extra Eggs", {
+        description: "Please enter the extra egg count.",
       });
       return;
     }
@@ -228,10 +309,19 @@ export default function ReceivingPage() {
     // ✨ STRICT GUARD: Prevent saving if eggs are missing or overcounted
     if (variancePieces !== 0) {
       setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 600); // Remove class after animation
+      setTimeout(() => setIsShaking(false), 800); // Remove class after animation
       const isMissing = variancePieces > 0;
+      const absTrays = Math.abs(varianceTrays);
+      const absPieces = Math.abs(variancePieces);
+
+      // ✨ Smooth scroll viewport to focus on QA Breakdown Matrix
+      const qaMatrix = document.getElementById("qa-matrix-card");
+      if (qaMatrix) {
+        qaMatrix.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
       toast.error(isMissing ? "Missing Eggs Detected" : "Overcount Detected", {
-        description: `You are ${isMissing ? "missing" : "over by"} ${Math.abs(variancePieces)} pieces. Please correct the sorting breakdown.`,
+        description: `You are ${isMissing ? "missing" : "over by"} ${absTrays} ${absTrays === 1 ? "Tray" : "Trays"} (${absPieces} Pcs). Please correct the sorting breakdown.`,
         duration: 5000,
       });
       return;
@@ -244,12 +334,17 @@ export default function ReceivingPage() {
   // Handles the actual database save from inside the modal
   async function onFinalSubmit(values: z.infer<typeof batchSchema>) {
     setIsConfirmModalOpen(false);
-    toast.loading("Processing sorting batch...", { id: "batch-save" });
+    toast.dismiss();
+    toast.loading("Processing sorting batch...", {
+      id: "batch-save",
+      description: "Saving batch and updating inventory...",
+    });
     const result = await createEggBatch(values);
 
     if (result.success) {
+      toast.dismiss("batch-save");
       toast.success("Batch successfully received & inventory updated!", {
-        id: "batch-save",
+        description: "Navigating to history...",
       });
 
       if (!farmSuggestions.includes(values.farmName)) {
@@ -260,8 +355,9 @@ export default function ReceivingPage() {
         arrivalDate: format(new Date(), "yyyy-MM-dd"),
         batchId: generateBatchId(),
         farmName: "",
-        rawCasesPickedUp: "",
-        rawTraysPickedUp: "",
+        totalTraysPickedUp: "",
+        extraType: "NONE",
+        extraPiecesPickedUp: "",
         qtyPeewee: "",
         qtyXs: "",
         qtySmall: "",
@@ -284,6 +380,8 @@ export default function ReceivingPage() {
         brownQtyBroken: "",
         brownQtyDirty: "",
       });
+      setIsCustomFarm(false);
+      router.push("/egg-sales/receiving/history");
     } else {
       toast.error("Database Error", {
         id: "batch-save",
@@ -309,6 +407,19 @@ export default function ReceivingPage() {
         }
         .animate-shake {
           animation: shake 0.2s ease-in-out 3;
+        }
+        @keyframes expandFadeIn {
+          0% {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-expand-fade-in {
+          animation: expandFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
       <div className="sm:h-[95vh] w-full mx-auto space-y-3 animate-in fade-in duration-300">
@@ -437,38 +548,89 @@ export default function ReceivingPage() {
                       <FieldLabel className="text-xs font-bold text-slate-500 uppercase">
                         Origin Farm
                       </FieldLabel>
-                      <Input
-                        {...field}
-                        placeholder="e.g. SJK FARM"
-                        className={cn(
-                          "h-11 rounded-xl uppercase font-semibold transition-all duration-300",
-                          isFarmOriginShaking
-                            ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                            : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-100",
-                        )}
-                        list="farm-suggestions"
-                        onChange={(e) =>
-                          field.onChange(e.target.value.toUpperCase())
-                        }
-                      />
-                      <datalist id="farm-suggestions">
-                        {farmSuggestions.map((f, i) => (
-                          <option key={i} value={f} />
-                        ))}
-                      </datalist>
+                      {isCustomFarm ? (
+                        <div className="flex gap-2">
+                          <Input
+                            {...field}
+                            autoFocus
+                            placeholder="e.g. SJK FARM"
+                            className={cn(
+                              "h-11! flex-1 rounded-xl uppercase font-semibold transition-all duration-300",
+                              isFarmOriginShaking
+                                ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                                : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-100",
+                            )}
+                            onChange={(e) =>
+                              field.onChange(e.target.value.toUpperCase())
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-11! rounded-xl px-3 border-amber-200 text-amber-900 hover:bg-amber-100 dark:border-amber-900/50 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                            onClick={() => {
+                              setIsCustomFarm(false);
+                              field.onChange("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Select
+                          value={field.value || ""}
+                          onValueChange={(val) => {
+                            if (val === "TYPE_ANOTHER") {
+                              setIsCustomFarm(true);
+                              field.onChange("");
+                            } else {
+                              field.onChange(val);
+                            }
+                          }}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              "h-11! w-full rounded-xl uppercase font-semibold transition-all duration-300",
+                              isFarmOriginShaking
+                                ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                                : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-100",
+                              !field.value && "text-amber-700/50",
+                            )}
+                          >
+                            <SelectValue placeholder="Select Origin Farm" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl z-200">
+                            {farmSuggestions.map((f, i) => (
+                              <SelectItem
+                                key={i}
+                                value={f}
+                                className="uppercase"
+                              >
+                                {f}
+                              </SelectItem>
+                            ))}
+                            <SelectItem
+                              value="TYPE_ANOTHER"
+                              className="text-amber-600 font-bold uppercase"
+                            >
+                              + Type another origin farm...
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </Field>
                   )}
                 />
               </FieldGroup>
 
-              <FieldGroup className="grid grid-cols-2 gap-4">
+              <FieldGroup className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Controller
-                  name="rawCasesPickedUp"
+                  name="totalTraysPickedUp"
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase">
-                        Cases (12 Trays)
+                        Total Trays
                       </FieldLabel>
                       <Input
                         {...field}
@@ -481,48 +643,153 @@ export default function ReceivingPage() {
                           }
                         }}
                         onClick={(e) => e.currentTarget.select()}
-                        className="h-11 rounded-xl font-black text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
+                        className={cn(
+                          "h-11 rounded-xl font-black transition-all duration-300",
+                          isTotalTraysShaking
+                            ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                            : "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50",
+                        )}
                       />
                     </Field>
                   )}
                 />
+
                 <Controller
-                  name="rawTraysPickedUp"
+                  name="extraType"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase">
+                        Extra Egg Option
+                      </FieldLabel>
+                      <Select
+                        value={field.value || "NONE"}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          if (val === "HALF_TRAY") {
+                            form.setValue("extraPiecesPickedUp", 15);
+                          } else if (val === "NONE") {
+                            form.setValue("extraPiecesPickedUp", 0);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-11! w-full rounded-xl font-bold bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-100">
+                          <SelectValue placeholder="Select Option" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl z-200">
+                          <SelectItem value="NONE">No Extra (0 Pcs)</SelectItem>
+                          <SelectItem value="HALF_TRAY">
+                            Half Tray (15 Pcs)
+                          </SelectItem>
+                          <SelectItem value="PIECES">Per Pieces Egg</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name="extraPiecesPickedUp"
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase">
-                        Extra Trays
+                        Extra Eggs (Pcs)
                       </FieldLabel>
                       <Input
                         {...field}
                         type="number"
                         min="0"
                         placeholder="0"
+                        disabled={extraType !== "PIECES"}
+                        readOnly={
+                          extraType === "HALF_TRAY" || extraType === "NONE"
+                        }
+                        value={
+                          extraType === "HALF_TRAY"
+                            ? 15
+                            : extraType === "NONE"
+                              ? 0
+                              : field.value
+                        }
+                        onChange={(e) => {
+                          if (extraType === "PIECES")
+                            field.onChange(e.target.value);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "-" || e.key === "e" || e.key === "+") {
                             e.preventDefault();
                           }
                         }}
-                        onClick={(e) => e.currentTarget.select()}
-                        className="h-11 rounded-xl font-black text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
+                        onClick={(e) =>
+                          extraType === "PIECES" && e.currentTarget.select()
+                        }
+                        className={cn(
+                          "h-11 rounded-xl font-black transition-all duration-300",
+                          isExtraPiecesShaking
+                            ? "bg-red-50 dark:bg-red-950/30 border-red-500 text-red-600 animate-shake shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                            : extraType === "PIECES"
+                              ? "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50"
+                              : "bg-slate-100 dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed",
+                        )}
                       />
                     </Field>
                   )}
                 />
               </FieldGroup>
+
+              {extraType === "HALF_TRAY" && (
+                <div className="mt-4 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200 animate-expand-fade-in">
+                  <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-black uppercase tracking-wider block text-amber-700 dark:text-amber-300 mb-0.5">
+                      QA Input Note: Half Tray = 0.5 Tray (15 Eggs)
+                    </span>
+                    <span>
+                      In <strong>Sorting & QA Breakdown</strong> below, enter{" "}
+                      <code className="font-mono font-bold bg-amber-200/60 dark:bg-amber-900/60 text-amber-900 dark:text-amber-100 px-1.5 py-0.5 rounded">
+                        0.5
+                      </code>{" "}
+                      in any category box for half trays (e.g. 0.5 tray cracked,
+                      dirty, or good eggs).
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {extraType === "PIECES" && Number(extraPieces) > 0 && (
+                <div className="mt-4 p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-start gap-3 text-xs text-blue-900 dark:text-blue-200 animate-expand-fade-in">
+                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-black uppercase tracking-wider block text-blue-700 dark:text-blue-300 mb-0.5">
+                      QA Input Note: {extraPieces} Extra Eggs ={" "}
+                      {Number((extraPieces / 30).toFixed(2))} Trays
+                    </span>
+                    <span>
+                      In <strong>Sorting & QA Breakdown</strong> below, enter{" "}
+                      <code className="font-mono font-bold bg-blue-200/60 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100 px-1.5 py-0.5 rounded">
+                        {Number((extraPieces / 30).toFixed(2))}
+                      </code>{" "}
+                      in the QA breakdown for these extra eggs.
+                    </span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* BOTTOM CARD: Sorting Matrix (Pieces) */}
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800/80 rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+          {/* BOTTOM CARD: Sorting Matrix (Trays) */}
+          <Card
+            id="qa-matrix-card"
+            className="shadow-sm border-slate-200 dark:border-slate-800/80 rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl"
+          >
             <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4 px-6 flex flex-row items-center justify-between">
               <CardTitle className="text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2 font-bold">
                 <LayoutList className="w-5 h-5 text-blue-500" />
                 Sorting & QA Breakdown
               </CardTitle>
               <div className="text-[10px] sm:text-xs font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg tracking-wider">
-                ENTER IN PIECES (EGGS)
+                ENTER IN TRAYS
               </div>
             </CardHeader>
             <CardContent className="pt-6 px-6 space-y-6">
@@ -535,7 +802,7 @@ export default function ReceivingPage() {
               {/* Good Eggs */}
               <div>
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                  Classified Inventory (Pcs)
+                  Classified Inventory (Trays)
                 </h4>
                 <div className="grid grid-cols-3 sm:grid-cols-7 gap-3">
                   {[
@@ -607,14 +874,16 @@ export default function ReceivingPage() {
                             {...field}
                             type="number"
                             min="0"
-                            step="1"
+                            step="any"
                             placeholder="0"
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/[-.]/g, "");
-                              field.onChange(val);
-                            }}
+                            onChange={(e) => field.onChange(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "-" || e.key === ".") e.preventDefault();
+                              if (
+                                e.key === "-" ||
+                                e.key === "e" ||
+                                e.key === "+"
+                              )
+                                e.preventDefault();
                             }}
                             onClick={(e) => e.currentTarget.select()}
                             className={cn(
@@ -622,6 +891,11 @@ export default function ReceivingPage() {
                               color,
                             )}
                           />
+                          {field.value && Number(field.value) > 0 ? (
+                            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-right pr-1">
+                              = {Math.round(Number(field.value) * 30)} pcs
+                            </span>
+                          ) : null}
                         </div>
                       )}
                     />
@@ -632,7 +906,7 @@ export default function ReceivingPage() {
               {/* Losses & Downgrades */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60">
                 <h4 className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-3">
-                  Losses & Downgrades (Pcs)
+                  Losses & Downgrades (Trays)
                 </h4>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                   <Controller
@@ -647,18 +921,21 @@ export default function ReceivingPage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[-.]/g, "");
-                            field.onChange(val);
-                          }}
+                          onChange={(e) => field.onChange(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                            if (e.key === "-" || e.key === "e" || e.key === "+")
+                              e.preventDefault();
                           }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-fuchsia-600 bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border-fuchsia-200 dark:border-fuchsia-900/50"
                         />
+                        {field.value && Number(field.value) > 0 ? (
+                          <span className="text-[10px] font-semibold text-fuchsia-600 dark:text-fuchsia-400 text-right pr-1">
+                            = {Math.round(Number(field.value) * 30)} pcs
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   />
@@ -674,18 +951,21 @@ export default function ReceivingPage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[-.]/g, "");
-                            field.onChange(val);
-                          }}
+                          onChange={(e) => field.onChange(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                            if (e.key === "-" || e.key === "e" || e.key === "+")
+                              e.preventDefault();
                           }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50"
                         />
+                        {field.value && Number(field.value) > 0 ? (
+                          <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 text-right pr-1">
+                            = {Math.round(Number(field.value) * 30)} pcs
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   />
@@ -702,18 +982,21 @@ export default function ReceivingPage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[-.]/g, "");
-                            field.onChange(val);
-                          }}
+                          onChange={(e) => field.onChange(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                            if (e.key === "-" || e.key === "e" || e.key === "+")
+                              e.preventDefault();
                           }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-stone-600 dark:text-stone-400 bg-stone-50/50 dark:bg-stone-900/40 border-stone-200 dark:border-stone-800"
                         />
+                        {field.value && Number(field.value) > 0 ? (
+                          <span className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 text-right pr-1">
+                            = {Math.round(Number(field.value) * 30)} pcs
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   />
@@ -730,7 +1013,7 @@ export default function ReceivingPage() {
               {/* Brown Good Eggs */}
               <div>
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                  Classified Inventory (Pcs)
+                  Classified Inventory (Trays)
                 </h4>
                 <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                   {[
@@ -809,14 +1092,16 @@ export default function ReceivingPage() {
                             {...field}
                             type="number"
                             min="0"
-                            step="1"
+                            step="any"
                             placeholder="0"
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/[-.]/g, "");
-                              field.onChange(val);
-                            }}
+                            onChange={(e) => field.onChange(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "-" || e.key === ".") e.preventDefault();
+                              if (
+                                e.key === "-" ||
+                                e.key === "e" ||
+                                e.key === "+"
+                              )
+                                e.preventDefault();
                             }}
                             onClick={(e) => e.currentTarget.select()}
                             className={cn(
@@ -824,6 +1109,11 @@ export default function ReceivingPage() {
                               color,
                             )}
                           />
+                          {field.value && Number(field.value) > 0 ? (
+                            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-right pr-1">
+                              = {Math.round(Number(field.value) * 30)} pcs
+                            </span>
+                          ) : null}
                         </div>
                       )}
                     />
@@ -834,7 +1124,7 @@ export default function ReceivingPage() {
               {/* Brown Losses & Downgrades */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60">
                 <h4 className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-3">
-                  Losses & Downgrades (Pcs)
+                  Losses & Downgrades (Trays)
                 </h4>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                   <Controller
@@ -849,18 +1139,21 @@ export default function ReceivingPage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[-.]/g, "");
-                            field.onChange(val);
-                          }}
+                          onChange={(e) => field.onChange(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                            if (e.key === "-" || e.key === "e" || e.key === "+")
+                              e.preventDefault();
                           }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-fuchsia-600 bg-fuchsia-50/50 dark:bg-fuchsia-950/20 border-fuchsia-200 dark:border-fuchsia-900/50"
                         />
+                        {field.value && Number(field.value) > 0 ? (
+                          <span className="text-[10px] font-semibold text-fuchsia-600 dark:text-fuchsia-400 text-right pr-1">
+                            = {Math.round(Number(field.value) * 30)} pcs
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   />
@@ -876,18 +1169,21 @@ export default function ReceivingPage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[-.]/g, "");
-                            field.onChange(val);
-                          }}
+                          onChange={(e) => field.onChange(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                            if (e.key === "-" || e.key === "e" || e.key === "+")
+                              e.preventDefault();
                           }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50"
                         />
+                        {field.value && Number(field.value) > 0 ? (
+                          <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 text-right pr-1">
+                            = {Math.round(Number(field.value) * 30)} pcs
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   />
@@ -903,18 +1199,21 @@ export default function ReceivingPage() {
                           {...field}
                           type="number"
                           min="0"
-                          step="1"
+                          step="any"
                           placeholder="0"
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[-.]/g, "");
-                            field.onChange(val);
-                          }}
+                          onChange={(e) => field.onChange(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "-" || e.key === ".") e.preventDefault();
+                            if (e.key === "-" || e.key === "e" || e.key === "+")
+                              e.preventDefault();
                           }}
                           onClick={(e) => e.currentTarget.select()}
                           className="h-11 rounded-xl font-mono text-stone-600 dark:text-stone-400 bg-stone-50/50 dark:bg-stone-900/40 border-stone-200 dark:border-stone-800"
                         />
+                        {field.value && Number(field.value) > 0 ? (
+                          <span className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 text-right pr-1">
+                            = {Math.round(Number(field.value) * 30)} pcs
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   />
@@ -948,6 +1247,12 @@ export default function ReceivingPage() {
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500 font-medium">Received By:</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">
+                  {encoderName}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-500 font-medium">Farm Origin:</span>
                 <span className="font-bold text-slate-900 dark:text-white uppercase">
                   {form.getValues("farmName")}
@@ -958,7 +1263,12 @@ export default function ReceivingPage() {
                   Pickup Volume:
                 </span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                  {rawCases} Cases, {rawTrays} Trays
+                  {totalTrays} Trays
+                  {extraType === "HALF_TRAY"
+                    ? " + Half Tray (15 Pcs)"
+                    : extraType === "PIECES" && extraPieces > 0
+                      ? ` + ${extraPieces} Extra Pcs`
+                      : ""}
                 </span>
               </div>
               <div className="h-px w-full bg-slate-200 dark:bg-slate-800" />
@@ -967,7 +1277,8 @@ export default function ReceivingPage() {
                   Total QA Count
                 </span>
                 <span className="text-lg font-black text-blue-600 dark:text-blue-400">
-                  {totalSortedPieces.toLocaleString()} Pieces
+                  {totalSortedTrays} Trays ({totalSortedPieces.toLocaleString()}{" "}
+                  Eggs)
                 </span>
               </div>
 
@@ -980,7 +1291,9 @@ export default function ReceivingPage() {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">Peewee:</span>
-                      <span className="font-bold text-indigo-600">{peewee}</span>
+                      <span className="font-bold text-indigo-600">
+                        {peewee}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">XS:</span>
@@ -1008,7 +1321,9 @@ export default function ReceivingPage() {
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">Cracked:</span>
-                      <span className="font-bold text-fuchsia-600">{cracked}</span>
+                      <span className="font-bold text-fuchsia-600">
+                        {cracked}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">Broken:</span>
@@ -1029,7 +1344,9 @@ export default function ReceivingPage() {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">Peewee:</span>
-                      <span className="font-bold text-amber-600">{bPeewee}</span>
+                      <span className="font-bold text-amber-600">
+                        {bPeewee}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">XS:</span>
@@ -1057,20 +1374,28 @@ export default function ReceivingPage() {
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-500">Assorted:</span>
-                      <span className="font-bold text-amber-600">{bAssorted}</span>
+                      <span className="font-bold text-amber-600">
+                        {bAssorted}
+                      </span>
                     </div>
                     <div className="col-span-2 grid grid-cols-2 gap-x-4">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500">Cracked:</span>
-                        <span className="font-bold text-amber-600">{bCracked}</span>
+                        <span className="font-bold text-amber-600">
+                          {bCracked}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500">Broken:</span>
-                        <span className="font-bold text-amber-600">{bBroken}</span>
+                        <span className="font-bold text-amber-600">
+                          {bBroken}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500">Dirty:</span>
-                        <span className="font-bold text-amber-600">{bDirty}</span>
+                        <span className="font-bold text-amber-600">
+                          {bDirty}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1119,7 +1444,7 @@ export default function ReceivingPage() {
                   <span className="text-sm text-slate-500 font-sans">Pcs</span>
                 </p>
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-1">
-                  = {totalPickupTrays} Total Trays
+                  = {formatTrayCount(totalPickupTrays)} Total Trays
                 </p>
               </div>
 
@@ -1133,6 +1458,7 @@ export default function ReceivingPage() {
                   {variancePieces === 0 && totalExpectedPieces > 0 ? (
                     <span className="flex items-center text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-md">
                       <CheckCircle2 className="w-4 h-4 mr-1.5" /> Perfect Match
+                      ({formatTrayCount(totalPickupTrays)} Trays)
                     </span>
                   ) : variancePieces > 0 ? (
                     <span
@@ -1145,7 +1471,9 @@ export default function ReceivingPage() {
                     >
                       <AlertCircle className="w-4 h-4 mr-1.5" />
                       <span>
-                        Missing <NumberTicker value={variancePieces} /> Eggs
+                        Missing {formatTrayCount(Math.abs(varianceTrays))}{" "}
+                        {Math.abs(varianceTrays) === 1 ? "Tray" : "Trays"} (
+                        {Math.abs(variancePieces)} Pcs)
                       </span>
                     </span>
                   ) : variancePieces < 0 ? (
@@ -1159,8 +1487,9 @@ export default function ReceivingPage() {
                     >
                       <AlertCircle className="w-4 h-4 mr-1.5" />
                       <span>
-                        Over count (
-                        <NumberTicker value={Math.abs(variancePieces)} />)
+                        Over count by {formatTrayCount(Math.abs(varianceTrays))}{" "}
+                        {Math.abs(varianceTrays) === 1 ? "Tray" : "Trays"} (
+                        {Math.abs(variancePieces)} Pcs)
                       </span>
                     </span>
                   ) : (
@@ -1176,7 +1505,11 @@ export default function ReceivingPage() {
             <Button
               type="button"
               onClick={handlePreSubmitCheck}
-              disabled={form.formState.isSubmitting || totalExpectedPieces === 0 || variancePieces !== 0}
+              disabled={
+                form.formState.isSubmitting ||
+                totalExpectedPieces === 0 ||
+                variancePieces !== 0
+              }
               className={cn(
                 "relative overflow-hidden group/btn border-0 h-11 px-8 rounded-xl bg-linear-to-r from-amber-600 to-orange-500 text-white shadow-lg font-semibold w-full sm:w-auto shrink-0 transition-all duration-300",
                 totalExpectedPieces === 0 || variancePieces !== 0
@@ -1187,7 +1520,8 @@ export default function ReceivingPage() {
               <div className="absolute inset-0 translate-x-[-150%] bg-linear-to-r from-transparent via-white/20 to-transparent group-hover/btn:translate-x-[150%] transition-transform duration-1000 ease-in-out z-0" />
               {form.formState.isSubmitting ? (
                 <span className="relative z-10 flex items-center">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
+                  Processing...
                 </span>
               ) : variancePieces !== 0 && totalExpectedPieces > 0 ? (
                 <span className="relative z-10 flex items-center">

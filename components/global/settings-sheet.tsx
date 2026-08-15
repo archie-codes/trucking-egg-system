@@ -53,7 +53,7 @@ const THEMES = [
     label: "System",
     icon: Monitor,
     description: "Follows your OS",
-    preview: "bg-gradient-to-br from-white to-slate-900 border-slate-400",
+    preview: "bg-linear-to-br from-white to-slate-900 border-slate-400",
     previewDots: ["bg-slate-400", "bg-slate-400", "bg-blue-400"],
   },
 ] as const;

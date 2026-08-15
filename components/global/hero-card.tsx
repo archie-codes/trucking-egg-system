@@ -30,14 +30,14 @@ export default function HeroCard({
   // You can adjust these gradients to match Fhernie/Otso branding colors
   const gradientClass =
     variant === "first"
-      ? "bg-gradient-to-t from-[#3f5efb] to-[#fc466b]"
+      ? "bg-linear-to-t from-[#3f5efb] to-[#fc466b]"
       : variant === "second"
-        ? "bg-gradient-to-t from-[#bb7413] to-[#e7d25c]"
+        ? "bg-linear-to-t from-[#bb7413] to-[#e7d25c]"
         : variant === "third"
-          ? "bg-gradient-to-t from-[#11998e] to-[#38ef7d]"
+          ? "bg-linear-to-t from-[#11998e] to-[#38ef7d]"
           : variant === "fourth"
-            ? "bg-gradient-to-t from-[#8e2de2] to-[#4a00e0]" // Fixed this line (added quotes)
-            : "bg-gradient-to-t from-[#8e2de2] to-[#4a00e0]"; // Default
+            ? "bg-linear-to-t from-[#8e2de2] to-[#4a00e0]" // Fixed this line (added quotes)
+            : "bg-linear-to-t from-[#8e2de2] to-[#4a00e0]"; // Default
 
   return (
     <Card className="group relative w-full max-w-[380px] xl:max-w-[400px] aspect-4/5 sm:aspect-square rounded-[30px] overflow-hidden shadow-2xl border-none mx-auto text-left cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-2">

@@ -1,6 +1,7 @@
 // app/(modules)/egg-sales/layout.tsx
 import { EggSidebar } from "@/components/egg-sales/egg-sidebar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -9,6 +10,8 @@ import { UserProfileMenu } from "@/components/global/user-profile-menu";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+import { HeaderTitle } from "@/components/egg-sales/header-title";
 
 import {
   Sheet,
@@ -63,14 +66,13 @@ export default async function EggSalesLayout({
             {/* Mobile Sidebar Trigger */}
             <div className="md:hidden">
               <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-white hover:bg-slate-800 focus:outline-none"
-                  >
-                    <Menu className="w-5 h-5" />
-                  </Button>
+                <SheetTrigger
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "text-white hover:bg-slate-800 focus:outline-none"
+                  )}
+                >
+                  <Menu className="w-5 h-5" />
                 </SheetTrigger>
                 <SheetContent
                   side="left"
@@ -84,9 +86,7 @@ export default async function EggSalesLayout({
               </Sheet>
             </div>
 
-            <span className="font-bold text-[18px] tracking-tight bg-clip-text text-transparent bg-linear-to-r from-white to-slate-400 hidden sm:inline-block">
-              Egg Sales Inventory
-            </span>
+            <HeaderTitle />
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-4">
