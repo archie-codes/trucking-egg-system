@@ -121,27 +121,28 @@ export default function ReportsDashboardPage() {
     });
   }, [flocks, selectedFarm, selectedStatus, batchSearchQuery]);
 
-  // Selected flock object
-  const selectedFlockObj = useMemo(() => {
-    return flocks.find((f) => f.id === selectedFlockId) || null;
-  }, [flocks, selectedFlockId]);
-
-  // Auto-sync selected batch if current selection is not in filtered list
-  useEffect(() => {
+  // Effective selected flock ID based on active filters
+  const effectiveSelectedFlockId = useMemo(() => {
     if (
       filteredFlocks.length > 0 &&
       !filteredFlocks.some((f) => f.id === selectedFlockId)
     ) {
-      setSelectedFlockId(filteredFlocks[0].id);
+      return filteredFlocks[0].id;
     }
+    return selectedFlockId;
   }, [filteredFlocks, selectedFlockId]);
 
+  // Selected flock object
+  const selectedFlockObj = useMemo(() => {
+    return flocks.find((f) => f.id === effectiveSelectedFlockId) || null;
+  }, [flocks, effectiveSelectedFlockId]);
+
   useEffect(() => {
-    if (!selectedFlockId) return;
+    if (!effectiveSelectedFlockId) return;
 
     async function loadReport() {
       setLoadingReport(true);
-      const res = await getFarmFlockReport(selectedFlockId);
+      const res = await getFarmFlockReport(effectiveSelectedFlockId);
       if (res.success && res.data) {
         setReport(res.data);
       } else {
@@ -151,7 +152,7 @@ export default function ReportsDashboardPage() {
       setLoadingReport(false);
     }
     loadReport();
-  }, [selectedFlockId]);
+  }, [effectiveSelectedFlockId]);
 
   if (loadingFlocks) {
     return (
@@ -313,7 +314,7 @@ export default function ReportsDashboardPage() {
                   </div>
                 ) : (
                   filteredFlocks.map((flock) => {
-                    const isSelected = flock.id === selectedFlockId;
+                    const isSelected = flock.id === effectiveSelectedFlockId;
                     return (
                       <button
                         key={flock.id}
