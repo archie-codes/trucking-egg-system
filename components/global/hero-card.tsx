@@ -14,6 +14,7 @@ interface HeroCardProps {
   buttonText: string;
   variant?: "first" | "second" | "third" | "fourth";
   badge?: string;
+  onClick?: () => void;
 }
 
 export default function HeroCard({
@@ -26,6 +27,7 @@ export default function HeroCard({
   buttonText,
   variant = "first",
   badge,
+  onClick,
 }: HeroCardProps) {
   // You can adjust these gradients to match Fhernie/Otso branding colors
   const gradientClass =
@@ -40,7 +42,17 @@ export default function HeroCard({
             : "bg-linear-to-t from-[#8e2de2] to-[#4a00e0]"; // Default
 
   return (
-    <Card className="group relative w-full max-w-[380px] xl:max-w-[400px] aspect-4/5 sm:aspect-square rounded-[30px] overflow-hidden shadow-2xl border-none mx-auto text-left cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-2">
+    <Card
+      onClick={
+        onClick
+          ? (e) => {
+              e.preventDefault();
+              onClick();
+            }
+          : undefined
+      }
+      className="group relative w-full max-w-[380px] xl:max-w-[400px] aspect-4/5 sm:aspect-square rounded-[30px] overflow-hidden shadow-2xl border-none mx-auto text-left cursor-pointer transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-2"
+    >
       {/* Background Image Area */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
         <img
@@ -98,12 +110,25 @@ export default function HeroCard({
 
       {/* Animated Route Button */}
       <div className="absolute bottom-[6%] left-[24px] right-[24px] z-20 transition-all duration-500 group-hover:-translate-y-2">
-        <Link href={href} className="w-full block">
-          <Button className="w-full bg-white/20 hover:bg-white text-white hover:text-slate-900 font-bold backdrop-blur-sm border border-white/30 transition-all duration-300 group/btn">
+        {onClick ? (
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="w-full bg-white/20 hover:bg-white text-white hover:text-slate-900 font-bold backdrop-blur-sm border border-white/30 transition-all duration-300 group/btn cursor-pointer"
+          >
             {buttonText}
             <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
           </Button>
-        </Link>
+        ) : (
+          <Link href={href} className="w-full block">
+            <Button className="w-full bg-white/20 hover:bg-white text-white hover:text-slate-900 font-bold backdrop-blur-sm border border-white/30 transition-all duration-300 group/btn cursor-pointer">
+              {buttonText}
+              <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
+            </Button>
+          </Link>
+        )}
       </div>
     </Card>
   );

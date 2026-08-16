@@ -1,7 +1,22 @@
+"use client";
+
+import { useState } from "react";
 import HeroCard from "@/components/global/hero-card";
 import { NavBar } from "@/components/global/navbar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Clock, CheckCircle2 } from "lucide-react";
 
 export default function DashboardSelection() {
+  const [isNoticeOpen, setIsNoticeOpen] = useState(false);
+
   return (
     <div className="min-h-dvh w-full relative bg-background flex flex-col items-center justify-start xl:justify-center p-4 pt-24 md:pt-28 xl:pt-4 overflow-x-hidden">
       <NavBar />
@@ -46,7 +61,6 @@ export default function DashboardSelection() {
           <span className="text-muted-foreground/30 font-light mx-2">&</span>{" "}
           <span className="inline-block bg-clip-text text-transparent bg-linear-to-r from-green-500 to-green-500 drop-shadow-sm relative">
             Otso Dragon Corp
-            <span className="absolute -inset-1 rounded-lg bg-primary/10 blur-xl -z-10"></span>
           </span>{" "}
           <br className="hidden md:block mt-2" />
           <span className="inline-block mt-2 text-2xl md:text-3xl text-foreground/90 font-bold">
@@ -148,6 +162,7 @@ export default function DashboardSelection() {
           href="#"
           buttonText="Enter Cheque and Voucher"
           badge="Coming Soon"
+          onClick={() => setIsNoticeOpen(true)}
         />
       </div>
 
@@ -155,6 +170,63 @@ export default function DashboardSelection() {
       <div className="mt-16 text-sm text-muted-foreground relative z-10 pb-8">
         <p>© 2026 Fhernie Logistics & Otso Dragon Corp.</p>
       </div>
+
+      {/* Notice Modal for Cheque and Voucher Portal */}
+      <Dialog open={isNoticeOpen} onOpenChange={setIsNoticeOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 sm:p-8 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader className="flex flex-col items-center text-center space-y-3">
+            {/* Header Icon / Badge */}
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              Coming Soon to Serve You
+            </div>
+
+            <DialogTitle className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Cheque & Voucher Portal
+            </DialogTitle>
+
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed max-w-sm">
+              We are currently building and finalizing this module to provide
+              you with a secure, automated financial tracking system.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Feature Highlights */}
+          <div className="space-y-3 my-2 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                <strong>Cheque Records:</strong> Monitor issued & received
+                cheques and clearing statuses.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                <strong>Voucher Management:</strong> Generate and archive
+                digital payment vouchers.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                <strong>Financial Security:</strong> Real-time status updates
+                and authorization controls.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={() => setIsNoticeOpen(false)}
+              className="w-full h-11 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-purple-500/20 transition-all duration-200 active:scale-[0.98] cursor-pointer"
+            >
+              Got It, Thank You!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
