@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Clock, CheckCircle2 } from "lucide-react";
+import { Sparkles, CheckCircle2 } from "lucide-react";
 
 export default function DashboardSelection() {
   const [isNoticeOpen, setIsNoticeOpen] = useState(false);
