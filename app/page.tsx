@@ -82,7 +82,7 @@ export default function DashboardSelection() {
           description="Manage trucking history, trips, expenses and net income daily."
           href="/login?module=trucking"
           buttonText="Enter Trucking"
-          badge="Under Development"
+          badge="Now Online"
         />
 
         {/* Card 2: Otso Dragon Corp */}
@@ -104,7 +104,7 @@ export default function DashboardSelection() {
           description="Manage multi-size egg tray deliveries, sales monitoring, and logistics expenses."
           href="/login?module=eggs"
           buttonText="Enter Egg Sales"
-          badge="Under Development"
+          badge="Under Pilot"
         />
         {/* Card 3: Otso Poultry System */}
         <HeroCard
