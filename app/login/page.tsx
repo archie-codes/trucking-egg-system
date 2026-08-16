@@ -159,8 +159,8 @@ function LoginForm() {
                 fillColor="#F8FAFC"
                 strokeWidth={1.4}
                 drawDuration={1.6}
-                fillDelay={0.2}
-                stagger={0.05}
+                fillDelay={0.3}
+                stagger={0.1}
                 ease="power2.out"
                 trigger="mount"
                 fillMode="wipe"
