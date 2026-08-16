@@ -1,10 +1,10 @@
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon('postgresql://neondb_owner:npg_EvX5xkRn6bqW@ep-summer-dream-anwk3t7s-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+import { neon } from "@neondatabase/serverless";
+import "dotenv/config";
+const sql = neon(process.env.DATABASE_URL!);
 
 async function syncInventory() {
   console.log("Fetching totals from egg_batches...");
-  
+
   const batchRes = await sql`
     SELECT 
       COALESCE(SUM(qty_cracked * 30), 0) as cracked, 
@@ -12,7 +12,7 @@ async function syncInventory() {
       COALESCE(SUM(qty_dirty * 30), 0) as dirty 
     FROM egg_batches
   `;
-  
+
   const { cracked, broken, dirty } = batchRes[0];
   console.log("Received totals (Pieces):", { cracked, broken, dirty });
 
@@ -29,16 +29,20 @@ async function syncInventory() {
   let salesDirty = 0;
 
   for (const row of salesRes) {
-    if (row.classification === 'CRACKED') salesCracked = Number(row.pieces);
-    if (row.classification === 'BROKEN') salesBroken = Number(row.pieces);
-    if (row.classification === 'DIRTY') salesDirty = Number(row.pieces);
+    if (row.classification === "CRACKED") salesCracked = Number(row.pieces);
+    if (row.classification === "BROKEN") salesBroken = Number(row.pieces);
+    if (row.classification === "DIRTY") salesDirty = Number(row.pieces);
   }
 
   const netCracked = Number(cracked) - salesCracked;
   const netBroken = Number(broken) - salesBroken;
   const netDirty = Number(dirty) - salesDirty;
 
-  console.log("Net Stock (Pieces):", { CRACKED: netCracked, BROKEN: netBroken, DIRTY: netDirty });
+  console.log("Net Stock (Pieces):", {
+    CRACKED: netCracked,
+    BROKEN: netBroken,
+    DIRTY: netDirty,
+  });
 
   // Upsert into egg_inventory
   async function upsertStock(classification: string, pieces: number) {
@@ -51,9 +55,9 @@ async function syncInventory() {
     `;
   }
 
-  await upsertStock('CRACKED', netCracked);
-  await upsertStock('BROKEN', netBroken);
-  await upsertStock('DIRTY', netDirty);
+  await upsertStock("CRACKED", netCracked);
+  await upsertStock("BROKEN", netBroken);
+  await upsertStock("DIRTY", netDirty);
 
   console.log("Inventory sync complete!");
 }
