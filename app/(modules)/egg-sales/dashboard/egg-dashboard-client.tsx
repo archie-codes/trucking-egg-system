@@ -28,6 +28,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { Separator } from "@/components/ui/separator";
 import {
   Egg,
   Users,
@@ -38,6 +39,9 @@ import {
   Globe,
   Wallet,
   DollarSign,
+  Bird,
+  Activity,
+  Boxes,
 } from "lucide-react";
 
 type EggSale = {
@@ -57,10 +61,19 @@ type EggSale = {
   createdAt: Date;
 };
 
+export type FarmDashboardStats = {
+  totalActiveBatches: number;
+  currentBirdPopulation: number;
+  todayTrays: number;
+  todayPieces: number;
+  thisMonthExpenses: number;
+};
+
 interface EggDashboardClientProps {
   userName: string;
   avatarUrl?: string | null;
   sales?: EggSale[];
+  farmStats?: FarmDashboardStats | null;
 }
 
 const MONTHS = [
@@ -162,6 +175,7 @@ export function EggDashboardClient({
   userName,
   avatarUrl,
   sales = [],
+  farmStats,
 }: EggDashboardClientProps) {
   const [mounted, setMounted] = useState(false);
   const [time, setTime] = useState<Date>(new Date());
@@ -763,6 +777,132 @@ export function EggDashboardClient({
           </span>
         </div>
       </div>
+
+      {/* ── SECTION 1: FARM OPERATIONS ── */}
+      <div className="space-y-3 mb-6">
+        <h2 className="text-[clamp(17px,2.5vw,20px)] font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          <Activity className="w-6 h-6 text-emerald-500" />
+          Farm Operations
+        </h2>
+
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Total Active Batches */}
+          <Card className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-white dark:bg-[#0d1117] p-5 shadow-xs transition-transform duration-200 hover:translate-y-[-3px] relative overflow-hidden">
+            <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full opacity-10 dark:opacity-15 bg-emerald-500 pointer-events-none" />
+            <CardHeader className="p-0 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-[11px] font-bold tracking-[0.12em] uppercase text-emerald-700 dark:text-[#3dff9a]">
+                Total Active Batches
+              </CardTitle>
+              <div className="w-[38px] h-[38px] rounded-xl flex items-center justify-center bg-emerald-600/10 dark:bg-[#3dff9a]/12 text-emerald-700 dark:text-[#3dff9a]">
+                <Boxes className="w-5 h-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 pt-2">
+              <div className="font-mono text-lg font-medium tracking-tight text-slate-900 dark:text-white">
+                {farmStats
+                  ? farmStats.totalActiveBatches.toLocaleString()
+                  : "0"}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                Active production flocks
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Current Bird Population */}
+          <Card className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-white dark:bg-[#0d1117] p-5 shadow-xs transition-transform duration-200 hover:translate-y-[-3px] relative overflow-hidden">
+            <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full opacity-10 dark:opacity-15 bg-blue-500 pointer-events-none" />
+            <CardHeader className="p-0 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-[11px] font-bold tracking-[0.12em] uppercase text-blue-700 dark:text-[#5cabff]">
+                Current Bird Population
+              </CardTitle>
+              <div className="w-[38px] h-[38px] rounded-xl flex items-center justify-center bg-blue-600/10 dark:bg-[#5cabff]/12 text-blue-700 dark:text-[#5cabff]">
+                <Bird className="w-5 h-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 pt-2">
+              <div className="font-mono text-lg font-medium tracking-tight text-slate-900 dark:text-white">
+                {farmStats
+                  ? farmStats.currentBirdPopulation.toLocaleString()
+                  : "0"}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                Live bird headcount
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Today's Production */}
+          <Card className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-white dark:bg-[#0d1117] p-5 shadow-xs transition-transform duration-200 hover:translate-y-[-3px] relative overflow-hidden">
+            <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full opacity-10 dark:opacity-15 bg-amber-500 pointer-events-none" />
+            <CardHeader className="p-0 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-[11px] font-bold tracking-[0.12em] uppercase text-amber-700 dark:text-amber-400">
+                Today&apos;s Production
+              </CardTitle>
+              <div className="w-[38px] h-[38px] rounded-xl flex items-center justify-center bg-amber-600/10 dark:bg-amber-400/12 text-amber-700 dark:text-amber-400">
+                <Egg className="w-5 h-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 pt-2">
+              <div className="font-mono text-lg font-medium tracking-tight text-slate-900 dark:text-white">
+                {farmStats ? (
+                  <>
+                    {farmStats.todayTrays.toLocaleString()}{" "}
+                    <span className="text-xs font-normal text-slate-500">
+                      trays
+                    </span>
+                    {farmStats.todayPieces > 0 && (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 ml-1.5 font-medium">
+                        + {farmStats.todayPieces} pcs
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  "0 trays"
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                Total daily egg collection
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: This Month's Expenses */}
+          <Card className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-white dark:bg-[#0d1117] p-5 shadow-xs transition-transform duration-200 hover:translate-y-[-3px] relative overflow-hidden">
+            <div className="absolute -top-7 -right-7 w-[100px] h-[100px] rounded-full opacity-10 dark:opacity-15 bg-rose-500 pointer-events-none" />
+            <CardHeader className="p-0 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-[11px] font-bold tracking-[0.12em] uppercase text-rose-700 dark:text-[#ff5c8a]">
+                This Month&apos;s Expenses
+              </CardTitle>
+              <div className="w-[38px] h-[38px] rounded-xl flex items-center justify-center bg-rose-600/10 dark:bg-[#ff5c8a]/12 text-rose-700 dark:text-[#ff5c8a]">
+                <TrendingDown className="w-5 h-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 pt-2">
+              <div className="font-mono text-lg font-medium tracking-tight text-slate-900 dark:text-white">
+                {farmStats
+                  ? `${farmStats.thisMonthExpenses.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`
+                  : "0.00"}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                Feed & operational costs
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── VISUAL DIVIDER ── */}
+      <Separator className="my-8 bg-slate-200/80 dark:bg-white/10" />
+
+      {/* ── SECTION 2: EGG SALES & INVENTORY ── */}
+      <h2 className="text-[clamp(17px,2.5vw,20px)] font-bold tracking-tight mb-4 text-slate-900 dark:text-white flex items-center gap-2">
+        <Egg className="w-6 h-6 text-amber-500" />
+        Egg Sales & Inventory
+      </h2>
 
       {/* Metrics Cards — Double Row Layout (Ported from Trucking StatCards) */}
       <div className="space-y-3 font-sans mb-3">

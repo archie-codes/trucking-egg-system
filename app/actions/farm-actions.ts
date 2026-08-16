@@ -8,7 +8,8 @@ import {
   farmFeedConsumptions,
   farmOperatingExpenses,
 } from "@/db/schema";
-import { eq, desc, sum, sql, count } from "drizzle-orm";
+import { eq, desc, sum, sql, count, and, gte, lte } from "drizzle-orm";
+import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminRoleAndDept } from "@/app/actions/user-actions";
@@ -1082,3 +1083,87 @@ export async function getFarmFlockReport(flockId: number) {
     return { success: false as const, error: "Failed to generate report" };
   }
 }
+
+// ======================================================================
+// 6. FARM DASHBOARD STATS
+// ======================================================================
+
+export async function getFarmDashboardStats() {
+  try {
+    // 1. Total Active Batches & Current Bird Population
+    const activeFlocksResult = await db
+      .select({
+        activeCount: count(),
+        totalBirds: sum(farmFlocks.currentHeadCount),
+      })
+      .from(farmFlocks)
+      .where(eq(farmFlocks.isActive, true));
+
+    const totalActiveBatches = activeFlocksResult[0]?.activeCount || 0;
+    const currentBirdPopulation = Number(activeFlocksResult[0]?.totalBirds || 0);
+
+    // 2. Today's Production (Sum of quantityTrays and quantityPieces for recordDate = today)
+    const now = new Date();
+    const todayStr = format(now, "yyyy-MM-dd");
+
+    const todayProductionResult = await db
+      .select({
+        trays: sum(farmDailyRecords.quantityTrays),
+        pieces: sum(farmDailyRecords.quantityPieces),
+      })
+      .from(farmDailyRecords)
+      .where(eq(farmDailyRecords.recordDate, todayStr));
+
+    const todayTrays = Number(todayProductionResult[0]?.trays || 0);
+    const todayPieces = Number(todayProductionResult[0]?.pieces || 0);
+
+    // 3. This Month's Expenses (Sum of totalCost in feed + amount in operating expenses for date in current month)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const startOfMonthStr = `${year}-${month}-01`;
+    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+    const endOfMonthStr = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+
+    const feedExpenseResult = await db
+      .select({ total: sum(farmFeedConsumptions.totalCost) })
+      .from(farmFeedConsumptions)
+      .where(
+        and(
+          gte(farmFeedConsumptions.dateGiven, startOfMonthStr),
+          lte(farmFeedConsumptions.dateGiven, endOfMonthStr)
+        )
+      );
+
+    const operatingExpenseResult = await db
+      .select({ total: sum(farmOperatingExpenses.amount) })
+      .from(farmOperatingExpenses)
+      .where(
+        and(
+          gte(farmOperatingExpenses.dateIncurred, startOfMonthStr),
+          lte(farmOperatingExpenses.dateIncurred, endOfMonthStr)
+        )
+      );
+
+    const totalFeedCost = Number(feedExpenseResult[0]?.total || 0);
+    const totalOperatingCost = Number(operatingExpenseResult[0]?.total || 0);
+    const thisMonthExpenses = totalFeedCost + totalOperatingCost;
+
+    return {
+      success: true as const,
+      data: {
+        totalActiveBatches,
+        currentBirdPopulation,
+        todayTrays,
+        todayPieces,
+        thisMonthExpenses,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching farm dashboard stats:", error);
+    return {
+      success: false as const,
+      error: "Failed to fetch farm dashboard stats",
+    };
+  }
+}
+

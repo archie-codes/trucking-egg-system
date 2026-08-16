@@ -789,7 +789,7 @@ export default function ReceivingPage() {
                 Sorting & QA Breakdown
               </CardTitle>
               <div className="text-[10px] sm:text-xs font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg tracking-wider">
-                ENTER IN TRAYS
+                INPUT IN TRAYS
               </div>
             </CardHeader>
             <CardContent className="pt-6 px-6 space-y-6">

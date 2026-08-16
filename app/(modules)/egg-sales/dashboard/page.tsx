@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
 import { EggDashboardClient } from "./egg-dashboard-client";
 import { getEggSalesHistory } from "@/app/actions/egg-actions";
+import { getFarmDashboardStats } from "@/app/actions/farm-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +30,22 @@ export default async function EggDashboardPage() {
   const userName = currentUser?.name || "User";
   const avatarUrl = currentUser?.avatarUrl || null;
 
-  const res = await getEggSalesHistory();
-  const sales = res.success && res.data ? res.data : [];
+  const [salesRes, farmStatsRes] = await Promise.all([
+    getEggSalesHistory(),
+    getFarmDashboardStats(),
+  ]);
+
+  const sales = salesRes.success && salesRes.data ? salesRes.data : [];
+  const farmStats =
+    farmStatsRes.success && farmStatsRes.data ? farmStatsRes.data : null;
 
   return (
     <EggDashboardClient
       userName={userName}
       avatarUrl={avatarUrl}
       sales={sales}
+      farmStats={farmStats}
     />
   );
 }
+

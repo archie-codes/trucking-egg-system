@@ -636,44 +636,6 @@ export function DataTable<TData, TValue>({
               </PopoverContent>
             </Popover>
 
-            {/* Density / Font Size Controller */}
-            <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
-              <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
-              <div className="flex items-center gap-0.5">
-                {(["xs", "sm", "base"] as const).map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setTextSize(size)}
-                    className={cn(
-                      "px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer",
-                      textSize === size
-                        ? "bg-rose-600 text-white"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {size === "xs" ? "S" : size === "sm" ? "M" : "L"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Rows Per Page Selector */}
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(v) => table.setPageSize(Number(v))}
-            >
-              <SelectTrigger className="h-8 sm:h-9 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-rose-500/40 cursor-pointer">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="z-110">
-                {[5, 10, 20, 30, 50, 100].map((n) => (
-                  <SelectItem key={n} value={`${n}`} className="text-xs cursor-pointer">
-                    {n} rows
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {/* Export Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -810,20 +772,60 @@ export function DataTable<TData, TValue>({
 
         {/* ── PAGINATION & FOOTER ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-          <p className="text-xs text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
-            Showing{" "}
-            <span className="font-medium text-foreground">
-              {table.getRowModel().rows.length}
-            </span>{" "}
-            of <span className="font-medium text-foreground">{filteredCount}</span>{" "}
-            record{filteredCount !== 1 ? "s" : ""}
-            {pageCount > 1 && (
-              <span className="text-muted-foreground/60">
-                {" "}
-                · page {currentPage} of {pageCount}
-              </span>
-            )}
-          </p>
+          <div className="flex flex-wrap items-center gap-2.5 order-2 sm:order-1 justify-center sm:justify-start">
+            <p className="text-xs text-muted-foreground text-center sm:text-left whitespace-nowrap">
+              Showing{" "}
+              <span className="font-medium text-foreground">
+                {table.getRowModel().rows.length}
+              </span>{" "}
+              of <span className="font-medium text-foreground">{filteredCount}</span>{" "}
+              record{filteredCount !== 1 ? "s" : ""}
+              {pageCount > 1 && (
+                <span className="text-muted-foreground/60">
+                  {" "}
+                  · page {currentPage} of {pageCount}
+                </span>
+              )}
+            </p>
+
+            {/* Density / Font Size Controller */}
+            <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2 h-8">
+              <Type className="h-3 w-3 text-muted-foreground shrink-0" />
+              <div className="flex items-center gap-0.5">
+                {(["xs", "sm", "base"] as const).map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setTextSize(size)}
+                    className={cn(
+                      "px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer",
+                      textSize === size
+                        ? "bg-rose-600 text-white"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {size === "xs" ? "S" : size === "sm" ? "M" : "L"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Rows Per Page Selector */}
+            <Select
+              value={`${table.getState().pagination.pageSize}`}
+              onValueChange={(v) => table.setPageSize(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-[85px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-rose-500/40 cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-110">
+                {[5, 10, 20, 30, 50, 100].map((n) => (
+                  <SelectItem key={n} value={`${n}`} className="text-xs cursor-pointer">
+                    {n} rows
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex items-center gap-2 order-1 sm:order-2 justify-center sm:justify-end">
             <Button
