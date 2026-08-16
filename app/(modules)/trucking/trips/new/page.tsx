@@ -189,7 +189,6 @@ export default function NewTripPage() {
       .slice(0, 50);
   }, [phLocations, destinationSearch]);
 
-  const [dieselMode, setDieselMode] = useState<"cash" | "po">("cash");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [duplicateCpfWarning, setDuplicateCpfWarning] = useState<string | null>(
@@ -335,19 +334,6 @@ export default function NewTripPage() {
     miscellaneous;
   const netIncome = grossCollectible - totalExpenses;
 
-  const handleDieselModeSwitch = (mode: "cash" | "po") => {
-    setDieselMode(mode);
-    if (mode === "cash") {
-      const currentPo = form.getValues("dieselPo");
-      form.setValue("dieselCash", currentPo || "");
-      form.setValue("dieselPo", "");
-    } else {
-      const currentCash = form.getValues("dieselCash");
-      form.setValue("dieselPo", currentCash || "");
-      form.setValue("dieselCash", "");
-    }
-  };
-
   async function onSubmit(values: z.infer<typeof tripSchema>) {
     toast.loading("Saving to database...", { id: "trip-save" });
     try {
@@ -384,8 +370,6 @@ export default function NewTripPage() {
           miscellaneous: "",
           miscellaneousNote: "", // ✨ Reset
         });
-
-        setDieselMode("cash");
       } else {
         if ("isDuplicateCpf" in result && result.isDuplicateCpf) {
           toast.dismiss("trip-save");
@@ -1193,35 +1177,48 @@ export default function NewTripPage() {
                     )}
                   />
 
-                  {/* THE DIESEL TOGGLE */}
-                  <div className="flex flex-col">
-                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-2">
-                      <FieldLabel className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-0 leading-none">
-                        Diesel
-                      </FieldLabel>
-                      <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/50 shrink-0 shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => handleDieselModeSwitch("cash")}
-                          className={`px-2.5 py-0.5 text-[8px] sm:text-[10px] font-medium uppercase rounded transition-all ${dieselMode === "cash" ? "bg-white dark:bg-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.1)] text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-                        >
-                          CASH
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDieselModeSwitch("po")}
-                          className={`px-2.5 py-0.5 text-[8px] sm:text-[10px] font-medium uppercase rounded transition-all ${dieselMode === "po" ? "bg-white dark:bg-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.1)] text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-                        >
-                          P.O.
-                        </button>
+                  {/* DIESEL EXPENSES (CASH & P.O.) */}
+                  <div className="col-span-1 sm:col-span-2 space-y-2 p-3 sm:p-4 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2">
+                        <FieldLabel className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-0 leading-none">
+                          Diesel Expense
+                        </FieldLabel>
+                        <span className="text-[11px] text-slate-500 font-normal">
+                          (Cash, P.O., or Both)
+                        </span>
                       </div>
+                      {(dieselCash > 0 || dieselPo > 0) && (
+                        <div className="flex items-center gap-1.5 text-xs font-mono">
+                          <span className="text-slate-500">Total Diesel:</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-950 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800 shadow-2xs">
+                            ₱
+                            {(dieselCash + dieselPo).toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className={dieselMode === "cash" ? "block" : "hidden"}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* DIESEL CASH */}
                       <Controller
                         name="dieselCash"
                         control={form.control}
                         render={({ field, fieldState }) => (
                           <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel
+                              htmlFor="dieselCash"
+                              className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center justify-between"
+                            >
+                              <span>Cash Amount</span>
+                              {Number(field.value) > 0 && (
+                                <span className="text-[9px] bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                                  CASH
+                                </span>
+                              )}
+                            </FieldLabel>
                             <div className="relative">
                               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500 rounded-l-2xl z-10 opacity-80" />
                               <Input
@@ -1230,7 +1227,7 @@ export default function NewTripPage() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                placeholder="Cash Amount"
+                                placeholder="0.00 (Cash)"
                                 className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-blue-600 dark:text-blue-400 w-full pl-4 transition-all focus-visible:ring-blue-500"
                                 onChange={(e) => {
                                   const val = e.target.value.replace(/-/g, "");
@@ -1246,13 +1243,24 @@ export default function NewTripPage() {
                           </Field>
                         )}
                       />
-                    </div>
-                    <div className={dieselMode === "po" ? "block" : "hidden"}>
+
+                      {/* DIESEL P.O. */}
                       <Controller
                         name="dieselPo"
                         control={form.control}
                         render={({ field, fieldState }) => (
                           <Field data-invalid={fieldState.invalid}>
+                            <FieldLabel
+                              htmlFor="dieselPo"
+                              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-between"
+                            >
+                              <span>P.O. Amount</span>
+                              {Number(field.value) > 0 && (
+                                <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                                  P.O.
+                                </span>
+                              )}
+                            </FieldLabel>
                             <div className="relative">
                               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-2xl z-10 opacity-80" />
                               <Input
@@ -1261,7 +1269,7 @@ export default function NewTripPage() {
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                placeholder="P.O. Amount"
+                                placeholder="0.00 (P.O.)"
                                 className="h-11 border-slate-200 dark:border-slate-800/80 rounded-xl bg-white dark:bg-slate-950/50 text-md font-mono text-emerald-600 dark:text-emerald-400 w-full pl-4 transition-all focus-visible:ring-emerald-500"
                                 onChange={(e) => {
                                   const val = e.target.value.replace(/-/g, "");
@@ -1507,7 +1515,6 @@ export default function NewTripPage() {
                     variant="outline"
                     onClick={() => {
                       form.reset();
-                      setDieselMode("cash");
                     }}
                     className="h-10 px-6 rounded-xl text-sm font-semibold text-slate-500 hover:text-rose-600 border-slate-200 dark:border-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                   >

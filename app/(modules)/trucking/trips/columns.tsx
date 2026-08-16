@@ -237,10 +237,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
   const [isOriginOpen, setIsOriginOpen] = useState(false);
   const [isDestinationOpen, setIsDestinationOpen] = useState(false);
 
-  const [dieselMode, setDieselMode] = useState<"cash" | "po">(
-    trip.dieselPo > 0 ? "po" : "cash",
-  );
-
   const [phLocations, setPhLocations] = useState<
     { value: string; label: string }[]
   >([]);
@@ -384,23 +380,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
     setFormData((prev) => ({ ...prev, [field]: isNaN(parsed) ? 0 : parsed }));
   };
 
-  const handleDieselModeSwitch = (mode: "cash" | "po") => {
-    setDieselMode(mode);
-    if (mode === "cash") {
-      setFormData((prev) => ({
-        ...prev,
-        dieselCash: prev.dieselPo,
-        dieselPo: 0,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        dieselPo: prev.dieselCash,
-        dieselCash: 0,
-      }));
-    }
-  };
-
   return (
     <>
       <DropdownMenu>
@@ -443,7 +422,6 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                 miscellaneous: trip.miscellaneous || 0,
                 miscellaneousNote: trip.miscellaneousNote || "",
               });
-              setDieselMode(trip.dieselPo > 0 ? "po" : "cash");
               setIsEditOpen(true);
             }}
             className="cursor-pointer font-medium py-2"
@@ -1042,30 +1020,32 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-bold text-slate-500 uppercase">
-                        Diesel Expense
+                {/* DIESEL EXPENSES (CASH & P.O.) */}
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase">
+                      Diesel Expense (Cash, P.O. or Both)
+                    </Label>
+                    <span className="text-xs font-mono font-semibold text-slate-600 dark:text-slate-400">
+                      Total Diesel: ₱
+                      {(
+                        (formData.dieselCash || 0) + (formData.dieselPo || 0)
+                      ).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase flex items-center justify-between">
+                        <span>Cash Amount</span>
+                        {Boolean(formData.dieselCash) && (
+                          <span className="text-[9px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono">
+                            CASH
+                          </span>
+                        )}
                       </Label>
-                      <div className="flex bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleDieselModeSwitch("cash")}
-                          className={`px-3 py-1 text-[10px] font-medium uppercase rounded ${dieselMode === "cash" ? "bg-slate-100 dark:bg-slate-950 shadow-sm text-blue-600" : "text-slate-500"}`}
-                        >
-                          CASH
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDieselModeSwitch("po")}
-                          className={`px-3 py-1 text-[10px] font-medium uppercase rounded ${dieselMode === "po" ? "bg-slate-100 dark:bg-slate-950 shadow-sm text-emerald-600" : "text-slate-500"}`}
-                        >
-                          P.O.
-                        </button>
-                      </div>
-                    </div>
-                    {dieselMode === "cash" ? (
                       <Input
                         type="number"
                         step="0.01"
@@ -1074,10 +1054,19 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                           handleNumChange("dieselCash", e.target.value)
                         }
                         onClick={(e) => e.currentTarget.select()}
-                        className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600"
-                        placeholder="Cash Amount"
+                        className="h-11 bg-white dark:bg-slate-950/50 border-blue-200 dark:border-blue-900/50 rounded-xl font-mono text-blue-600 dark:text-blue-400"
+                        placeholder="0.00 (Cash)"
                       />
-                    ) : (
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase flex items-center justify-between">
+                        <span>P.O. Amount</span>
+                        {Boolean(formData.dieselPo) && (
+                          <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-mono">
+                            P.O.
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1086,12 +1075,15 @@ const TripActionsCell = ({ trip }: { trip: TripRecord }) => {
                           handleNumChange("dieselPo", e.target.value)
                         }
                         onClick={(e) => e.currentTarget.select()}
-                        className="h-11 bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 rounded-2xl font-mono text-rose-600"
-                        placeholder="P.O. Amount"
+                        className="h-11 bg-white dark:bg-slate-950/50 border-emerald-200 dark:border-emerald-900/50 rounded-xl font-mono text-emerald-600 dark:text-emerald-400"
+                        placeholder="0.00 (P.O.)"
                       />
-                    )}
+                    </div>
                   </div>
-                  <div className="space-y-1.5 flex flex-col justify-end">
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5 flex flex-col">
                     <Label className="text-[11px] font-bold text-rose-500 uppercase">
                       Roro Ship
                     </Label>
