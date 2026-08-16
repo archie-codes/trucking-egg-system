@@ -146,3 +146,34 @@ input::-ms-reveal,
 input::-ms-clear {
   display: none;
 }
+
+/* Split Opening Animations for Login Panels (Guaranteed Tailwind v4 production compatibility) */
+@keyframes splitOpenLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes splitOpenRight {
+  from {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-split-left {
+  animation: splitOpenLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-split-right {
+  animation: splitOpenRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
