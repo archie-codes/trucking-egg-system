@@ -8,7 +8,7 @@ import {
   farmFeedConsumptions,
   farmOperatingExpenses,
 } from "@/db/schema";
-import { eq, desc, sum, sql, count, and, gte, lte } from "drizzle-orm";
+import { eq, desc, sum, sql, count, and, gte, lte, inArray } from "drizzle-orm";
 import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -73,11 +73,59 @@ const createFeedConsumptionSchema = z.object({
 });
 
 const createOperatingExpenseSchema = z.object({
-  flockId: z.number().int().min(1, "Valid flock selection is required"),
+  isSplit: z.boolean().default(false).optional(),
+  flockId: z.number().int().optional(),
   dateIncurred: z.string().min(1, "Date incurred is required"),
   category: z.string().min(1, "Category is required"),
-  amount: z.number().min(0, "Amount cannot be negative"),
+  amount: z.number().min(0.01, "Amount must be greater than 0"),
   remarks: z.string().optional(),
+  allocations: z.array(z.object({
+    flockId: z.number().int().min(1, "Valid flock selection is required"),
+    allocatedAmount: z.number().min(0.01, "Allocated amount must be greater than 0"),
+  })).optional(),
+}).superRefine((data, ctx) => {
+  if (data.isSplit) {
+    if (!data.allocations || data.allocations.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least two allocations are required for a split expense.",
+        path: ["allocations"],
+      });
+    } else {
+      const selectedFlockIds = data.allocations.map((a) => a.flockId).filter((id) => id > 0);
+      const uniqueFlockIds = new Set(selectedFlockIds);
+      if (uniqueFlockIds.size !== selectedFlockIds.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Each farm batch can only be selected once in allocations.",
+          path: ["allocations"],
+        });
+      }
+
+      const sum = data.allocations.reduce((acc, curr) => acc + curr.allocatedAmount, 0);
+      if (sum > data.amount + 0.01) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Allocated amounts (₱${sum.toLocaleString()}) exceed the total expense amount (₱${data.amount.toLocaleString()}).`,
+          path: ["allocations"],
+        });
+      } else if (Math.abs(sum - data.amount) > 0.01) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Sum of allocations must exactly equal the total expense amount.",
+          path: ["allocations"],
+        });
+      }
+    }
+  } else {
+    if (!data.flockId || data.flockId < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Valid flock selection is required.",
+        path: ["flockId"],
+      });
+    }
+  }
 });
 
 // ======================================================================
@@ -230,66 +278,60 @@ export async function updateFarmFlock(
 
     const data = parsed.data;
 
-    if (!forceSave) {
-      // Condition A (Hard Block): Exact match on batchName, farmName, AND buildingName (excluding current flock)
-      const exactMatch = await db
-        .select({ id: farmFlocks.id })
-        .from(farmFlocks)
-        .where(
-          sql`LOWER(${farmFlocks.batchName}) = LOWER(${data.batchName}) AND LOWER(${farmFlocks.farmName}) = LOWER(${data.farmName}) AND LOWER(${farmFlocks.buildingName}) = LOWER(${data.buildingName}) AND ${farmFlocks.id} != ${id}`
-        )
-        .limit(1);
+    await db.transaction(async (tx) => {
+      if (!forceSave) {
+        // Condition A (Hard Block): Exact match on batchName, farmName, AND buildingName (excluding current flock)
+        const exactMatch = await tx
+          .select({ id: farmFlocks.id })
+          .from(farmFlocks)
+          .where(
+            sql`LOWER(${farmFlocks.batchName}) = LOWER(${data.batchName}) AND LOWER(${farmFlocks.farmName}) = LOWER(${data.farmName}) AND LOWER(${farmFlocks.buildingName}) = LOWER(${data.buildingName}) AND ${farmFlocks.id} != ${id}`
+          )
+          .limit(1);
 
-      if (exactMatch.length > 0) {
-        return {
-          success: false as const,
-          error: "This exact batch name already exists in this specific Farm and Building.",
-        };
+        if (exactMatch.length > 0) {
+          throw new Error("This exact batch name already exists in this specific Farm and Building.");
+        }
+
+        // Condition B (Soft Warning): Same batchName exists in another Farm/Building (excluding current flock)
+        const crossMatch = await tx
+          .select({ id: farmFlocks.id })
+          .from(farmFlocks)
+          .where(
+            sql`LOWER(${farmFlocks.batchName}) = LOWER(${data.batchName}) AND ${farmFlocks.id} != ${id}`
+          )
+          .limit(1);
+
+        if (crossMatch.length > 0) {
+          throw new Error("WARNING_CROSS_MATCH");
+        }
       }
 
-      // Condition B (Soft Warning): Same batchName exists in another Farm/Building (excluding current flock)
-      const crossMatch = await db
-        .select({ id: farmFlocks.id })
-        .from(farmFlocks)
-        .where(
-          sql`LOWER(${farmFlocks.batchName}) = LOWER(${data.batchName}) AND ${farmFlocks.id} != ${id}`
-        )
-        .limit(1);
+      // Condition C (Proceed): Database update
+      // Recalculate currentHeadCount based on initialHeadCount and total mortality
+      const mortalityAgg = await tx
+        .select({ totalMortality: sum(farmDailyRecords.mortalityCount) })
+        .from(farmDailyRecords)
+        .where(eq(farmDailyRecords.flockId, id));
 
-      if (crossMatch.length > 0) {
-        return {
-          success: false as const,
-          requiresConfirmation: true as const,
-          message:
-            "Warning: This Batch Name is already being used in another Farm/Building. Are you sure you want to use the same name here? (Make sure this won't cause confusion later).",
-        };
-      }
-    }
+      const totalMortality = Number(mortalityAgg[0]?.totalMortality || 0);
+      const newCurrentHeadCount = Math.max(
+        0,
+        data.initialHeadCount - totalMortality
+      );
 
-    // Condition C (Proceed): Database update
-    // Recalculate currentHeadCount based on initialHeadCount and total mortality
-    const mortalityAgg = await db
-      .select({ totalMortality: sum(farmDailyRecords.mortalityCount) })
-      .from(farmDailyRecords)
-      .where(eq(farmDailyRecords.flockId, id));
-
-    const totalMortality = Number(mortalityAgg[0]?.totalMortality || 0);
-    const newCurrentHeadCount = Math.max(
-      0,
-      data.initialHeadCount - totalMortality
-    );
-
-    await db
-      .update(farmFlocks)
-      .set({
-        batchName: data.batchName,
-        farmName: data.farmName,
-        buildingName: data.buildingName,
-        dateLoaded: data.dateLoaded,
-        initialHeadCount: data.initialHeadCount,
-        currentHeadCount: newCurrentHeadCount,
-      })
-      .where(eq(farmFlocks.id, id));
+      await tx
+        .update(farmFlocks)
+        .set({
+          batchName: data.batchName,
+          farmName: data.farmName,
+          buildingName: data.buildingName,
+          dateLoaded: data.dateLoaded,
+          initialHeadCount: data.initialHeadCount,
+          currentHeadCount: newCurrentHeadCount,
+        })
+        .where(eq(farmFlocks.id, id));
+    });
 
     revalidatePath("/egg-sales/farm-operations/flocks");
     revalidatePath("/(modules)/egg-sales/farm-operations/flocks");
@@ -297,8 +339,19 @@ export async function updateFarmFlock(
 
     return { success: true as const };
   } catch (error) {
+    if (error instanceof Error && error.message === "WARNING_CROSS_MATCH") {
+      return {
+        success: false as const,
+        requiresConfirmation: true as const,
+        message:
+          "Warning: This Batch Name is already being used in another Farm/Building. Are you sure you want to use the same name here? (Make sure this won't cause confusion later).",
+      };
+    }
     console.error("Error updating farm flock:", error);
-    return { success: false as const, error: "Failed to update flock record" };
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Failed to update flock record",
+    };
   }
 }
 
@@ -492,6 +545,23 @@ export async function createFarmDailyRecord(rawData: {
         : "Unknown User";
 
     await db.transaction(async (tx) => {
+      // 1. Verify flock exists & check current headcount
+      const flockArr = await tx
+        .select({ id: farmFlocks.id, currentHeadCount: farmFlocks.currentHeadCount })
+        .from(farmFlocks)
+        .where(eq(farmFlocks.id, data.flockId))
+        .limit(1);
+
+      if (!flockArr[0]) {
+        throw new Error("Target flock batch not found");
+      }
+
+      if (data.mortalityCount > flockArr[0].currentHeadCount) {
+        throw new Error(
+          `Mortality count (${data.mortalityCount}) cannot exceed current flock headcount (${flockArr[0].currentHeadCount}).`
+        );
+      }
+
       await tx.insert(farmDailyRecords).values({
         flockId: data.flockId,
         recordDate: data.recordDate,
@@ -506,7 +576,7 @@ export async function createFarmDailyRecord(rawData: {
         await tx
           .update(farmFlocks)
           .set({
-            currentHeadCount: sql`${farmFlocks.currentHeadCount} - ${data.mortalityCount}`,
+            currentHeadCount: sql`GREATEST(0, ${farmFlocks.currentHeadCount} - ${data.mortalityCount})`,
           })
           .where(eq(farmFlocks.id, data.flockId));
       }
@@ -520,7 +590,10 @@ export async function createFarmDailyRecord(rawData: {
     return { success: true as const };
   } catch (error) {
     console.error("Error creating daily record:", error);
-    return { success: false as const, error: "Failed to create daily record" };
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Failed to create daily record",
+    };
   }
 }
 
@@ -583,16 +656,42 @@ export async function updateFarmDailyRecord(
       // 3. Adjust currentHeadCount on farmFlocks based on mortality change
       if (oldFlockId === newFlockId) {
         const diff = newMortality - oldMortality;
+        if (diff > 0) {
+          const targetFlock = await tx
+            .select({ currentHeadCount: farmFlocks.currentHeadCount })
+            .from(farmFlocks)
+            .where(eq(farmFlocks.id, newFlockId))
+            .limit(1);
+
+          if (targetFlock[0] && diff > targetFlock[0].currentHeadCount) {
+            throw new Error(
+              `Additional mortality (${diff}) exceeds current flock headcount (${targetFlock[0].currentHeadCount}).`
+            );
+          }
+        }
+
         if (diff !== 0) {
           await tx
             .update(farmFlocks)
             .set({
-              currentHeadCount: sql`${farmFlocks.currentHeadCount} - ${diff}`,
+              currentHeadCount: sql`GREATEST(0, ${farmFlocks.currentHeadCount} - ${diff})`,
             })
             .where(eq(farmFlocks.id, newFlockId));
         }
       } else {
         // Flock changed: revert old mortality on old flock, apply new mortality on new flock
+        const newFlock = await tx
+          .select({ currentHeadCount: farmFlocks.currentHeadCount })
+          .from(farmFlocks)
+          .where(eq(farmFlocks.id, newFlockId))
+          .limit(1);
+
+        if (newFlock[0] && newMortality > newFlock[0].currentHeadCount) {
+          throw new Error(
+            `Mortality count (${newMortality}) exceeds new flock headcount (${newFlock[0].currentHeadCount}).`
+          );
+        }
+
         if (oldMortality > 0) {
           await tx
             .update(farmFlocks)
@@ -605,7 +704,7 @@ export async function updateFarmDailyRecord(
           await tx
             .update(farmFlocks)
             .set({
-              currentHeadCount: sql`${farmFlocks.currentHeadCount} - ${newMortality}`,
+              currentHeadCount: sql`GREATEST(0, ${farmFlocks.currentHeadCount} - ${newMortality})`,
             })
             .where(eq(farmFlocks.id, newFlockId));
         }
@@ -620,7 +719,10 @@ export async function updateFarmDailyRecord(
     return { success: true as const };
   } catch (error) {
     console.error("Error updating daily record:", error);
-    return { success: false as const, error: "Failed to update daily record" };
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Failed to update daily record",
+    };
   }
 }
 
@@ -650,12 +752,12 @@ export async function deleteFarmDailyRecord(id: number) {
         .delete(farmDailyRecords)
         .where(eq(farmDailyRecords.id, id));
 
-      // 3. Add mortalityCount back to currentHeadCount of the flock
+      // 3. Add mortalityCount back to currentHeadCount of the flock (capped at initialHeadCount)
       if (record.mortalityCount > 0) {
         await tx
           .update(farmFlocks)
           .set({
-            currentHeadCount: sql`${farmFlocks.currentHeadCount} + ${record.mortalityCount}`,
+            currentHeadCount: sql`LEAST(${farmFlocks.initialHeadCount}, ${farmFlocks.currentHeadCount} + ${record.mortalityCount})`,
           })
           .where(eq(farmFlocks.id, record.flockId));
       }
@@ -669,7 +771,10 @@ export async function deleteFarmDailyRecord(id: number) {
     return { success: true as const };
   } catch (error) {
     console.error("Error deleting daily record:", error);
-    return { success: false as const, error: "Failed to delete daily record" };
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Failed to delete daily record",
+    };
   }
 }
 
@@ -893,11 +998,13 @@ export async function getFarmOperatingExpenseById(id: number) {
 
 // CREATE AN OPERATING EXPENSE
 export async function createFarmOperatingExpense(rawData: {
-  flockId: number;
+  isSplit?: boolean;
+  flockId?: number;
   dateIncurred: string;
   category: string;
   amount: number;
   remarks?: string;
+  allocations?: { flockId: number; allocatedAmount: number }[];
 }) {
   try {
     const parsed = createOperatingExpenseSchema.safeParse(rawData);
@@ -914,14 +1021,49 @@ export async function createFarmOperatingExpense(rawData: {
         ? userSession.name
         : "Unknown User";
 
-    await db.insert(farmOperatingExpenses).values({
-      flockId: data.flockId,
-      dateIncurred: data.dateIncurred,
-      category: data.category,
-      amount: data.amount,
-      remarks: data.remarks || "",
-      recordedBy,
-    });
+    if (data.isSplit && data.allocations) {
+      const receiptGroupId = crypto.randomUUID();
+      
+      // Fetch all flocks to get their names for notes
+      const flockIds = data.allocations.map(a => a.flockId);
+      const flocks = await db.select({ id: farmFlocks.id, farmName: farmFlocks.farmName, buildingName: farmFlocks.buildingName })
+        .from(farmFlocks)
+        .where(inArray(farmFlocks.id, flockIds));
+      
+      const flockMap = new Map(flocks.map(f => [f.id, f]));
+
+      await db.transaction(async (tx) => {
+        for (const allocation of data.allocations!) {
+          const otherAllocations = data.allocations!.filter(a => a !== allocation);
+          const otherFarmsStr = otherAllocations.map(a => {
+            const f = flockMap.get(a.flockId);
+            return f ? `${f.farmName} - ${f.buildingName} (₱${a.allocatedAmount.toLocaleString()})` : `Unknown Farm (₱${a.allocatedAmount.toLocaleString()})`;
+          }).join(", ");
+          
+          const noteStr = `[Note: ₱${allocation.allocatedAmount.toLocaleString()} portion of a ₱${data.amount.toLocaleString()} total expense. Remaining balance distributed to: ${otherFarmsStr}]`;
+          const finalRemarks = data.remarks ? `${data.remarks}\n${noteStr}` : noteStr;
+
+          await tx.insert(farmOperatingExpenses).values({
+            flockId: allocation.flockId,
+            dateIncurred: data.dateIncurred,
+            category: data.category,
+            amount: allocation.allocatedAmount,
+            remarks: finalRemarks,
+            receiptGroupId,
+            recordedBy,
+          });
+        }
+      });
+    } else {
+      await db.insert(farmOperatingExpenses).values({
+        flockId: data.flockId!,
+        dateIncurred: data.dateIncurred,
+        category: data.category,
+        amount: data.amount,
+        remarks: data.remarks || "",
+        recordedBy,
+      });
+    }
 
     revalidatePath("/egg-sales/farm-operations/operating-expenses");
     revalidatePath("/(modules)/egg-sales/farm-operations/operating-expenses");
@@ -976,16 +1118,35 @@ export async function updateFarmOperatingExpense(
   }
 }
 
-// DELETE OPERATING EXPENSE
+// DELETE OPERATING EXPENSE (With Split-Expense Receipt Group Cascade Deletion)
 export async function deleteFarmOperatingExpense(id: number) {
   try {
     if (!id || typeof id !== "number" || id <= 0) {
       return { success: false as const, error: "Invalid expense record ID" };
     }
 
-    await db
-      .delete(farmOperatingExpenses)
-      .where(eq(farmOperatingExpenses.id, id));
+    await db.transaction(async (tx) => {
+      const record = await tx
+        .select({ receiptGroupId: farmOperatingExpenses.receiptGroupId })
+        .from(farmOperatingExpenses)
+        .where(eq(farmOperatingExpenses.id, id))
+        .limit(1);
+
+      if (!record[0]) {
+        throw new Error("Expense record not found");
+      }
+
+      if (record[0].receiptGroupId) {
+        // Atomic deletion of all allocations linked to this split receipt group
+        await tx
+          .delete(farmOperatingExpenses)
+          .where(eq(farmOperatingExpenses.receiptGroupId, record[0].receiptGroupId));
+      } else {
+        await tx
+          .delete(farmOperatingExpenses)
+          .where(eq(farmOperatingExpenses.id, id));
+      }
+    });
 
     revalidatePath("/egg-sales/farm-operations/operating-expenses");
     revalidatePath("/(modules)/egg-sales/farm-operations/operating-expenses");
@@ -993,7 +1154,10 @@ export async function deleteFarmOperatingExpense(id: number) {
     return { success: true as const };
   } catch (error) {
     console.error("Error deleting operating expense:", error);
-    return { success: false as const, error: "Failed to delete operating expense" };
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Failed to delete operating expense",
+    };
   }
 }
 
@@ -1038,6 +1202,24 @@ export async function getFarmFlockReport(flockId: number) {
       .from(farmOperatingExpenses)
       .where(eq(farmOperatingExpenses.flockId, flockId));
 
+    const opExList = await db
+      .select()
+      .from(farmOperatingExpenses)
+      .where(eq(farmOperatingExpenses.flockId, flockId))
+      .orderBy(desc(farmOperatingExpenses.dateIncurred));
+
+    const feedList = await db
+      .select()
+      .from(farmFeedConsumptions)
+      .where(eq(farmFeedConsumptions.flockId, flockId))
+      .orderBy(desc(farmFeedConsumptions.dateGiven));
+
+    const dailyList = await db
+      .select()
+      .from(farmDailyRecords)
+      .where(eq(farmDailyRecords.flockId, flockId))
+      .orderBy(desc(farmDailyRecords.recordDate));
+
     const totalTrays = Number(dailyAgg[0]?.totalTrays || 0);
     const totalPieces = Number(dailyAgg[0]?.totalPieces || 0);
     const totalEggsInPieces = totalTrays * 30 + totalPieces;
@@ -1065,12 +1247,15 @@ export async function getFarmFlockReport(flockId: number) {
           totalTrays,
           totalPieces,
           totalEggsInPieces,
+          records: dailyList,
         },
         expenses: {
           totalFeedCost,
           totalOpEx,
           grandTotalExpenses,
           costPerEgg,
+          operatingExpenses: opExList,
+          feedConsumptions: feedList,
         },
         health: {
           totalMortality,

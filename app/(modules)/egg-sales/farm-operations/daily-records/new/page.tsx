@@ -272,7 +272,7 @@ export default function NewDailyRecordPage() {
                 render={({ field: { onChange, ...field }, fieldState }) => (
                   <Field>
                     <FieldLabel className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Loose Eggs (Pieces)
+                      Extra Eggs (Pieces)
                     </FieldLabel>
                     <Input
                       type="number"

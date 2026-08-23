@@ -220,7 +220,7 @@ export default function NewFlockPage() {
                       Batch Name
                     </FieldLabel>
                     <Input
-                      placeholder="e.g., BATCH 1 - 2026"
+                      placeholder="e.g., BATCH 1"
                       className="h-11! rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-emerald-500/20 uppercase"
                       {...field}
                       onChange={(e) => onChange(e.target.value.toUpperCase())}

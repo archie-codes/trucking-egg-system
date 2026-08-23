@@ -235,7 +235,10 @@ export function SummaryDashboard({
       const size = String(sale.classification || "").toLowerCase();
       let dateFormatted = "";
       try {
-        dateFormatted = format(parseISO(sale.saleDate), "MMM dd, yyyy").toLowerCase();
+        dateFormatted = format(
+          parseISO(sale.saleDate),
+          "MMM dd, yyyy",
+        ).toLowerCase();
       } catch {}
 
       return (
@@ -1047,7 +1050,9 @@ export function SummaryDashboard({
         </div>
 
         <div className="overflow-auto custom-scrollbar flex-1 min-h-0">
-          <table className={cn("w-full text-left border-collapse", textSizeClass)}>
+          <table
+            className={cn("w-full text-left border-collapse", textSizeClass)}
+          >
             <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs text-muted-foreground uppercase font-bold text-[10px] border-b border-border shadow-2xs">
               <tr>
                 <th className="px-4 py-3">Sale Date</th>
@@ -1145,7 +1150,9 @@ export function SummaryDashboard({
                   <td colSpan={9} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <PackageOpen className="h-8 w-8 opacity-20" />
-                      <p className="text-sm font-medium">No sales records found</p>
+                      <p className="text-sm font-medium">
+                        No sales records found
+                      </p>
                       <p className="text-xs opacity-70">
                         Try adjusting your search or filters.
                       </p>

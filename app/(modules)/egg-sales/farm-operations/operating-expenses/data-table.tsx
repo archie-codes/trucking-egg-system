@@ -57,7 +57,6 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Download,
   FileText,
   FileSpreadsheet,
   Type,
@@ -68,6 +67,9 @@ import {
   Building2,
   Layers,
   Tag,
+  Home,
+  RotateCcw,
+  MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -87,11 +89,14 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   "use no memo";
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  );
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
 
   const [selectedFarm, setSelectedFarm] = React.useState<string>("all");
+  const [selectedBuilding, setSelectedBuilding] = React.useState<string>("all");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [selectedBatch, setSelectedBatch] = React.useState<string>("all");
   const [dateFilter, setDateFilter] = React.useState<{
@@ -100,7 +105,8 @@ export function DataTable<TData, TValue>({
   }>({ type: "all" });
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
-  const [selectedRecord, setSelectedRecord] = React.useState<OperatingExpenseData | null>(null);
+  const [selectedRecord, setSelectedRecord] =
+    React.useState<OperatingExpenseData | null>(null);
 
   // Extract farm options dynamically
   const farmOptions = React.useMemo(() => {
@@ -114,6 +120,23 @@ export function DataTable<TData, TValue>({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
+  // Extract building options dynamically based on selected farm
+  const buildingOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    (data as OperatingExpenseData[]).forEach((item) => {
+      const farm = item.flock?.farmName?.trim().toUpperCase();
+      const building = item.flock?.buildingName;
+      if (
+        building &&
+        building.trim() !== "" &&
+        (selectedFarm === "all" || farm === selectedFarm)
+      ) {
+        set.add(building.trim().toUpperCase());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data, selectedFarm]);
+
   // Extract category options dynamically
   const categoryOptions = React.useMemo(() => {
     const set = new Set<string>();
@@ -125,17 +148,24 @@ export function DataTable<TData, TValue>({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
-  // Extract batch options dynamically
+  // Extract batch options dynamically based on selected farm and building
   const batchOptions = React.useMemo(() => {
     const set = new Set<string>();
     (data as OperatingExpenseData[]).forEach((item) => {
+      const farm = item.flock?.farmName?.trim().toUpperCase();
+      const building = item.flock?.buildingName?.trim().toUpperCase();
       const batch = item.flock?.batchName;
-      if (batch && batch.trim() !== "") {
+      if (
+        batch &&
+        batch.trim() !== "" &&
+        (selectedFarm === "all" || farm === selectedFarm) &&
+        (selectedBuilding === "all" || building === selectedBuilding)
+      ) {
         set.add(batch.trim());
       }
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [data]);
+  }, [data, selectedFarm, selectedBuilding]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -149,7 +179,9 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const search = String(filterValue || "").trim().toLowerCase();
+      const search = String(filterValue || "")
+        .trim()
+        .toLowerCase();
       if (!search) return true;
 
       const item = row.original as OperatingExpenseData;
@@ -186,6 +218,17 @@ export function DataTable<TData, TValue>({
     }
   }, [selectedFarm, table]);
 
+  // Handle Building Name Filter
+  React.useEffect(() => {
+    const col = table.getColumn("buildingName");
+    if (!col) return;
+    if (selectedBuilding === "all") {
+      col.setFilterValue(undefined);
+    } else {
+      col.setFilterValue(selectedBuilding);
+    }
+  }, [selectedBuilding, table]);
+
   // Handle Category Filter
   React.useEffect(() => {
     const col = table.getColumn("category");
@@ -196,6 +239,34 @@ export function DataTable<TData, TValue>({
       col.setFilterValue(selectedCategory);
     }
   }, [selectedCategory, table]);
+
+  // Handle Batch Name Filter
+  React.useEffect(() => {
+    const col = table.getColumn("batchName");
+    if (!col) return;
+    if (selectedBatch === "all") {
+      col.setFilterValue(undefined);
+    } else {
+      col.setFilterValue(selectedBatch);
+    }
+  }, [selectedBatch, table]);
+
+  // Auto-reset building selection if not valid under current farm
+  React.useEffect(() => {
+    if (
+      selectedBuilding !== "all" &&
+      !buildingOptions.includes(selectedBuilding)
+    ) {
+      setSelectedBuilding("all");
+    }
+  }, [selectedFarm, buildingOptions, selectedBuilding]);
+
+  // Auto-reset batch selection if not valid under current farm/building
+  React.useEffect(() => {
+    if (selectedBatch !== "all" && !batchOptions.includes(selectedBatch)) {
+      setSelectedBatch("all");
+    }
+  }, [selectedFarm, selectedBuilding, batchOptions, selectedBatch]);
 
   // Handle Batch Name Filter
   React.useEffect(() => {
@@ -221,7 +292,9 @@ export function DataTable<TData, TValue>({
     }
   }, [dateFilter, table]);
 
-  const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[textSize];
+  const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
+    textSize
+  ];
 
   const getFormattedDate = () => {
     const d = new Date();
@@ -284,12 +357,15 @@ export function DataTable<TData, TValue>({
 
       const blob = new Blob(
         [metaHeader + "\n" + [headers.join(","), ...csvData].join("\n")],
-        { type: "text/csv;charset=utf-8;" }
+        { type: "text/csv;charset=utf-8;" },
       );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Operating_Expenses_Export_${getFormattedDate()}.csv`);
+      link.setAttribute(
+        "download",
+        `Operating_Expenses_Export_${getFormattedDate()}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -331,7 +407,7 @@ export function DataTable<TData, TValue>({
           selectedBatch === "all" ? "All Batches" : selectedBatch
         }`,
         40,
-        62
+        62,
       );
 
       // Summary Cards Box
@@ -347,12 +423,18 @@ export function DataTable<TData, TValue>({
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
       doc.text(`${rows.length} records`, 55, 110);
-      doc.text(`PHP ${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 320, 110);
+      doc.text(
+        `PHP ${totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        320,
+        110,
+      );
 
       const tableData = rows.map((r) => {
         const d = r.original;
         return [
-          d.dateIncurred ? format(new Date(d.dateIncurred), "MMM dd, yyyy") : "",
+          d.dateIncurred
+            ? format(new Date(d.dateIncurred), "MMM dd, yyyy")
+            : "",
           d.flock?.farmName || "N/A",
           d.flock?.buildingName || "N/A",
           d.flock?.batchName || "N/A",
@@ -401,63 +483,72 @@ export function DataTable<TData, TValue>({
   const pageCount = table.getPageCount();
   const currentPage = table.getState().pagination.pageIndex + 1;
   const hasFilter = globalFilter.length > 0;
+  const isAnyFilterActive =
+    globalFilter.length > 0 ||
+    selectedFarm !== "all" ||
+    selectedBuilding !== "all" ||
+    selectedCategory !== "all" ||
+    selectedBatch !== "all" ||
+    dateFilter.type !== "all";
+
+  const resetAllFilters = () => {
+    setGlobalFilter("");
+    setSelectedFarm("all");
+    setSelectedBuilding("all");
+    setSelectedCategory("all");
+    setSelectedBatch("all");
+    setDateFilter({ type: "all" });
+  };
 
   return (
     <>
       <div className="flex flex-col flex-1 min-h-0 gap-3 print:hidden">
         {/* ── TOOLBAR & FILTERS ── */}
-        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between shrink-0">
-          {/* Animated Collapsing Search Input */}
-          <div
-            className={cn(
-              "group relative transition-all duration-500 ease-out ml-0.5",
-              hasFilter
-                ? "w-full sm:w-[320px]"
-                : "w-full sm:w-[320px] xl:w-11 xl:focus-within:w-[320px] pr-1"
-            )}
-          >
-            <Search
-              className={cn(
-                "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
-                hasFilter
-                  ? "text-rose-600 dark:text-rose-400"
-                  : "text-slate-500 dark:text-slate-400 xl:group-focus-within:text-rose-600"
-              )}
-            />
-            <Input
-              placeholder="Search category, batch, farm, building, user, remarks..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className={cn(
-                "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-rose-500/40",
-                hasFilter
-                  ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 xl:pr-0 xl:rounded-full xl:text-transparent xl:placeholder:text-transparent xl:cursor-pointer xl:hover:bg-slate-200/50 xl:dark:hover:bg-slate-800/80 xl:group-focus-within:bg-white xl:group-focus-within:dark:bg-slate-900 xl:group-focus-within:pr-10 xl:group-focus-within:rounded-xl xl:group-focus-within:text-foreground xl:group-focus-within:placeholder:text-slate-400 xl:group-focus-within:dark:placeholder:text-slate-500 xl:group-focus-within:cursor-text"
-              )}
-            />
-            <div
-              className={cn(
-                "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
-                hasFilter
-                  ? "opacity-100 scale-100"
-                  : "opacity-0 scale-50 pointer-events-none"
-              )}
-            >
-              {hasFilter && (
+        <div className="flex flex-col gap-2.5 shrink-0">
+          {/* Top Row: Search & Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-80 md:w-96">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
+              <Input
+                placeholder="Search category, batch, farm, building, user, remarks..."
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="h-9.5 w-full pl-9 pr-8 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-xs text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-rose-500/40"
+              />
+              {globalFilter.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setGlobalFilter("")}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
                   aria-label="Clear search"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
+
+            {/* Actions (Reset Filters) */}
+            {isAnyFilterActive && (
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetAllFilters}
+                  className="h-8.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2.5 font-medium cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset Filters
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Filter Dropdowns & Controllers */}
-          <div className="flex items-center justify-start sm:justify-end w-full xl:w-auto gap-1.5 sm:gap-2 flex-wrap shrink-0">
+          {/* Bottom Row: Filter Dropdowns Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 px-1.5 uppercase tracking-wider hidden md:inline-block">
+              Filters:
+            </span>
+
             {/* Farm Origin Filter */}
             <Select
               value={selectedFarm}
@@ -465,9 +556,9 @@ export function DataTable<TData, TValue>({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 sm:h-9 w-[130px] sm:w-[150px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
+                  "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[150px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                   selectedFarm !== "all" &&
-                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold"
+                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold bg-rose-50/40 dark:bg-rose-950/20",
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -475,7 +566,7 @@ export function DataTable<TData, TValue>({
                   <SelectValue placeholder="All Origin Farms" />
                 </div>
               </SelectTrigger>
-              <SelectContent align="end" className="z-110 w-[190px]">
+              <SelectContent align="start" className="z-110 w-[190px]">
                 <SelectItem
                   value="all"
                   className="text-xs cursor-pointer font-medium"
@@ -494,6 +585,42 @@ export function DataTable<TData, TValue>({
               </SelectContent>
             </Select>
 
+            {/* Building Filter */}
+            <Select
+              value={selectedBuilding}
+              onValueChange={(val) => setSelectedBuilding(val)}
+            >
+              <SelectTrigger
+                className={cn(
+                  "h-8 sm:h-8.5 w-auto min-w-[120px] sm:min-w-[140px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
+                  selectedBuilding !== "all" &&
+                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold bg-rose-50/40 dark:bg-rose-950/20",
+                )}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <Home className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                  <SelectValue placeholder="All Buildings" />
+                </div>
+              </SelectTrigger>
+              <SelectContent align="start" className="z-110 w-[190px]">
+                <SelectItem
+                  value="all"
+                  className="text-xs cursor-pointer font-medium"
+                >
+                  All Buildings
+                </SelectItem>
+                {buildingOptions.map((bldg) => (
+                  <SelectItem
+                    key={bldg}
+                    value={bldg}
+                    className="text-xs cursor-pointer font-bold uppercase"
+                  >
+                    {bldg}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* Category Filter */}
             <Select
               value={selectedCategory}
@@ -501,9 +628,9 @@ export function DataTable<TData, TValue>({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 sm:h-9 w-[125px] sm:w-[140px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
+                  "h-8 sm:h-8.5 w-auto min-w-[125px] sm:min-w-[140px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                   selectedCategory !== "all" &&
-                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold"
+                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold bg-rose-50/40 dark:bg-rose-950/20",
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -511,7 +638,7 @@ export function DataTable<TData, TValue>({
                   <SelectValue placeholder="All Categories" />
                 </div>
               </SelectTrigger>
-              <SelectContent align="end" className="z-110 w-[190px]">
+              <SelectContent align="start" className="z-110 w-[190px]">
                 <SelectItem
                   value="all"
                   className="text-xs cursor-pointer font-medium"
@@ -537,9 +664,9 @@ export function DataTable<TData, TValue>({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 sm:h-9 w-[125px] sm:w-[140px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
+                  "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[150px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                   selectedBatch !== "all" &&
-                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold"
+                    "text-rose-600 dark:text-rose-400 border-rose-500/40 font-bold bg-rose-50/40 dark:bg-rose-950/20",
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -547,7 +674,7 @@ export function DataTable<TData, TValue>({
                   <SelectValue placeholder="All Flock Batches" />
                 </div>
               </SelectTrigger>
-              <SelectContent align="end" className="z-110 w-[190px]">
+              <SelectContent align="start" className="z-110 w-[190px]">
                 <SelectItem
                   value="all"
                   className="text-xs cursor-pointer font-medium"
@@ -573,9 +700,9 @@ export function DataTable<TData, TValue>({
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer",
+                    "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                     dateFilter.type !== "all" &&
-                      "text-rose-600 dark:text-rose-400 font-medium"
+                      "text-rose-600 dark:text-rose-400 font-medium bg-rose-50/40 dark:bg-rose-950/20 border-rose-500/40",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
@@ -590,11 +717,13 @@ export function DataTable<TData, TValue>({
                   </span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-110" align="end">
+              <PopoverContent className="w-auto p-0 z-110" align="start">
                 <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
                   <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
                     <Button
-                      variant={dateFilter.type === "all" ? "secondary" : "ghost"}
+                      variant={
+                        dateFilter.type === "all" ? "secondary" : "ghost"
+                      }
                       className="w-full justify-start text-xs h-8 cursor-pointer"
                       onClick={() => {
                         setDateFilter({ type: "all" });
@@ -604,7 +733,9 @@ export function DataTable<TData, TValue>({
                       View All
                     </Button>
                     <Button
-                      variant={dateFilter.type === "today" ? "secondary" : "ghost"}
+                      variant={
+                        dateFilter.type === "today" ? "secondary" : "ghost"
+                      }
                       className="w-full justify-start text-xs h-8 cursor-pointer"
                       onClick={() => {
                         setDateFilter({ type: "today" });
@@ -636,52 +767,60 @@ export function DataTable<TData, TValue>({
               </PopoverContent>
             </Popover>
 
-            {/* Export Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  className="h-8 sm:h-9 gap-1 sm:gap-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-[10px] sm:text-xs font-medium rounded-lg px-2 sm:px-3 shadow-none border-0 cursor-pointer"
+            {/* Export 3-Dot Dropdown at right end of filter row */}
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 sm:h-8.5 w-8 sm:w-8.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    title="Export Options"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Export options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-52 rounded-xl border-border/60 shadow-md z-110"
                 >
-                  <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  <span>Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-52 rounded-xl border-border/60 shadow-md z-110"
-              >
-                <DropdownMenuItem
-                  onClick={exportToPDF}
-                  className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-950/40">
-                    <FileText className="h-3.5 w-3.5 text-rose-500" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium leading-none">Save as PDF</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Printable expense report
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={exportToCSV}
-                  className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40">
-                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium leading-none">Export to CSV</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Open in Excel or Sheets
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem
+                    onClick={exportToPDF}
+                    className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-950/40">
+                      <FileText className="h-3.5 w-3.5 text-rose-500" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium leading-none">
+                        Save as PDF
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Printable expense report
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={exportToCSV}
+                    className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40">
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium leading-none">
+                        Export to CSV
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Open in Excel or Sheets
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
@@ -719,14 +858,14 @@ export function DataTable<TData, TValue>({
                       key={header.id}
                       className={cn(
                         textSizeClass,
-                        "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap"
+                        "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap",
                       )}
                     >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   ))}
@@ -739,19 +878,24 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    onClick={() => setSelectedRecord(row.original as OperatingExpenseData)}
+                    onClick={() =>
+                      setSelectedRecord(row.original as OperatingExpenseData)
+                    }
                     className={cn(
                       "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
                       "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
                       "hover:shadow-xs hover:z-20 hover:ring-1 hover:ring-rose-400 dark:hover:ring-rose-600",
                       i % 2 === 0
                         ? "bg-card hover:bg-rose-50/80 dark:hover:bg-rose-950/30"
-                        : "bg-muted/40 hover:bg-rose-50/80 dark:hover:bg-rose-950/30"
+                        : "bg-muted/40 hover:bg-rose-50/80 dark:hover:bg-rose-950/30",
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-2.5">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -778,7 +922,10 @@ export function DataTable<TData, TValue>({
               <span className="font-medium text-foreground">
                 {table.getRowModel().rows.length}
               </span>{" "}
-              of <span className="font-medium text-foreground">{filteredCount}</span>{" "}
+              of{" "}
+              <span className="font-medium text-foreground">
+                {filteredCount}
+              </span>{" "}
               record{filteredCount !== 1 ? "s" : ""}
               {pageCount > 1 && (
                 <span className="text-muted-foreground/60">
@@ -800,7 +947,7 @@ export function DataTable<TData, TValue>({
                       "px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer",
                       textSize === size
                         ? "bg-rose-600 text-white"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
                     )}
                   >
                     {size === "xs" ? "S" : size === "sm" ? "M" : "L"}
@@ -819,7 +966,11 @@ export function DataTable<TData, TValue>({
               </SelectTrigger>
               <SelectContent className="z-110">
                 {[5, 10, 20, 30, 50, 100].map((n) => (
-                  <SelectItem key={n} value={`${n}`} className="text-xs cursor-pointer">
+                  <SelectItem
+                    key={n}
+                    value={`${n}`}
+                    className="text-xs cursor-pointer"
+                  >
                     {n} rows
                   </SelectItem>
                 ))}
@@ -868,7 +1019,7 @@ export function DataTable<TData, TValue>({
                       "w-7 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer",
                       isActive
                         ? "bg-rose-600 text-white"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     {page + 1}
@@ -908,7 +1059,10 @@ export function DataTable<TData, TValue>({
           if (!open) setSelectedRecord(null);
         }}
       >
-        <DialogContent showCloseButton={false} className="max-w-lg rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+        <DialogContent
+          showCloseButton={false}
+          className="max-w-lg rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+        >
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -921,7 +1075,10 @@ export function DataTable<TData, TValue>({
                   </DialogTitle>
                   <DialogDescription className="text-xs text-slate-500">
                     {selectedRecord?.dateIncurred
-                      ? format(new Date(selectedRecord.dateIncurred), "MMMM dd, yyyy")
+                      ? format(
+                          new Date(selectedRecord.dateIncurred),
+                          "MMMM dd, yyyy",
+                        )
                       : ""}
                   </DialogDescription>
                 </div>
@@ -942,7 +1099,11 @@ export function DataTable<TData, TValue>({
                   Expense Amount
                 </span>
                 <span className="text-xl font-bold text-rose-700 dark:text-rose-300 block">
-                  ₱{(selectedRecord.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱
+                  {(selectedRecord.amount || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </span>
               </div>
 
@@ -955,33 +1116,43 @@ export function DataTable<TData, TValue>({
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Farm Origin:</span>
+                  <span className="text-slate-500 font-medium">
+                    Farm Origin:
+                  </span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
                     {selectedRecord.flock?.farmName || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Building Name:</span>
+                  <span className="text-slate-500 font-medium">
+                    Building Name:
+                  </span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
                     {selectedRecord.flock?.buildingName || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Batch Name:</span>
+                  <span className="text-slate-500 font-medium">
+                    Batch Name:
+                  </span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {selectedRecord.flock?.batchName || "N/A"}
                   </span>
                 </div>
                 {selectedRecord.remarks && (
                   <div className="flex justify-between items-start pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 font-medium shrink-0 mr-2">Remarks:</span>
+                    <span className="text-slate-500 font-medium shrink-0 mr-2">
+                      Remarks:
+                    </span>
                     <span className="font-normal text-slate-700 dark:text-slate-300 text-right">
                       {selectedRecord.remarks}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="text-slate-500 font-medium">Recorded By:</span>
+                  <span className="text-slate-500 font-medium">
+                    Recorded By:
+                  </span>
                   <Badge
                     variant="secondary"
                     className="font-medium text-xs gap-1 py-0.5 px-2"

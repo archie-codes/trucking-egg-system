@@ -49,7 +49,6 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Download,
   FileText,
   FileSpreadsheet,
   Type,
@@ -66,6 +65,8 @@ import {
   Printer,
   User,
   PartyPopper,
+  RotateCcw,
+  MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -678,6 +679,16 @@ export function DataTable({
   const pageCount = table.getPageCount();
   const currentPage = table.getState().pagination.pageIndex + 1;
   const hasFilter = globalFilter.length > 0;
+  const isAnyFilterActive =
+    globalFilter.length > 0 ||
+    statusFilter !== "all" ||
+    dateFilter.type !== "all";
+
+  const resetAllFilters = () => {
+    setGlobalFilter("");
+    setStatusFilter("all");
+    setDateFilter({ type: "all" });
+  };
 
   return (
     <>
@@ -703,59 +714,50 @@ export function DataTable({
       </style>
       <div className="flex flex-col flex-1 min-h-0 gap-3">
         {/* ── TOOLBAR & FILTERS ── */}
-        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between shrink-0">
-          {/* Animated Collapsing Search Input (Responsive - Dedicated row on tablet/small laptops) */}
-          <div
-            className={cn(
-              "group relative transition-all duration-500 ease-out ml-0.5",
-              hasFilter
-                ? "w-full sm:w-[320px]"
-                : "w-full sm:w-[320px] xl:w-11 xl:focus-within:w-[320px] pr-1"
-            )}
-          >
-            <Search
-              className={cn(
-                "pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-500 z-10",
-                hasFilter
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-slate-500 dark:text-slate-400 xl:group-focus-within:text-emerald-600"
-              )}
-            />
-            <Input
-              placeholder="Search customers, dates, status..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className={cn(
-                "h-11 w-full rounded-xl! transition-all duration-500 ease-out border-slate-200/60 dark:border-slate-800/60 focus-visible:ring-1 focus-visible:ring-emerald-500/40",
-                hasFilter
-                  ? "pl-10 pr-10 rounded-xl bg-white dark:bg-slate-900 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  : "pl-10 pr-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 xl:pr-0 xl:rounded-full xl:text-transparent xl:placeholder:text-transparent xl:cursor-pointer xl:hover:bg-slate-200/50 xl:dark:hover:bg-slate-800/80 xl:group-focus-within:bg-white xl:group-focus-within:dark:bg-slate-900 xl:group-focus-within:pr-10 xl:group-focus-within:rounded-xl xl:group-focus-within:text-foreground xl:group-focus-within:placeholder:text-slate-400 xl:group-focus-within:dark:placeholder:text-slate-500 xl:group-focus-within:cursor-text"
-              )}
-            />
-            <div
-              className={cn(
-                "absolute right-2.5 top-1/2 -translate-y-1/2 transition-all duration-300",
-                hasFilter
-                  ? "opacity-100 scale-100"
-                  : "opacity-0 scale-50 pointer-events-none"
-              )}
-            >
-              {hasFilter && (
+        <div className="flex flex-col gap-2.5 shrink-0">
+          {/* Top Row: Search & Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-80 md:w-96">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
+              <Input
+                placeholder="Search customers, dates, status..."
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="h-9.5 w-full pl-9 pr-8 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-xs text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-emerald-500/40"
+              />
+              {globalFilter.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setGlobalFilter("")}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
                   aria-label="Clear search"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
+
+            {/* Actions (Reset Filters) */}
+            {isAnyFilterActive && (
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetAllFilters}
+                  className="h-8.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2.5 font-medium cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset Filters
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Font Size, Density Controller and Export (Placed on row 2 on tablet/small laptops, right-aligned) */}
-          <div className="flex items-center justify-start sm:justify-end w-full xl:w-auto gap-1.5 sm:gap-2 flex-wrap shrink-0">
-
+          {/* Bottom Row: Filter Dropdowns Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 px-1.5 uppercase tracking-wider hidden md:inline-block">
+              Filters:
+            </span>
 
             {/* Status Filter Dropdown */}
             <Select
@@ -766,30 +768,39 @@ export function DataTable({
             >
               <SelectTrigger
                 className={cn(
-                  "h-8 sm:h-9 w-[130px] sm:w-[140px] text-[10px] sm:text-xs rounded-lg border-border/60 bg-background font-normal",
+                  "h-8 sm:h-8.5 w-auto min-w-[125px] sm:min-w-[140px] text-[10px] sm:text-xs rounded-lg border-border/60 bg-background font-normal cursor-pointer px-2.5",
                   statusFilter !== "all" &&
-                    "text-emerald-600 dark:text-emerald-500 font-semibold",
+                    "text-emerald-600 dark:text-emerald-500 font-semibold bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/40",
                 )}
               >
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
-              <SelectContent align="end" className="z-110">
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="paid">Fully Paid</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectContent align="start" className="z-110">
+                <SelectItem value="all" className="cursor-pointer text-xs">
+                  All Statuses
+                </SelectItem>
+                <SelectItem value="paid" className="cursor-pointer text-xs">
+                  Fully Paid
+                </SelectItem>
+                <SelectItem value="partial" className="cursor-pointer text-xs">
+                  Partial
+                </SelectItem>
+                <SelectItem value="unpaid" className="cursor-pointer text-xs">
+                  Unpaid
+                </SelectItem>
               </SelectContent>
             </Select>
 
+            {/* Date Filter Selector */}
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "h-8 sm:h-9 w-[130px] sm:w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs",
+                    "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                     dateFilter.type !== "all" &&
-                      "text-emerald-600 dark:text-emerald-500 font-medium",
+                      "text-emerald-600 dark:text-emerald-500 font-medium bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/40",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
@@ -804,14 +815,14 @@ export function DataTable({
                   </span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-110" align="end">
+              <PopoverContent className="w-auto p-0 z-110" align="start">
                 <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
                   <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
                     <Button
                       variant={
                         dateFilter.type === "all" ? "secondary" : "ghost"
                       }
-                      className="w-full justify-start text-xs h-8"
+                      className="w-full justify-start text-xs h-8 cursor-pointer"
                       onClick={() => {
                         setDateFilter({ type: "all" });
                         setIsDatePickerOpen(false);
@@ -823,7 +834,7 @@ export function DataTable({
                       variant={
                         dateFilter.type === "today" ? "secondary" : "ghost"
                       }
-                      className="w-full justify-start text-xs h-8"
+                      className="w-full justify-start text-xs h-8 cursor-pointer"
                       onClick={() => {
                         setDateFilter({ type: "today" });
                         setIsDatePickerOpen(false);
@@ -854,7 +865,8 @@ export function DataTable({
               </PopoverContent>
             </Popover>
 
-            <div className="flex items-center rounded-lg border border-border/60 bg-background p-0.5 h-8 sm:h-9">
+            {/* View Mode Toggle */}
+            <div className="flex items-center rounded-lg border border-border/60 bg-background p-0.5 h-8 sm:h-8.5">
               <button
                 type="button"
                 onClick={() => setViewMode("table")}
@@ -885,7 +897,8 @@ export function DataTable({
               </button>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-9">
+            {/* Text Size Control */}
+            <div className="flex items-center gap-1 sm:gap-1.5 rounded-lg border border-border/60 bg-background px-1.5 sm:px-2.5 h-8 sm:h-8.5">
               <Type className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground shrink-0" />
               <div className="flex items-center gap-0.5">
                 {(["xs", "sm", "base"] as const).map((size) => (
@@ -893,7 +906,7 @@ export function DataTable({
                     key={size}
                     onClick={() => setTextSize(size)}
                     className={cn(
-                      "px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors",
+                      "px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer",
                       textSize === size
                         ? "bg-emerald-600 text-white"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted",
@@ -905,71 +918,81 @@ export function DataTable({
               </div>
             </div>
 
+            {/* Rows Per Page */}
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(v) => table.setPageSize(Number(v))}
             >
-              <SelectTrigger className="h-8 sm:h-9 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-emerald-500/40">
+              <SelectTrigger className="h-8 sm:h-8.5 w-[80px] sm:w-[90px] text-[10px] sm:text-xs bg-background border-border/60 rounded-lg focus:ring-1 focus:ring-emerald-500/40 cursor-pointer">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="z-110">
                 {[5, 10, 20, 30, 50, 100].map((n) => (
-                  <SelectItem key={n} value={`${n}`} className="text-xs">
+                  <SelectItem
+                    key={n}
+                    value={`${n}`}
+                    className="text-xs cursor-pointer"
+                  >
                     {n} rows
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  className="h-8 sm:h-9 gap-1 sm:gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[10px] sm:text-xs font-medium rounded-lg px-2 sm:px-3 shadow-none border-0"
+            {/* Export 3-Dot Dropdown at right end of filter row */}
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 sm:h-8.5 w-8 sm:w-8.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    title="Export Options"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Export options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-52 rounded-xl border-border/60 shadow-md z-110"
                 >
-                  <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  <span>Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-52 rounded-xl border-border/60 shadow-md z-110"
-              >
-                <DropdownMenuItem
-                  onClick={exportToPDF}
-                  className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-950/40">
-                    <FileText className="h-3.5 w-3.5 text-rose-500" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium leading-none">
-                      Save as PDF
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Printable ledger report
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={exportToCSV}
-                  className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-50 dark:bg-teal-950/40">
-                    <FileSpreadsheet className="h-3.5 w-3.5 text-teal-500" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium leading-none">
-                      Export to CSV
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Open in Excel or Sheets
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem
+                    onClick={exportToPDF}
+                    className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-950/40">
+                      <FileText className="h-3.5 w-3.5 text-rose-500" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium leading-none">
+                        Save as PDF
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Printable ledger report
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={exportToCSV}
+                    className="cursor-pointer gap-2.5 py-2.5 text-sm font-medium"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-50 dark:bg-teal-950/40">
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-teal-500" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium leading-none">
+                        Export to CSV
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Open in Excel or Sheets
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
