@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   format,
   parseISO,
@@ -32,7 +33,13 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ChevronsUpDown,
   Type,
+  Layers,
+  List,
+  Eye,
+  Printer,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
@@ -41,6 +48,14 @@ import { toast } from "sonner";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { getInvoiceTheme } from "../history/invoice-theme";
 import {
   Select,
   SelectContent,
@@ -75,6 +90,24 @@ type EggSaleRecord = {
   amountPaid: number;
   paymentStatus: string;
   datePaid?: string | null;
+  preparedBy?: string | null;
+};
+
+export type GroupedInvoice = {
+  id: string;
+  invoiceId?: string | null;
+  customerId: string;
+  saleDate: string;
+  datePaid?: string | null;
+  preparedBy?: string | null;
+  items: EggSaleRecord[];
+  totalTrays: number;
+  totalPieces: number;
+  totalPalitBasag: number;
+  totalAmount: number;
+  amountPaid: number;
+  balance: number;
+  effectiveStatus: "paid" | "partial" | "unpaid";
 };
 
 // Compact number formatter for millions/billions
@@ -138,6 +171,7 @@ export function SummaryDashboard({
   data: EggSaleRecord[];
   isAdmin: boolean;
 }) {
+  const router = useRouter();
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -145,12 +179,20 @@ export function SummaryDashboard({
 
   const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
   const [customerSearch, setCustomerSearch] = useState<string>("");
+  const [customerPage, setCustomerPage] = useState<number>(1);
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState<boolean>(false);
+  const CUSTOMERS_PER_PAGE = 12;
+
   const [statusFilter, setStatusFilter] = useState<
     "all" | "paid" | "partial" | "unpaid"
   >("all");
   const [tableSearch, setTableSearch] = useState<string>("");
   const [textSize, setTextSize] = useState<"xs" | "sm" | "base">("xs");
   const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
+
+  // View Mode: Grouped Invoices vs Itemized Lines
+  const [viewMode, setViewMode] = useState<"invoices" | "itemized">("invoices");
+  const [selectedInvoiceModal, setSelectedInvoiceModal] = useState<GroupedInvoice | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -178,6 +220,14 @@ export function SummaryDashboard({
       c.toLowerCase().includes(customerSearch.toLowerCase()),
     );
   }, [customerList, customerSearch]);
+
+  const totalCustomerPages =
+    Math.ceil(filteredCustomerOptions.length / CUSTOMERS_PER_PAGE) || 1;
+
+  const paginatedCustomerOptions = useMemo(() => {
+    const start = (customerPage - 1) * CUSTOMERS_PER_PAGE;
+    return filteredCustomerOptions.slice(start, start + CUSTOMERS_PER_PAGE);
+  }, [filteredCustomerOptions, customerPage]);
 
   // Main Filtering Logic
   const filteredSales = useMemo(() => {
@@ -225,7 +275,7 @@ export function SummaryDashboard({
     });
   }, [data, selectedCustomer, statusFilter, dateRange]);
 
-  // In-table search filter
+  // In-table search filter for itemized view
   const searchedSales = useMemo(() => {
     if (!tableSearch.trim()) return filteredSales;
     const q = tableSearch.toLowerCase().trim();
@@ -250,6 +300,86 @@ export function SummaryDashboard({
       );
     });
   }, [filteredSales, tableSearch]);
+
+  // Grouped Invoices (1 Row Per Invoice)
+  const groupedInvoices = useMemo<GroupedInvoice[]>(() => {
+    const map = new Map<string, GroupedInvoice>();
+
+    filteredSales.forEach((sale) => {
+      const key = sale.invoiceId ? sale.invoiceId : `single_${sale.id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          invoiceId: sale.invoiceId,
+          customerId: sale.customerId,
+          saleDate: sale.saleDate,
+          datePaid: sale.datePaid,
+          preparedBy: sale.preparedBy || null,
+          items: [],
+          totalTrays: 0,
+          totalPieces: 0,
+          totalPalitBasag: 0,
+          totalAmount: 0,
+          amountPaid: 0,
+          balance: 0,
+          effectiveStatus: "unpaid",
+        });
+      }
+
+      const group = map.get(key)!;
+      group.items.push(sale);
+      group.totalTrays += sale.quantityTrays;
+      group.totalPieces += sale.quantityPieces || 0;
+      group.totalPalitBasag += sale.palitBasag || 0;
+      group.totalAmount += sale.totalAmount;
+      group.amountPaid += sale.amountPaid;
+    });
+
+    const list: GroupedInvoice[] = [];
+    map.forEach((g) => {
+      const bal = Math.max(0, Math.round((g.totalAmount - g.amountPaid) * 100) / 100);
+      g.balance = bal;
+      if (bal <= 0.01) {
+        g.effectiveStatus = "paid";
+      } else if (g.amountPaid > 0) {
+        g.effectiveStatus = "partial";
+      } else {
+        g.effectiveStatus = "unpaid";
+      }
+      list.push(g);
+    });
+
+    // Sort by saleDate descending
+    list.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
+
+    return list;
+  }, [filteredSales]);
+
+  // Search filtered grouped invoices
+  const searchedGroupedInvoices = useMemo(() => {
+    if (!tableSearch.trim()) return groupedInvoices;
+    const q = tableSearch.toLowerCase().trim();
+    return groupedInvoices.filter((inv) => {
+      const invoiceStr = String(inv.invoiceId || "").toLowerCase();
+      const custStr = String(inv.customerId || "").toLowerCase();
+      let dateStr = "";
+      try {
+        dateStr = format(parseISO(inv.saleDate), "MMM dd, yyyy").toLowerCase();
+      } catch {}
+
+      const matchesItem = inv.items.some((item) =>
+        item.classification.toLowerCase().includes(q)
+      );
+
+      return (
+        invoiceStr.includes(q) ||
+        custStr.includes(q) ||
+        dateStr.includes(q) ||
+        inv.saleDate.includes(q) ||
+        matchesItem
+      );
+    });
+  }, [groupedInvoices, tableSearch]);
 
   // Aggregate Totals (for filtered records)
   const totals = useMemo(() => {
@@ -291,13 +421,23 @@ export function SummaryDashboard({
     [totals.trays],
   );
 
-  // Pagination Slice
-  const totalPages = Math.max(1, Math.ceil(searchedSales.length / pageSize));
+  // Pagination Slice based on active view mode
+  const currentRecordsCount =
+    viewMode === "invoices"
+      ? searchedGroupedInvoices.length
+      : searchedSales.length;
+
+  const totalPages = Math.max(1, Math.ceil(currentRecordsCount / pageSize));
 
   const paginatedSales = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return searchedSales.slice(start, start + pageSize);
   }, [searchedSales, currentPage, pageSize]);
+
+  const paginatedGroupedInvoices = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return searchedGroupedInvoices.slice(start, start + pageSize);
+  }, [searchedGroupedInvoices, currentPage, pageSize]);
 
   // Specific Customer Pending Credit Records (All time for selected customer)
   const customerUnpaidRecords = useMemo(() => {
@@ -536,60 +676,163 @@ export function SummaryDashboard({
       <div className="bg-card border border-border rounded-xl p-3 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
         {/* Left: Customer Search Dropdown & Status Filter */}
         <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={selectedCustomer}
-            onValueChange={(val) => {
-              setSelectedCustomer(val);
-              setCurrentPage(1);
-            }}
+          {/* Enhanced Customer Filter with 12 items/page & search */}
+          <Popover
+            open={isCustomerPopoverOpen}
+            onOpenChange={setIsCustomerPopoverOpen}
           >
-            <SelectTrigger className="h-9 text-xs rounded-lg border-border bg-background font-semibold w-[200px]">
-              <div className="flex items-center gap-1.5 truncate">
-                <User className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-                <SelectValue placeholder="All Customers" />
-              </div>
-            </SelectTrigger>
-            <SelectContent align="start" className="z-110 w-[240px] p-0">
-              <div className="p-2 border-b border-border">
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-9 text-xs rounded-lg border-border bg-background font-semibold w-[210px] justify-between px-3 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <User className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <span className="truncate">
+                    {selectedCustomer === "all"
+                      ? `All Customers (${customerList.length})`
+                      : selectedCustomer}
+                  </span>
+                </div>
+                <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 shrink-0 ml-1" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="z-110 w-[260px] p-0 rounded-xl shadow-xl border-border bg-popover"
+            >
+              {/* Search Header */}
+              <div className="p-2 border-b border-border bg-muted/20">
                 <div className="relative flex items-center">
                   <Search className="w-3.5 h-3.5 absolute left-2 text-muted-foreground" />
                   <Input
                     placeholder="Search customer name..."
                     value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    className="h-7 text-xs pl-7"
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setCustomerPage(1);
+                    }}
+                    className="h-7 text-xs pl-7 pr-7 bg-background"
                   />
                   {customerSearch && (
                     <button
-                      onClick={() => setCustomerSearch("")}
-                      className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5"
+                      type="button"
+                      onClick={() => {
+                        setCustomerSearch("");
+                        setCustomerPage(1);
+                      }}
+                      className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               </div>
-              <div className="max-h-[220px] overflow-y-auto p-1">
-                <SelectItem value="all" className="text-xs cursor-pointer">
-                  All Customers ({customerList.length})
-                </SelectItem>
-                {filteredCustomerOptions.map((cust) => (
-                  <SelectItem
-                    key={cust}
-                    value={cust}
-                    className="text-xs cursor-pointer"
-                  >
-                    {cust}
-                  </SelectItem>
-                ))}
+
+              {/* Options List (12 items per page) */}
+              <div className="max-h-[320px] overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCustomer("all");
+                    setCurrentPage(1);
+                    setIsCustomerPopoverOpen(false);
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer",
+                    selectedCustomer === "all"
+                      ? "bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold"
+                      : "hover:bg-muted text-foreground",
+                  )}
+                >
+                  <span className="truncate">All Customers ({customerList.length})</span>
+                  {selectedCustomer === "all" && (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0 ml-1" />
+                  )}
+                </button>
+
+                {paginatedCustomerOptions.map((cust) => {
+                  const isSelected =
+                    selectedCustomer.toLowerCase() === cust.toLowerCase();
+                  return (
+                    <button
+                      key={cust}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCustomer(cust);
+                        setCurrentPage(1);
+                        setIsCustomerPopoverOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors cursor-pointer",
+                        isSelected
+                          ? "bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold"
+                          : "hover:bg-muted text-foreground",
+                      )}
+                    >
+                      <span className="truncate">{cust}</span>
+                      {isSelected && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0 ml-1" />
+                      )}
+                    </button>
+                  );
+                })}
+
                 {filteredCustomerOptions.length === 0 && (
                   <p className="text-xs text-muted-foreground p-3 text-center">
                     No matching customers found.
                   </p>
                 )}
               </div>
-            </SelectContent>
-          </Select>
+
+              {/* Dropdown Pagination Footer */}
+              {totalCustomerPages > 1 && (
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-border bg-muted/40 text-[11px] text-muted-foreground select-none">
+                  <span className="font-medium text-[10px]">
+                    {(customerPage - 1) * CUSTOMERS_PER_PAGE + 1}–
+                    {Math.min(
+                      customerPage * CUSTOMERS_PER_PAGE,
+                      filteredCustomerOptions.length,
+                    )}{" "}
+                    of {filteredCustomerOptions.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-md hover:bg-muted text-foreground cursor-pointer disabled:opacity-30"
+                      disabled={customerPage <= 1}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCustomerPage((p) => Math.max(1, p - 1));
+                      }}
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className="text-[10px] font-bold text-foreground px-1">
+                      {customerPage} / {totalCustomerPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-md hover:bg-muted text-foreground cursor-pointer disabled:opacity-30"
+                      disabled={customerPage >= totalCustomerPages}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCustomerPage((p) =>
+                          Math.min(totalCustomerPages, p + 1),
+                        );
+                      }}
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
 
           {/* Status Filter Dropdown */}
           <Select
@@ -945,15 +1188,27 @@ export function SummaryDashboard({
         </div>
       </div>
 
-      {/* FILTERED SALES BREAKDOWN TABLE WITH SEARCH & DENSITY CONTROLS */}
+      {/* FILTERED SALES BREAKDOWN TABLE WITH SEARCH & VIEW MODE CONTROLS */}
       <div className="rounded-xl border border-border bg-card overflow-hidden shadow-2xs flex flex-col flex-1 min-h-0">
         <div className="p-4 border-b border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
           <div>
             <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
               Sales Records
               <span className="text-xs font-mono font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
-                <NumberTicker value={searchedSales.length} />{" "}
-                {searchedSales.length === 1 ? "record" : "records"}
+                <NumberTicker
+                  value={
+                    viewMode === "invoices"
+                      ? searchedGroupedInvoices.length
+                      : searchedSales.length
+                  }
+                />{" "}
+                {viewMode === "invoices"
+                  ? searchedGroupedInvoices.length === 1
+                    ? "invoice"
+                    : "invoices"
+                  : searchedSales.length === 1
+                    ? "record"
+                    : "records"}
               </span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -971,11 +1226,53 @@ export function SummaryDashboard({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {/* View Mode Toggle: Invoices vs Itemized */}
+            <div className="flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode("invoices");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                  viewMode === "invoices"
+                    ? "bg-background text-teal-700 dark:text-teal-400 shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Group multiple sizes into 1 invoice row"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>By Invoice</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode("itemized");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                  viewMode === "itemized"
+                    ? "bg-background text-teal-700 dark:text-teal-400 shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Show each egg classification row separately"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Itemized</span>
+              </button>
+            </div>
+
             {/* Search Input inside Sales Records Header */}
             <div className="relative flex items-center">
               <Search className="w-3.5 h-3.5 absolute left-2.5 text-muted-foreground" />
               <Input
-                placeholder="Search invoice, size..."
+                placeholder={
+                  viewMode === "invoices"
+                    ? "Search invoice, customer..."
+                    : "Search invoice, size..."
+                }
                 value={tableSearch}
                 onChange={(e) => {
                   setTableSearch(e.target.value);
@@ -985,18 +1282,19 @@ export function SummaryDashboard({
               />
               {tableSearch && (
                 <button
+                  type="button"
                   onClick={() => {
                     setTableSearch("");
                     setCurrentPage(1);
                   }}
-                  className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5"
+                  className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                 </button>
               )}
             </div>
 
-            {/* Font Size Density Toggle - Matching History Tables */}
+            {/* Font Size Density Toggle */}
             <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background px-1.5 h-8">
               <Type className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <div className="flex items-center gap-0.5">
@@ -1017,7 +1315,7 @@ export function SummaryDashboard({
               </div>
             </div>
 
-            {/* Three dots Actions Menu */}
+            {/* Actions Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1054,104 +1352,239 @@ export function SummaryDashboard({
             className={cn("w-full text-left border-collapse", textSizeClass)}
           >
             <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur-xs text-muted-foreground uppercase font-bold text-[10px] border-b border-border shadow-2xs">
-              <tr>
-                <th className="px-4 py-3">Sale Date</th>
-                <th className="px-4 py-3">Invoice No.</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Size</th>
-                <th className="px-4 py-3 text-right">Trays</th>
-                <th className="px-4 py-3 text-right">Gross (₱)</th>
-                <th className="px-4 py-3 text-right">Paid (₱)</th>
-                <th className="px-4 py-3 text-right">Balance (₱)</th>
-                <th className="px-4 py-3 text-center">Status</th>
-              </tr>
+              {viewMode === "invoices" ? (
+                <tr>
+                  <th className="px-4 py-3">Sale Date</th>
+                  <th className="px-4 py-3">Invoice No.</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Sizes / Breakdown</th>
+                  <th className="px-4 py-3 text-right">Total Volume</th>
+                  <th className="px-4 py-3 text-right">Gross (₱)</th>
+                  <th className="px-4 py-3 text-right">Paid (₱)</th>
+                  <th className="px-4 py-3 text-right">Balance (₱)</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-center">Action</th>
+                </tr>
+              ) : (
+                <tr>
+                  <th className="px-4 py-3">Sale Date</th>
+                  <th className="px-4 py-3">Invoice No.</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Size</th>
+                  <th className="px-4 py-3 text-right">Trays</th>
+                  <th className="px-4 py-3 text-right">Gross (₱)</th>
+                  <th className="px-4 py-3 text-right">Paid (₱)</th>
+                  <th className="px-4 py-3 text-right">Balance (₱)</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-border/60 font-medium">
-              {paginatedSales.map((sale, idx) => {
-                const itemBalance = Math.max(
-                  0,
-                  Math.round((sale.totalAmount - sale.amountPaid) * 100) / 100,
-                );
-                const isPaid =
-                  sale.paymentStatus === "paid" || itemBalance <= 0.01;
-                const isPartial = !isPaid && sale.amountPaid > 0;
+              {viewMode === "invoices" ? (
+                /* GROUPED INVOICES VIEW (1 ROW PER INVOICE) */
+                paginatedGroupedInvoices.map((inv, idx) => {
+                  const isPaid = inv.effectiveStatus === "paid";
+                  const isPartial = inv.effectiveStatus === "partial";
+                  const invoiceTheme = getInvoiceTheme(inv.invoiceId);
+                  const distinctSizes = Array.from(
+                    new Set(inv.items.map((it) => it.classification.toUpperCase()))
+                  );
 
-                return (
-                  <tr
-                    key={sale.id}
-                    className={cn(
-                      "transition-colors duration-200 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30",
-                      idx % 2 === 0 ? "bg-card" : "bg-muted/40",
-                    )}
-                  >
-                    <td className="px-4 py-2.5 font-mono text-muted-foreground whitespace-nowrap">
-                      {format(parseISO(sale.saleDate), "MMM dd, yyyy")}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono font-semibold text-foreground whitespace-nowrap">
-                      {sale.invoiceId ? (
-                        <span className="px-1.5 py-0.5 rounded bg-muted border border-border font-bold text-teal-700 dark:text-teal-400">
-                          #{sale.invoiceId}
-                        </span>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 font-bold uppercase text-foreground whitespace-nowrap">
-                      {sale.customerId}
-                    </td>
-                    <td className="px-4 py-2.5 font-bold uppercase text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                      {sale.classification}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground">
-                      {sale.quantityTrays}{" "}
-                      <span className="text-[10px] text-muted-foreground font-normal">
-                        {sale.quantityTrays === 1 ? "tray" : "trays"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono font-medium text-foreground">
-                      ₱{sale.totalAmount.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono font-bold text-teal-600 dark:text-teal-400">
-                      ₱{sale.amountPaid.toLocaleString()}
-                    </td>
-                    <td
+                  return (
+                    <tr
+                      key={inv.id}
+                      onClick={() => setSelectedInvoiceModal(inv)}
                       className={cn(
-                        "px-4 py-2.5 text-right font-mono font-bold",
-                        itemBalance > 0
-                          ? "text-rose-600 dark:text-rose-400"
-                          : "text-muted-foreground",
+                        "transition-colors duration-200 hover:bg-teal-50/80 dark:hover:bg-teal-950/30 cursor-pointer group",
+                        idx % 2 === 0 ? "bg-card" : "bg-muted/40",
                       )}
                     >
-                      ₱{itemBalance.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      {isPaid ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                          Paid
+                      <td className="px-4 py-2.5 font-mono text-muted-foreground whitespace-nowrap">
+                        {format(parseISO(inv.saleDate), "MMM dd, yyyy")}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono whitespace-nowrap">
+                        {inv.invoiceId ? (
+                          <span
+                            className={cn(
+                              "font-mono text-xs font-bold px-2 py-0.5 rounded-md border inline-flex items-center gap-1 group-hover:shadow-xs transition-shadow",
+                              invoiceTheme.badgeBg,
+                              invoiceTheme.badgeText,
+                              invoiceTheme.badgeBorder,
+                            )}
+                          >
+                            #{inv.invoiceId}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs font-mono">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 font-bold uppercase text-foreground whitespace-nowrap">
+                        {inv.customerId}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 flex-wrap max-w-[220px]">
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 shrink-0">
+                            {inv.items.length} {inv.items.length === 1 ? "size" : "sizes"}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[140px]">
+                            ({distinctSizes.slice(0, 2).join(", ")}
+                            {distinctSizes.length > 2 ? ` +${distinctSizes.length - 2}` : ""})
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground whitespace-nowrap">
+                        {inv.totalTrays.toLocaleString()}{" "}
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {inv.totalTrays === 1 ? "tray" : "trays"}
                         </span>
-                      ) : isPartial ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                          <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                          Partial
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
-                          <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                          Unpaid
-                        </span>
+                        {inv.totalPieces > 0 && (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-normal">
+                            +{inv.totalPieces} pcs
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-medium text-foreground whitespace-nowrap">
+                        ₱{inv.totalAmount.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-bold text-teal-600 dark:text-teal-400 whitespace-nowrap">
+                        ₱{inv.amountPaid.toLocaleString()}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-2.5 text-right font-mono font-bold whitespace-nowrap",
+                          inv.balance > 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        ₱{inv.balance.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            Paid
+                          </span>
+                        ) : isPartial ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            Partial
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
+                            <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                            Unpaid
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/50 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedInvoiceModal(inv);
+                          }}
+                          title="View Invoice Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                /* ITEMIZED VIEW (ORIGINAL 1 ROW PER EGG SIZE) */
+                paginatedSales.map((sale, idx) => {
+                  const itemBalance = Math.max(
+                    0,
+                    Math.round((sale.totalAmount - sale.amountPaid) * 100) / 100,
+                  );
+                  const isPaid =
+                    sale.paymentStatus === "paid" || itemBalance <= 0.01;
+                  const isPartial = !isPaid && sale.amountPaid > 0;
+
+                  return (
+                    <tr
+                      key={sale.id}
+                      className={cn(
+                        "transition-colors duration-200 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/30",
+                        idx % 2 === 0 ? "bg-card" : "bg-muted/40",
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-              {searchedSales.length === 0 && (
+                    >
+                      <td className="px-4 py-2.5 font-mono text-muted-foreground whitespace-nowrap">
+                        {format(parseISO(sale.saleDate), "MMM dd, yyyy")}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono font-semibold text-foreground whitespace-nowrap">
+                        {sale.invoiceId ? (
+                          <span className="px-1.5 py-0.5 rounded bg-muted border border-border font-bold text-teal-700 dark:text-teal-400">
+                            #{sale.invoiceId}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 font-bold uppercase text-foreground whitespace-nowrap">
+                        {sale.customerId}
+                      </td>
+                      <td className="px-4 py-2.5 font-bold uppercase text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                        {sale.classification}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground">
+                        {sale.quantityTrays}{" "}
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {sale.quantityTrays === 1 ? "tray" : "trays"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-medium text-foreground">
+                        ₱{sale.totalAmount.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-bold text-teal-600 dark:text-teal-400">
+                        ₱{sale.amountPaid.toLocaleString()}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-2.5 text-right font-mono font-bold",
+                          itemBalance > 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        ₱{itemBalance.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            Paid
+                          </span>
+                        ) : isPartial ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            Partial
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
+                            <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                            Unpaid
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+              {currentRecordsCount === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
+                  <td
+                    colSpan={viewMode === "invoices" ? 10 : 9}
+                    className="px-4 py-12 text-center"
+                  >
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <PackageOpen className="h-8 w-8 opacity-20" />
                       <p className="text-sm font-medium">
-                        No sales records found
+                        No {viewMode === "invoices" ? "invoices" : "sales records"} found
                       </p>
                       <p className="text-xs opacity-70">
                         Try adjusting your search or filters.
@@ -1164,7 +1597,7 @@ export function SummaryDashboard({
           </table>
         </div>
 
-        {/* PAGINATION FOOTER - MATCHING SALES HISTORY DESIGN WITH ROWS PER PAGE */}
+        {/* PAGINATION FOOTER */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 border-t border-border bg-card shrink-0">
           <div className="flex flex-wrap items-center gap-3 order-2 sm:order-1 justify-center sm:justify-start">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1191,13 +1624,21 @@ export function SummaryDashboard({
             <p className="text-xs text-muted-foreground">
               Showing{" "}
               <span className="font-medium text-foreground">
-                {paginatedSales.length}
+                {viewMode === "invoices"
+                  ? paginatedGroupedInvoices.length
+                  : paginatedSales.length}
               </span>{" "}
               of{" "}
               <span className="font-medium text-foreground">
-                {searchedSales.length}
+                {currentRecordsCount}
               </span>{" "}
-              record{searchedSales.length !== 1 ? "s" : ""}
+              {viewMode === "invoices"
+                ? currentRecordsCount === 1
+                  ? "invoice"
+                  : "invoices"
+                : currentRecordsCount === 1
+                  ? "record"
+                  : "records"}
               {totalPages > 1 && (
                 <span className="text-muted-foreground/60">
                   {" "}
@@ -1280,6 +1721,177 @@ export function SummaryDashboard({
           </div>
         </div>
       </div>
+
+      {/* INVOICE DETAILS MODAL DIALOG */}
+      <Dialog
+        open={!!selectedInvoiceModal}
+        onOpenChange={(open) => {
+          if (!open) setSelectedInvoiceModal(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl">
+          {selectedInvoiceModal && (
+            <>
+              {/* Modal Header */}
+              <div className="p-5 border-b border-border bg-card flex items-center justify-between gap-3 shrink-0">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
+                      <span>Invoice Details</span>
+                      {selectedInvoiceModal.invoiceId && (
+                        <span className="font-mono text-sm px-2.5 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-bold">
+                          #{selectedInvoiceModal.invoiceId}
+                        </span>
+                      )}
+                    </DialogTitle>
+                    {selectedInvoiceModal.effectiveStatus === "paid" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        Fully Paid
+                      </span>
+                    ) : selectedInvoiceModal.effectiveStatus === "partial" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+                        <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        Partial
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
+                        <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                        Unpaid
+                      </span>
+                    )}
+                  </div>
+                  <DialogDescription className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span>
+                      Customer: <strong className="text-foreground uppercase">{selectedInvoiceModal.customerId}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Date: <strong className="text-foreground">{format(parseISO(selectedInvoiceModal.saleDate), "MMMM dd, yyyy")}</strong>
+                    </span>
+                    {selectedInvoiceModal.preparedBy && (
+                      <>
+                        <span>•</span>
+                        <span>
+                          Prepared by: <strong className="text-foreground capitalize">{selectedInvoiceModal.preparedBy}</strong>
+                        </span>
+                      </>
+                    )}
+                  </DialogDescription>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-muted/80 text-muted-foreground uppercase font-bold text-[10px] border-b border-border">
+                      <tr>
+                        <th className="px-3.5 py-2.5">Size / Item</th>
+                        <th className="px-3.5 py-2.5 text-center">Qty (Trays + Pcs)</th>
+                        <th className="px-3.5 py-2.5 text-right">Price (₱)</th>
+                        <th className="px-3.5 py-2.5 text-right">Amount (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60 font-medium">
+                      {selectedInvoiceModal.items.map((item) => (
+                        <tr key={item.id} className="hover:bg-muted/30">
+                          <td className="px-3.5 py-2.5 font-bold uppercase text-foreground">
+                            {item.classification}
+                          </td>
+                          <td className="px-3.5 py-2.5 font-mono text-center">
+                            {item.quantityTrays}{" "}
+                            {item.quantityTrays === 1 ? "tray" : "trays"}
+                            {(item.quantityPieces || 0) > 0 && (
+                              <span className="text-[10px] text-muted-foreground ml-1">
+                                (+{item.quantityPieces} pcs)
+                              </span>
+                            )}
+                            {(item.palitBasag || 0) > 0 && (
+                              <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold ml-1">
+                                (+{item.palitBasag} free)
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-right font-mono text-muted-foreground">
+                            ₱{item.pricePerTray.toLocaleString()}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-right font-mono font-bold text-foreground">
+                            ₱{item.totalAmount.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Financial Summary */}
+                <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 p-3.5 rounded-xl bg-muted/40 border border-border/80">
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    <p>Total Items: <strong className="text-foreground">{selectedInvoiceModal.items.length} sizes</strong></p>
+                    <p>Total Volume: <strong className="text-foreground font-mono">{selectedInvoiceModal.totalTrays} trays {selectedInvoiceModal.totalPieces > 0 ? `+ ${selectedInvoiceModal.totalPieces} pcs` : ""}</strong></p>
+                  </div>
+                  <div className="w-full sm:w-60 space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center text-muted-foreground font-medium">
+                      <span>Grand Total:</span>
+                      <span className="font-mono font-bold text-foreground text-sm">
+                        ₱{selectedInvoiceModal.totalAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-teal-600 dark:text-teal-400 font-medium">
+                      <span>Amount Paid:</span>
+                      <span className="font-mono font-bold">
+                        ₱{selectedInvoiceModal.amountPaid.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border pt-1 font-bold text-foreground">
+                      <span>Balance Due:</span>
+                      <span
+                        className={cn(
+                          "font-mono font-black text-sm",
+                          selectedInvoiceModal.balance > 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        ₱{selectedInvoiceModal.balance.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3 border-t border-border bg-card flex justify-end gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl h-9 text-xs px-4 cursor-pointer"
+                  onClick={() => setSelectedInvoiceModal(null)}
+                >
+                  Close
+                </Button>
+                {selectedInvoiceModal.invoiceId && (
+                  <Button
+                    asChild
+                    size="sm"
+                    className="rounded-xl h-9 text-xs px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold gap-1.5 cursor-pointer shadow-md shadow-teal-500/20"
+                  >
+                    <a
+                      href={`/egg-sales/sales/receipt/${selectedInvoiceModal.invoiceId}?from=summary`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>View & Print Receipt</span>
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

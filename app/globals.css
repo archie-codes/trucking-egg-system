@@ -177,3 +177,27 @@ input::-ms-clear {
 .animate-split-right {
   animation: splitOpenRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ======================================================================
+   PRINT OPTIMIZATIONS (Letter Size & 1-Page Guarantee)
+   ====================================================================== */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 6mm 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-page-fit {
+    transform-origin: top center !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
