@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { startOfDay, endOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -264,6 +265,22 @@ export const getColumns = (isAdmin: boolean = false): ColumnDef<FlockData>[] => 
   {
     accessorKey: "formattedDateLoaded",
     header: "Date Loaded",
+    filterFn: (
+      row,
+      _columnId,
+      filterValue: { from?: Date; to?: Date } | undefined,
+    ) => {
+      if (!filterValue || !filterValue.from) return true;
+      const rawDate = row.original.dateLoaded;
+      if (!rawDate) return false;
+      const rowDate = new Date(rawDate);
+      if (isNaN(rowDate.getTime())) return true;
+      const from = startOfDay(filterValue.from);
+      const to = filterValue.to
+        ? endOfDay(filterValue.to)
+        : endOfDay(filterValue.from);
+      return rowDate >= from && rowDate <= to;
+    },
     cell: ({ row }) => (
       <div className="font-medium whitespace-nowrap">
         {row.getValue("formattedDateLoaded")}

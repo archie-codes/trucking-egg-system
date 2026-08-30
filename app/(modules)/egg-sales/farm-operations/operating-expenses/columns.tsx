@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -152,6 +152,22 @@ export const columns: ColumnDef<OperatingExpenseData>[] = [
   {
     accessorKey: "dateIncurred",
     header: "Date",
+    filterFn: (
+      row,
+      columnId,
+      filterValue: { from?: Date; to?: Date } | undefined,
+    ) => {
+      if (!filterValue || !filterValue.from) return true;
+      const cellValue = row.getValue(columnId) as string;
+      if (!cellValue) return false;
+      const rowDate = new Date(cellValue);
+      if (isNaN(rowDate.getTime())) return true;
+      const from = startOfDay(filterValue.from);
+      const to = filterValue.to
+        ? endOfDay(filterValue.to)
+        : endOfDay(filterValue.from);
+      return rowDate >= from && rowDate <= to;
+    },
     cell: ({ row }) => {
       const dateStr = row.getValue("dateIncurred") as string;
       const date = new Date(dateStr);

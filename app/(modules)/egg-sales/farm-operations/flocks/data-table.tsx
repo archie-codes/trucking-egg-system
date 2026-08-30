@@ -49,7 +49,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import {
+  format,
+  isToday,
+  subDays,
+  startOfDay,
+  endOfDay,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+} from "date-fns";
 import {
   Search,
   ChevronLeft,
@@ -105,10 +115,10 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const [selectedBuilding, setSelectedBuilding] = React.useState<string>("all");
   const [selectedBatch, setSelectedBatch] = React.useState<string>("all");
   const [selectedStatus, setSelectedStatus] = React.useState<string>("all");
-  const [dateFilter, setDateFilter] = React.useState<{
-    type: "all" | "today" | "custom";
-    date?: Date;
-  }>({ type: "all" });
+  const [dateRange, setDateRange] = React.useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({ from: undefined, to: undefined });
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   const [selectedFlock, setSelectedFlock] = React.useState<FlockData | null>(
@@ -265,14 +275,8 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   React.useEffect(() => {
     const col = table.getColumn("formattedDateLoaded");
     if (!col) return;
-    if (dateFilter.type === "all") {
-      col.setFilterValue(undefined);
-    } else if (dateFilter.type === "today") {
-      col.setFilterValue(format(new Date(), "MMM dd, yyyy"));
-    } else if (dateFilter.type === "custom" && dateFilter.date) {
-      col.setFilterValue(format(dateFilter.date, "MMM dd, yyyy"));
-    }
-  }, [dateFilter, table]);
+    col.setFilterValue(dateRange.from ? dateRange : undefined);
+  }, [dateRange, table]);
 
   const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
     textSize
@@ -491,7 +495,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     selectedBuilding !== "all" ||
     selectedBatch !== "all" ||
     selectedStatus !== "all" ||
-    dateFilter.type !== "all";
+    !!dateRange.from;
 
   const resetAllFilters = () => {
     setGlobalFilter("");
@@ -499,7 +503,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     setSelectedBuilding("all");
     setSelectedBatch("all");
     setSelectedStatus("all");
-    setDateFilter({ type: "all" });
+    setDateRange({ from: undefined, to: undefined });
   };
 
   return (
@@ -695,79 +699,146 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               </SelectContent>
             </Select>
 
-            {/* Date Filter Selector */}
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
-                    dateFilter.type !== "all" &&
-                      "text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/40",
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {dateFilter.type === "all"
-                      ? "View All Dates"
-                      : dateFilter.type === "today"
-                        ? "Today"
-                        : dateFilter.date
-                          ? format(dateFilter.date, "MMM dd, yyyy")
-                          : "Custom Date"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-110" align="start">
-                <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
-                  <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
-                    <Button
-                      variant={
-                        dateFilter.type === "all" ? "secondary" : "ghost"
-                      }
-                      className="w-full justify-start text-xs h-8 cursor-pointer"
-                      onClick={() => {
-                        setDateFilter({ type: "all" });
-                        setIsDatePickerOpen(false);
-                      }}
-                    >
-                      View All
-                    </Button>
-                    <Button
-                      variant={
-                        dateFilter.type === "today" ? "secondary" : "ghost"
-                      }
-                      className="w-full justify-start text-xs h-8 cursor-pointer"
-                      onClick={() => {
-                        setDateFilter({ type: "today" });
-                        setIsDatePickerOpen(false);
-                      }}
-                    >
-                      Today
-                    </Button>
-                  </div>
-                  <div className="p-2 border-t sm:border-t-0 border-border">
-                    <Calendar
-                      mode="single"
-                      selected={dateFilter.date}
-                      defaultMonth={dateFilter.date}
-                      captionLayout="dropdown"
-                      fromYear={2020}
-                      toYear={new Date().getFullYear() + 1}
-                      onSelect={(date) => {
-                        if (date) {
-                          setDateFilter({ type: "custom", date });
+            {/* Date Filter Selector with Presets & Range */}
+            <div className="flex items-center gap-1">
+              <Popover
+                open={isDatePickerOpen}
+                onOpenChange={setIsDatePickerOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
+                      dateRange.from &&
+                        "text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/40",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="truncate">
+                      {dateRange.from
+                        ? dateRange.to
+                          ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd, yyyy")}`
+                          : format(dateRange.from, "MMM dd, yyyy")
+                        : "Select Date"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-110" align="start">
+                  <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
+                    {/* Quick Presets Side Panel */}
+                    <div className="p-2 space-y-1 flex flex-col sm:w-36 shrink-0 bg-muted/30">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1">
+                        Quick Presets
+                      </span>
+                      <Button
+                        variant={!dateRange.from ? "secondary" : "ghost"}
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({ from: undefined, to: undefined });
                           setIsDatePickerOpen(false);
+                        }}
+                      >
+                        All Dates
+                      </Button>
+                      <Button
+                        variant={
+                          dateRange.from &&
+                          isToday(dateRange.from) &&
+                          dateRange.to &&
+                          isToday(dateRange.to)
+                            ? "secondary"
+                            : "ghost"
                         }
-                      }}
-                      disabled={(date) => date > new Date()}
-                      className="rounded-md border-0"
-                    />
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: startOfDay(new Date()),
+                            to: endOfDay(new Date()),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        Today
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: subDays(new Date(), 14),
+                            to: new Date(),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        Last 14 Days
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: startOfMonth(new Date()),
+                            to: endOfMonth(new Date()),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        This Month
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: startOfYear(new Date()),
+                            to: endOfYear(new Date()),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        This Year
+                      </Button>
+                    </div>
+
+                    {/* Calendar Range Picker */}
+                    <div className="p-2">
+                      <Calendar
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={(range) => {
+                          setDateRange({
+                            from: range?.from,
+                            to: range?.to,
+                          });
+                        }}
+                        captionLayout="dropdown"
+                        startMonth={new Date(2020, 0)}
+                        endMonth={new Date(2030, 11)}
+                        disabled={(date) => date > new Date()}
+                        className="rounded-md border-0"
+                      />
+                    </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+
+              {dateRange.from && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDateRange({ from: undefined, to: undefined });
+                  }}
+                  className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Reset date filter"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
 
             {/* Export 3-Dot Dropdown at right end of filter row */}
             <div className="ml-auto">

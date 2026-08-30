@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { format, isToday } from "date-fns";
+import { format, isToday, startOfDay, endOfDay } from "date-fns";
 import { eggSales } from "@/db/schema";
 import { useState } from "react";
 import {
@@ -136,6 +136,22 @@ export const getColumns = (
   {
     accessorKey: "saleDate",
     header: "Date Delivered",
+    filterFn: (
+      row,
+      columnId,
+      filterValue: { from?: Date; to?: Date } | undefined,
+    ) => {
+      if (!filterValue || !filterValue.from) return true;
+      const cellValue = row.getValue(columnId) as string;
+      if (!cellValue) return false;
+      const rowDate = new Date(cellValue);
+      if (isNaN(rowDate.getTime())) return true;
+      const from = startOfDay(filterValue.from);
+      const to = filterValue.to
+        ? endOfDay(filterValue.to)
+        : endOfDay(filterValue.from);
+      return rowDate >= from && rowDate <= to;
+    },
     cell: ({ row }) => {
       const dateStr = row.getValue("saleDate") as string;
       const isNew = isToday(new Date(dateStr));

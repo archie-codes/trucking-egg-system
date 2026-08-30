@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { format, parseISO, subDays } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -42,7 +43,10 @@ import {
   Bird,
   Activity,
   Boxes,
+  PackageOpen,
+  ExternalLink,
 } from "lucide-react";
+import { getInvoiceTheme } from "../sales/history/invoice-theme";
 
 type EggSale = {
   id: number;
@@ -294,10 +298,10 @@ export function EggDashboardClient({
       dailyNetIncomeTrend: calcTrend(tdPaid, ydPaid),
       dailyGross: tdGross,
       dailyGrossTrend: calcTrend(tdGross, ydGross),
-      dailyEggs: tdTotalTrays * 30,
-      dailyEggsTrend: calcTrend(tdTotalTrays, ydTotalTrays),
-      tdWhiteEggs: tdWhiteTrays * 30,
-      tdBrownEggs: tdBrownTrays * 30,
+      dailyTrays: tdTotalTrays,
+      dailyTraysTrend: calcTrend(tdTotalTrays, ydTotalTrays),
+      tdWhiteTrays,
+      tdBrownTrays,
 
       netIncome: cmPaid, // Collected (This Mo.)
       netIncomeTrend: calcTrend(cmPaid, pmPaid),
@@ -307,14 +311,14 @@ export function EggDashboardClient({
       grossTrend: calcTrend(cmGross, pmGross),
       allTimeGross: allTimeGross, // Overall Gross
 
-      totalEggs: cmTotalTrays * 30, // Actual combined eggs sold (This Mo.)
-      eggsTrend: calcTrend(cmTotalTrays, pmTotalTrays),
-      cmWhiteEggs: cmWhiteTrays * 30,
-      cmBrownEggs: cmBrownTrays * 30,
+      totalTrays: cmTotalTrays, // Actual combined trays sold (This Mo.)
+      traysTrend: calcTrend(cmTotalTrays, pmTotalTrays),
+      cmWhiteTrays,
+      cmBrownTrays,
 
-      allTimeEggs: allTimeTotalTrays * 30, // Overall actual eggs sold
-      allTimeWhiteEggs: allTimeWhiteTrays * 30,
-      allTimeBrownEggs: allTimeBrownTrays * 30,
+      allTimeTrays: allTimeTotalTrays, // Overall actual trays sold
+      allTimeWhiteTrays,
+      allTimeBrownTrays,
 
       activeCustomers: cmCustomers.size,
       totalCustomers: allTimeCustomers.size || 1,
@@ -353,25 +357,74 @@ export function EggDashboardClient({
     return Array.from(map.values());
   }, [sales]);
 
+  // Consolidated Recent Transactions (1 Row Per Invoice / Sale Transaction)
   const recentTransactions = useMemo(() => {
-    return sales.slice(0, 5).map((s) => {
-      let statusStr = "Pending";
-      if (s.paymentStatus === "paid") statusStr = "Paid";
-      else if (s.paymentStatus === "unpaid") statusStr = "Unpaid";
-      else if (s.paymentStatus === "partial") statusStr = "Partial";
+    const map = new Map<
+      string,
+      {
+        id: string;
+        invoiceId: string | null;
+        customer: string;
+        date: string;
+        totalAmount: number;
+        amountPaid: number;
+        totalTrays: number;
+        itemCount: number;
+        classifications: Set<string>;
+      }
+    >();
 
-      const balanceAmount = s.totalAmount - s.amountPaid;
+    sales.forEach((s) => {
+      const key = s.invoiceId || `single_${s.id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          invoiceId: s.invoiceId,
+          customer: s.customerId,
+          date: s.saleDate,
+          totalAmount: 0,
+          amountPaid: 0,
+          totalTrays: 0,
+          itemCount: 0,
+          classifications: new Set<string>(),
+        });
+      }
+      const tx = map.get(key)!;
+      tx.totalAmount += s.totalAmount;
+      tx.amountPaid += s.amountPaid;
+      tx.totalTrays += s.quantityTrays;
+      tx.itemCount += 1;
+      tx.classifications.add(s.classification);
+    });
+
+    const list = Array.from(map.values());
+    // Sort descending by date
+    list.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+
+    return list.slice(0, 5).map((tx) => {
+      const balanceAmount = Math.max(
+        0,
+        Math.round((tx.totalAmount - tx.amountPaid) * 100) / 100,
+      );
+      let statusStr = "Unpaid";
+      if (balanceAmount <= 0.01) statusStr = "Paid";
+      else if (tx.amountPaid > 0) statusStr = "Partial";
 
       return {
-        id: s.id,
-        invoiceStr: s.invoiceId || `INV-${s.id}`,
-        customer: s.customerId,
-        amount: `₱${s.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        formattedPaid: `₱${s.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        id: tx.id,
+        invoiceId: tx.invoiceId,
+        customer: tx.customer,
+        date: tx.date,
+        totalTrays: tx.totalTrays,
+        itemCount: tx.itemCount,
+        sizesCount: tx.classifications.size,
+        amount: `₱${tx.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        formattedPaid: `₱${tx.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         balanceAmount,
         formattedBalance: `₱${balanceAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         status: statusStr,
-        date: s.saleDate,
       };
     });
   }, [sales]);
@@ -467,8 +520,8 @@ export function EggDashboardClient({
       ),
     },
     {
-      key: "allTimeEggs" as const,
-      label: "Overall Eggs Sold",
+      key: "allTimeTrays" as const,
+      label: "Overall Trays Sold",
       isCurrency: false,
       bg: "bg-rose-50/50 dark:bg-[#2d0d1a]/40",
       border: "border-rose-200/40 dark:border-white/5",
@@ -485,11 +538,11 @@ export function EggDashboardClient({
         isTabletIcon?: boolean;
         isDesktopIcon?: boolean;
       }) => {
-        if (isTabletIcon) return <Egg size={size} />;
+        if (isTabletIcon) return <PackageOpen size={size} />;
         return (
           <Image
             src="/3dicon/egg-tray.png"
-            alt="Overall Eggs Sold"
+            alt="Overall Trays Sold"
             width={130}
             height={130}
             className="absolute max-w-none object-contain drop-shadow-xl opacity-90 z-0 pointer-events-none transition-transform hover:scale-110
@@ -500,8 +553,8 @@ export function EggDashboardClient({
       },
       footer: (m: typeof metrics) => (
         <span className="text-slate-500 font-medium">
-          White: {m.allTimeWhiteEggs.toLocaleString()} | Brown:{" "}
-          {m.allTimeBrownEggs.toLocaleString()} pcs
+          White: {m.allTimeWhiteTrays.toLocaleString()} | Brown:{" "}
+          {m.allTimeBrownTrays.toLocaleString()} trays
         </span>
       ),
     },
@@ -535,8 +588,8 @@ export function EggDashboardClient({
       footer: (m: typeof metrics) => renderTrend(m.grossTrend, false),
     },
     {
-      key: "totalEggs" as const,
-      label: "Monthly Eggs Sold",
+      key: "totalTrays" as const,
+      label: "Monthly Trays Sold",
       isCurrency: false,
       bg: "bg-rose-50 dark:bg-[#2d0d1a]",
       border: "border-rose-200/60 dark:border-white/10",
@@ -544,13 +597,13 @@ export function EggDashboardClient({
       accentBg: "bg-rose-600/10 dark:bg-[#ff5c8a]/12",
       amountText: "text-slate-900 dark:text-white",
       glow: "bg-rose-500 dark:bg-[#ff5c8a]",
-      icon: Egg,
+      icon: PackageOpen,
       footer: (m: typeof metrics) => (
         <div className="flex flex-col gap-1.5">
-          {renderTrend(m.eggsTrend, false)}
+          {renderTrend(m.traysTrend, false)}
           <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-            White: {m.cmWhiteEggs.toLocaleString()} | Brown:{" "}
-            {m.cmBrownEggs.toLocaleString()} pcs
+            White: {m.cmWhiteTrays.toLocaleString()} | Brown:{" "}
+            {m.cmBrownTrays.toLocaleString()} trays
           </div>
         </div>
       ),
@@ -587,8 +640,8 @@ export function EggDashboardClient({
         renderTrend(m.dailyGrossTrend, false, "vs yesterday"),
     },
     {
-      key: "dailyEggs" as const,
-      label: "Daily Eggs Sold",
+      key: "dailyTrays" as const,
+      label: "Daily Trays Sold",
       isCurrency: false,
       bg: "bg-rose-50 dark:bg-[#2d0d1a]",
       border: "border-rose-200/60 dark:border-white/10",
@@ -596,13 +649,13 @@ export function EggDashboardClient({
       accentBg: "bg-rose-600/10 dark:bg-[#ff5c8a]/12",
       amountText: "text-slate-900 dark:text-white",
       glow: "bg-rose-500 dark:bg-[#ff5c8a]",
-      icon: Egg,
+      icon: PackageOpen,
       footer: (m: typeof metrics) => (
         <div className="flex flex-col gap-1.5">
-          {renderTrend(m.dailyEggsTrend, false, "vs yesterday")}
+          {renderTrend(m.dailyTraysTrend, false, "vs yesterday")}
           <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-            White: {m.tdWhiteEggs.toLocaleString()} | Brown:{" "}
-            {m.tdBrownEggs.toLocaleString()} pcs
+            White: {m.tdWhiteTrays.toLocaleString()} | Brown:{" "}
+            {m.tdBrownTrays.toLocaleString()} trays
           </div>
         </div>
       ),
@@ -1005,66 +1058,146 @@ export function EggDashboardClient({
         </Card>
 
         <Card className="rounded-lg lg:col-span-4 border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 shadow-sm dark:shadow-none">
-          <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>Latest egg sales records.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-base">Recent Transactions</CardTitle>
+              <CardDescription className="text-xs">
+                Latest sales transactions grouped by invoice.
+              </CardDescription>
+            </div>
+            <Link
+              href="/egg-sales/sales/summary"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              <span>View All</span>
+              <span>&rarr;</span>
+            </Link>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="border-slate-200 dark:border-white/10">
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentTransactions.map((tx) => (
-                  <TableRow
-                    key={tx.id}
-                    className="border-slate-200 dark:border-white/10"
-                  >
-                    <TableCell className="font-medium">
-                      <div className="text-slate-900 dark:text-white">
-                        {tx.customer}
-                      </div>
-                      <div className="text-xs text-slate-500">{tx.date}</div>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          tx.status === "Paid"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-400"
-                            : tx.status === "Partial"
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-400"
-                              : "bg-red-100 text-red-800 dark:bg-red-400/10 dark:text-red-400"
-                        }`}
-                      >
-                        {tx.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-slate-900 dark:text-white">
-                      {tx.balanceAmount > 0 ? (
-                        <div className="text-rose-500 font-bold">
-                          {tx.formattedBalance}
-                        </div>
-                      ) : (
-                        <div className="text-slate-400 dark:text-slate-500 font-normal">
-                          —
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-slate-900 dark:text-white">
-                      <div>{tx.amount}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-                        Paid: {tx.formattedPaid}
-                      </div>
-                    </TableCell>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
+                    <TableHead className="text-xs">
+                      Customer / Invoice
+                    </TableHead>
+                    <TableHead className="text-xs">Volume</TableHead>
+                    <TableHead className="text-xs text-center">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-xs text-right">
+                      Balance
+                    </TableHead>
+                    <TableHead className="text-xs text-right">
+                      Total / Paid
+                    </TableHead>
+                    <TableHead className="text-xs text-center w-10"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {recentTransactions.map((tx) => {
+                    const invoiceTheme = getInvoiceTheme(tx.invoiceId);
+
+                    return (
+                      <TableRow
+                        key={tx.id}
+                        className="border-slate-200 dark:border-white/10 hover:bg-slate-50/80 dark:hover:bg-white/5"
+                      >
+                        <TableCell className="font-medium py-3">
+                          <div className="text-slate-900 dark:text-white font-bold text-xs">
+                            {tx.customer}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {tx.date}
+                            </span>
+                            {tx.invoiceId && (
+                              <span
+                                className={`font-mono text-[10px] font-bold px-1.5 py-0.2 rounded border ${invoiceTheme.badgeBg} ${invoiceTheme.badgeText} ${invoiceTheme.badgeBorder}`}
+                              >
+                                #{tx.invoiceId}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {tx.totalTrays.toLocaleString()}{" "}
+                            <span className="text-[10px] font-normal text-slate-500">
+                              trays
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {tx.sizesCount}{" "}
+                            {tx.sizesCount === 1 ? "size" : "sizes"} (
+                            {tx.itemCount} items)
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center py-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                              tx.status === "Paid"
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-400"
+                                : tx.status === "Partial"
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-400"
+                                  : "bg-rose-100 text-rose-800 dark:bg-rose-400/10 dark:text-rose-400"
+                            }`}
+                          >
+                            {tx.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-medium py-3">
+                          {tx.balanceAmount > 0 ? (
+                            <div className="text-rose-600 dark:text-rose-400 font-mono font-bold text-xs">
+                              {tx.formattedBalance}
+                            </div>
+                          ) : (
+                            <div className="text-slate-400 dark:text-slate-500 font-mono text-xs">
+                              —
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium py-3">
+                          <div className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                            {tx.amount}
+                          </div>
+                          <div className="text-[10px] text-teal-600 dark:text-teal-400 font-mono mt-0.5">
+                            Paid: {tx.formattedPaid}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center py-3 pr-4">
+                          {tx.invoiceId ? (
+                            <Link
+                              href={`/egg-sales/sales/receipt/${tx.invoiceId}?from=summary`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg inline-flex items-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+                              title="View & Print Official Receipt"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Link>
+                          ) : (
+                            <span className="text-slate-300 dark:text-slate-700 text-xs">
+                              —
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {recentTransactions.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="py-8 text-center text-xs text-slate-500"
+                      >
+                        No sales transactions recorded yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

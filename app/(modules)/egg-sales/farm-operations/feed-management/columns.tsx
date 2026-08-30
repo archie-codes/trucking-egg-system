@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -151,6 +151,22 @@ export const columns: ColumnDef<FeedRecordData>[] = [
   {
     accessorKey: "dateGiven",
     header: "Date",
+    filterFn: (
+      row,
+      columnId,
+      filterValue: { from?: Date; to?: Date } | undefined,
+    ) => {
+      if (!filterValue || !filterValue.from) return true;
+      const cellValue = row.getValue(columnId) as string;
+      if (!cellValue) return false;
+      const rowDate = new Date(cellValue);
+      if (isNaN(rowDate.getTime())) return true;
+      const from = startOfDay(filterValue.from);
+      const to = filterValue.to
+        ? endOfDay(filterValue.to)
+        : endOfDay(filterValue.from);
+      return rowDate >= from && rowDate <= to;
+    },
     cell: ({ row }) => {
       const dateStr = row.getValue("dateGiven") as string;
       const date = new Date(dateStr);

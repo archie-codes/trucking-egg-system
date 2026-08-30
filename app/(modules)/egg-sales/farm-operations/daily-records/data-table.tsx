@@ -50,14 +50,23 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import {
+  format,
+  isToday,
+  subDays,
+  startOfDay,
+  endOfDay,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+} from "date-fns";
 import {
   Search,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Download,
   FileText,
   FileSpreadsheet,
   Type,
@@ -89,20 +98,23 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   "use no memo";
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  );
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [textSize, setTextSize] = React.useState<"xs" | "sm" | "base">("xs");
 
   const [selectedFarm, setSelectedFarm] = React.useState<string>("all");
   const [selectedBuilding, setSelectedBuilding] = React.useState<string>("all");
   const [selectedBatch, setSelectedBatch] = React.useState<string>("all");
-  const [dateFilter, setDateFilter] = React.useState<{
-    type: "all" | "today" | "custom";
-    date?: Date;
-  }>({ type: "all" });
+  const [dateRange, setDateRange] = React.useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({ from: undefined, to: undefined });
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
-  const [selectedRecord, setSelectedRecord] = React.useState<DailyRecordData | null>(null);
+  const [selectedRecord, setSelectedRecord] =
+    React.useState<DailyRecordData | null>(null);
 
   // Extract farm options dynamically
   const farmOptions = React.useMemo(() => {
@@ -164,7 +176,9 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const search = String(filterValue || "").trim().toLowerCase();
+      const search = String(filterValue || "")
+        .trim()
+        .toLowerCase();
       if (!search) return true;
 
       const item = row.original as DailyRecordData;
@@ -223,7 +237,10 @@ export function DataTable<TData, TValue>({
 
   // Auto-reset building selection if not valid under current farm
   React.useEffect(() => {
-    if (selectedBuilding !== "all" && !buildingOptions.includes(selectedBuilding)) {
+    if (
+      selectedBuilding !== "all" &&
+      !buildingOptions.includes(selectedBuilding)
+    ) {
       setSelectedBuilding("all");
     }
   }, [selectedFarm, buildingOptions, selectedBuilding]);
@@ -239,16 +256,12 @@ export function DataTable<TData, TValue>({
   React.useEffect(() => {
     const col = table.getColumn("recordDate");
     if (!col) return;
-    if (dateFilter.type === "all") {
-      col.setFilterValue(undefined);
-    } else if (dateFilter.type === "today") {
-      col.setFilterValue(format(new Date(), "yyyy-MM-dd"));
-    } else if (dateFilter.type === "custom" && dateFilter.date) {
-      col.setFilterValue(format(dateFilter.date, "yyyy-MM-dd"));
-    }
-  }, [dateFilter, table]);
+    col.setFilterValue(dateRange.from ? dateRange : undefined);
+  }, [dateRange, table]);
 
-  const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[textSize];
+  const textSizeClass = { xs: "text-xs", sm: "text-sm", base: "text-base" }[
+    textSize
+  ];
 
   const getFormattedDate = () => {
     const d = new Date();
@@ -321,12 +334,15 @@ export function DataTable<TData, TValue>({
 
       const blob = new Blob(
         [metaHeader + "\n" + [headers.join(","), ...csvData].join("\n")],
-        { type: "text/csv;charset=utf-8;" }
+        { type: "text/csv;charset=utf-8;" },
       );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Daily_Records_Export_${getFormattedDate()}.csv`);
+      link.setAttribute(
+        "download",
+        `Daily_Records_Export_${getFormattedDate()}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -371,7 +387,7 @@ export function DataTable<TData, TValue>({
           selectedFarm === "all" ? "All Origin Farms" : selectedFarm
         } | Batch: ${selectedBatch === "all" ? "All Batches" : selectedBatch}`,
         40,
-        62
+        62,
       );
 
       // Summary Cards Box
@@ -388,7 +404,11 @@ export function DataTable<TData, TValue>({
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
       doc.text(`${rows.length} logs`, 55, 110);
-      doc.text(`${totalTrays.toLocaleString()} trays (${totalEggs.toLocaleString()} pcs)`, 260, 110);
+      doc.text(
+        `${totalTrays.toLocaleString()} trays (${totalEggs.toLocaleString()} pcs)`,
+        260,
+        110,
+      );
       doc.text(`${totalMortality.toLocaleString()} birds`, 540, 110);
 
       const tableData = rows.map((r) => {
@@ -451,14 +471,14 @@ export function DataTable<TData, TValue>({
     selectedFarm !== "all" ||
     selectedBuilding !== "all" ||
     selectedBatch !== "all" ||
-    dateFilter.type !== "all";
+    !!dateRange.from;
 
   const resetAllFilters = () => {
     setGlobalFilter("");
     setSelectedFarm("all");
     setSelectedBuilding("all");
     setSelectedBatch("all");
-    setDateFilter({ type: "all" });
+    setDateRange({ from: undefined, to: undefined });
   };
 
   return (
@@ -519,7 +539,7 @@ export function DataTable<TData, TValue>({
                 className={cn(
                   "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[150px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                   selectedFarm !== "all" &&
-                    "text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold bg-emerald-50/40 dark:bg-emerald-950/20"
+                    "text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold bg-emerald-50/40 dark:bg-emerald-950/20",
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -528,11 +548,18 @@ export function DataTable<TData, TValue>({
                 </div>
               </SelectTrigger>
               <SelectContent align="start" className="z-110 w-[200px]">
-                <SelectItem value="all" className="text-xs cursor-pointer font-medium">
+                <SelectItem
+                  value="all"
+                  className="text-xs cursor-pointer font-medium"
+                >
                   All Origin Farms
                 </SelectItem>
                 {farmOptions.map((farm) => (
-                  <SelectItem key={farm} value={farm} className="text-xs cursor-pointer font-bold uppercase">
+                  <SelectItem
+                    key={farm}
+                    value={farm}
+                    className="text-xs cursor-pointer font-bold uppercase"
+                  >
                     {farm}
                   </SelectItem>
                 ))}
@@ -548,7 +575,7 @@ export function DataTable<TData, TValue>({
                 className={cn(
                   "h-8 sm:h-8.5 w-auto min-w-[120px] sm:min-w-[140px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                   selectedBuilding !== "all" &&
-                    "text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold bg-emerald-50/40 dark:bg-emerald-950/20"
+                    "text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold bg-emerald-50/40 dark:bg-emerald-950/20",
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -557,11 +584,18 @@ export function DataTable<TData, TValue>({
                 </div>
               </SelectTrigger>
               <SelectContent align="start" className="z-110 w-[190px]">
-                <SelectItem value="all" className="text-xs cursor-pointer font-medium">
+                <SelectItem
+                  value="all"
+                  className="text-xs cursor-pointer font-medium"
+                >
                   All Buildings
                 </SelectItem>
                 {buildingOptions.map((bldg) => (
-                  <SelectItem key={bldg} value={bldg} className="text-xs cursor-pointer font-bold uppercase">
+                  <SelectItem
+                    key={bldg}
+                    value={bldg}
+                    className="text-xs cursor-pointer font-bold uppercase"
+                  >
                     {bldg}
                   </SelectItem>
                 ))}
@@ -577,7 +611,7 @@ export function DataTable<TData, TValue>({
                 className={cn(
                   "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[150px] justify-start text-left font-semibold rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
                   selectedBatch !== "all" &&
-                    "text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold bg-emerald-50/40 dark:bg-emerald-950/20"
+                    "text-emerald-600 dark:text-emerald-400 border-emerald-500/40 font-bold bg-emerald-50/40 dark:bg-emerald-950/20",
                 )}
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -586,86 +620,164 @@ export function DataTable<TData, TValue>({
                 </div>
               </SelectTrigger>
               <SelectContent align="start" className="z-110 w-[190px]">
-                <SelectItem value="all" className="text-xs cursor-pointer font-medium">
+                <SelectItem
+                  value="all"
+                  className="text-xs cursor-pointer font-medium"
+                >
                   All Flock Batches
                 </SelectItem>
                 {batchOptions.map((batch) => (
-                  <SelectItem key={batch} value={batch} className="text-xs cursor-pointer font-bold">
+                  <SelectItem
+                    key={batch}
+                    value={batch}
+                    className="text-xs cursor-pointer font-bold"
+                  >
                     {batch}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Date Filter Selector */}
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
-                    dateFilter.type !== "all" &&
-                      "text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/40"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {dateFilter.type === "all"
-                      ? "View All Dates"
-                      : dateFilter.type === "today"
-                      ? "Today"
-                      : dateFilter.date
-                      ? format(dateFilter.date, "MMM dd, yyyy")
-                      : "Custom Date"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-110" align="start">
-                <div className="flex flex-col sm:flex-row sm:divide-x divide-border">
-                  <div className="p-2 space-y-1 flex flex-col sm:w-32 shrink-0">
-                    <Button
-                      variant={dateFilter.type === "all" ? "secondary" : "ghost"}
-                      className="w-full justify-start text-xs h-8 cursor-pointer"
-                      onClick={() => {
-                        setDateFilter({ type: "all" });
-                        setIsDatePickerOpen(false);
-                      }}
-                    >
-                      View All
-                    </Button>
-                    <Button
-                      variant={dateFilter.type === "today" ? "secondary" : "ghost"}
-                      className="w-full justify-start text-xs h-8 cursor-pointer"
-                      onClick={() => {
-                        setDateFilter({ type: "today" });
-                        setIsDatePickerOpen(false);
-                      }}
-                    >
-                      Today
-                    </Button>
-                  </div>
-                  <div className="p-2 border-t sm:border-t-0 border-border">
-                    <Calendar
-                      mode="single"
-                      selected={dateFilter.date}
-                      defaultMonth={dateFilter.date}
-                      captionLayout="dropdown"
-                      fromYear={2020}
-                      toYear={new Date().getFullYear() + 1}
-                      onSelect={(date) => {
-                        if (date) {
-                          setDateFilter({ type: "custom", date });
+            {/* Date Filter Selector with Presets & Range */}
+            <div className="flex items-center gap-1">
+              <Popover
+                open={isDatePickerOpen}
+                onOpenChange={setIsDatePickerOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 sm:h-8.5 w-auto min-w-[130px] sm:min-w-[140px] justify-start text-left font-normal rounded-lg border-border/60 bg-background text-[10px] sm:text-xs cursor-pointer px-2.5",
+                      dateRange.from &&
+                        "text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/40",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="truncate">
+                      {dateRange.from
+                        ? dateRange.to
+                          ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd, yyyy")}`
+                          : format(dateRange.from, "MMM dd, yyyy")
+                        : "Select Date"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-110" align="start">
+                  <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
+                    {/* Quick Presets Side Panel */}
+                    <div className="p-2 space-y-1 flex flex-col sm:w-36 shrink-0 bg-muted/30">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1">
+                        Quick Presets
+                      </span>
+                      <Button
+                        variant={!dateRange.from ? "secondary" : "ghost"}
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({ from: undefined, to: undefined });
                           setIsDatePickerOpen(false);
+                        }}
+                      >
+                        All Dates
+                      </Button>
+                      <Button
+                        variant={
+                          dateRange.from &&
+                          isToday(dateRange.from) &&
+                          dateRange.to &&
+                          isToday(dateRange.to)
+                            ? "secondary"
+                            : "ghost"
                         }
-                      }}
-                      disabled={(date) => date > new Date()}
-                      className="rounded-md border-0"
-                    />
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: startOfDay(new Date()),
+                            to: endOfDay(new Date()),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        Today
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: subDays(new Date(), 14),
+                            to: new Date(),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        Last 14 Days
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: startOfMonth(new Date()),
+                            to: endOfMonth(new Date()),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        This Month
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-xs h-8 cursor-pointer"
+                        onClick={() => {
+                          setDateRange({
+                            from: startOfYear(new Date()),
+                            to: endOfYear(new Date()),
+                          });
+                          setIsDatePickerOpen(false);
+                        }}
+                      >
+                        This Year
+                      </Button>
+                    </div>
+
+                    {/* Calendar Range Picker */}
+                    <div className="p-2">
+                      <Calendar
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={(range) => {
+                          setDateRange({
+                            from: range?.from,
+                            to: range?.to,
+                          });
+                        }}
+                        captionLayout="dropdown"
+                        startMonth={new Date(2020, 0)}
+                        endMonth={new Date(2030, 11)}
+                        disabled={(date) => date > new Date()}
+                        className="rounded-md border-0"
+                      />
+                    </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
+
+              {dateRange.from && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDateRange({ from: undefined, to: undefined });
+                  }}
+                  className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Reset date filter"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
 
             {/* Export 3-Dot Dropdown at right end of filter row */}
             <div className="ml-auto">
@@ -693,7 +805,9 @@ export function DataTable<TData, TValue>({
                       <FileText className="h-3.5 w-3.5 text-rose-500" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-medium leading-none">Save as PDF</p>
+                      <p className="text-[13px] font-medium leading-none">
+                        Save as PDF
+                      </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         Printable production log
                       </p>
@@ -708,7 +822,9 @@ export function DataTable<TData, TValue>({
                       <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-medium leading-none">Export to CSV</p>
+                      <p className="text-[13px] font-medium leading-none">
+                        Export to CSV
+                      </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         Open in Excel or Sheets
                       </p>
@@ -754,14 +870,14 @@ export function DataTable<TData, TValue>({
                       key={header.id}
                       className={cn(
                         textSizeClass,
-                        "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap"
+                        "h-9 py-0 font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap",
                       )}
                     >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   ))}
@@ -774,19 +890,24 @@ export function DataTable<TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    onClick={() => setSelectedRecord(row.original as DailyRecordData)}
+                    onClick={() =>
+                      setSelectedRecord(row.original as DailyRecordData)
+                    }
                     className={cn(
                       "animate-in fade-in-0 slide-in-from-bottom-2 duration-500",
                       "group/row border-b border-border/40 transition-all duration-300 cursor-pointer relative",
                       "hover:shadow-xs hover:z-20 hover:ring-1 hover:ring-emerald-400 dark:hover:ring-emerald-600",
                       i % 2 === 0
                         ? "bg-card hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30"
-                        : "bg-muted/40 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30"
+                        : "bg-muted/40 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30",
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-2.5">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -813,7 +934,10 @@ export function DataTable<TData, TValue>({
               <span className="font-medium text-foreground">
                 {table.getRowModel().rows.length}
               </span>{" "}
-              of <span className="font-medium text-foreground">{filteredCount}</span>{" "}
+              of{" "}
+              <span className="font-medium text-foreground">
+                {filteredCount}
+              </span>{" "}
               record{filteredCount !== 1 ? "s" : ""}
               {pageCount > 1 && (
                 <span className="text-muted-foreground/60">
@@ -835,7 +959,7 @@ export function DataTable<TData, TValue>({
                       "px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer",
                       textSize === size
                         ? "bg-emerald-600 text-white"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
                     )}
                   >
                     {size === "xs" ? "S" : size === "sm" ? "M" : "L"}
@@ -854,7 +978,11 @@ export function DataTable<TData, TValue>({
               </SelectTrigger>
               <SelectContent className="z-110">
                 {[5, 10, 20, 30, 50, 100].map((n) => (
-                  <SelectItem key={n} value={`${n}`} className="text-xs cursor-pointer">
+                  <SelectItem
+                    key={n}
+                    value={`${n}`}
+                    className="text-xs cursor-pointer"
+                  >
                     {n} rows
                   </SelectItem>
                 ))}
@@ -903,7 +1031,7 @@ export function DataTable<TData, TValue>({
                       "w-7 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer",
                       isActive
                         ? "bg-emerald-600 text-white"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     {page + 1}
@@ -943,7 +1071,10 @@ export function DataTable<TData, TValue>({
           if (!open) setSelectedRecord(null);
         }}
       >
-        <DialogContent showCloseButton={false} className="max-w-lg rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+        <DialogContent
+          showCloseButton={false}
+          className="max-w-lg rounded-2xl p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+        >
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -956,7 +1087,10 @@ export function DataTable<TData, TValue>({
                   </DialogTitle>
                   <DialogDescription className="text-xs text-slate-500">
                     {selectedRecord?.recordDate
-                      ? format(new Date(selectedRecord.recordDate), "MMMM dd, yyyy")
+                      ? format(
+                          new Date(selectedRecord.recordDate),
+                          "MMMM dd, yyyy",
+                        )
                       : ""}
                   </DialogDescription>
                 </div>
@@ -981,7 +1115,12 @@ export function DataTable<TData, TValue>({
                     {(selectedRecord.quantityTrays || 0).toLocaleString()} trays
                   </span>
                   <span className="text-[11px] font-medium text-slate-500 block mt-0.5">
-                    ({((selectedRecord.quantityTrays || 0) * 30 + (selectedRecord.quantityPieces || 0)).toLocaleString()} total eggs)
+                    (
+                    {(
+                      (selectedRecord.quantityTrays || 0) * 30 +
+                      (selectedRecord.quantityPieces || 0)
+                    ).toLocaleString()}{" "}
+                    total eggs)
                   </span>
                 </div>
 
@@ -990,10 +1129,13 @@ export function DataTable<TData, TValue>({
                     Mortality / Losses
                   </span>
                   <span className="text-base font-bold text-rose-700 dark:text-rose-300 block">
-                    {(selectedRecord.mortalityCount || 0).toLocaleString()} birds
+                    {(selectedRecord.mortalityCount || 0).toLocaleString()}{" "}
+                    birds
                   </span>
                   <span className="text-[11px] font-medium text-slate-500 block mt-0.5">
-                    {selectedRecord.mortalityCount > 0 ? "Losses recorded" : "No losses recorded"}
+                    {selectedRecord.mortalityCount > 0
+                      ? "Losses recorded"
+                      : "No losses recorded"}
                   </span>
                 </div>
               </div>
@@ -1001,45 +1143,59 @@ export function DataTable<TData, TValue>({
               {/* Comprehensive Details Card */}
               <div className="bg-slate-50 dark:bg-slate-950/40 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs space-y-2.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Farm Origin:</span>
+                  <span className="text-slate-500 font-medium">
+                    Farm Origin:
+                  </span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
                     {selectedRecord.flock?.farmName || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Building Name:</span>
+                  <span className="text-slate-500 font-medium">
+                    Building Name:
+                  </span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
                     {selectedRecord.flock?.buildingName || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Batch Name:</span>
+                  <span className="text-slate-500 font-medium">
+                    Batch Name:
+                  </span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {selectedRecord.flock?.batchName || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Trays Collected:</span>
+                  <span className="text-slate-500 font-medium">
+                    Trays Collected:
+                  </span>
                   <span className="font-medium text-slate-700 dark:text-slate-300">
                     {(selectedRecord.quantityTrays || 0).toLocaleString()} trays
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Loose Eggs (Pcs):</span>
+                  <span className="text-slate-500 font-medium">
+                    Loose Eggs (Pcs):
+                  </span>
                   <span className="font-medium text-slate-700 dark:text-slate-300">
                     {(selectedRecord.quantityPieces || 0).toLocaleString()} pcs
                   </span>
                 </div>
                 {selectedRecord.remarks && (
                   <div className="flex justify-between items-start pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <span className="text-slate-500 font-medium shrink-0 mr-2">Remarks:</span>
+                    <span className="text-slate-500 font-medium shrink-0 mr-2">
+                      Remarks:
+                    </span>
                     <span className="font-normal text-slate-700 dark:text-slate-300 text-right">
                       {selectedRecord.remarks}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <span className="text-slate-500 font-medium">Recorded By:</span>
+                  <span className="text-slate-500 font-medium">
+                    Recorded By:
+                  </span>
                   <Badge
                     variant="secondary"
                     className="font-medium text-xs gap-1 py-0.5 px-2"
